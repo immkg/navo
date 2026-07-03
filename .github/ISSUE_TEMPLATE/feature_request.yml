@@ -1,0 +1,32 @@
+name: Feature Request
+description: Suggest a new feature.
+title: "[Feature]: "
+labels:
+  - enhancement
+
+body:
+  - type: textarea
+    id: problem
+    attributes:
+    label: Problem
+    description: What problem are you trying to solve?
+    validations:
+    required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+    label: Proposed solution
+    validations:
+    required: true
+
+  - type: textarea
+    id: philosophy
+    attributes:
+    label: Alignment with Navo
+    description: Explain how this proposal aligns with the Vision, Mental Model, or Design Principles.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+    label: Alternatives considered

@@ -1,0 +1,22 @@
+name: Documentation
+description: Suggest improvements to documentation.
+title: "[Docs]: "
+labels:
+  - documentation
+
+body:
+  - type: textarea
+    id: section
+    attributes:
+    label: Documentation
+    description: Which document needs improvement?
+
+  - type: textarea
+    id: issue
+    attributes:
+    label: Suggested change
+
+  - type: textarea
+    id: reason
+    attributes:
+    label: Why is this change useful?

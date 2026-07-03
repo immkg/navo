@@ -1,0 +1,33 @@
+name: Concept Proposal
+description: Propose a change to Navo's core concepts or philosophy.
+title: "[Concept]: "
+labels:
+  - design
+  - discussion
+
+body:
+  - type: textarea
+    id: concept
+    attributes:
+    label: Concept
+    description: Describe the idea clearly.
+    validations:
+    required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+    label: Motivation
+    description: Why should this concept exist?
+
+  - type: textarea
+    id: impact
+    attributes:
+    label: Impact
+    description: Which documents or specifications would be affected?
+
+  - type: textarea
+    id: examples
+    attributes:
+    label: Examples
+    description: Describe real-world examples or use cases.

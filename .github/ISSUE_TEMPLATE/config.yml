@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+
+contact_links:
+
+- name: Discussions
+  url: https://github.com/immkg/navo/discussions
+  about: Ask questions, discuss ideas, or share feedback.
+
