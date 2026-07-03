@@ -1,5 +1,5 @@
 name: Feature Request
-description: Suggest a new feature.
+description: Suggest a new feature or capability for Navo.
 title: "[Feature]: "
 labels:
   - enhancement
@@ -8,25 +8,40 @@ body:
   - type: textarea
     id: problem
     attributes:
-    label: Problem
-    description: What problem are you trying to solve?
+      label: Problem
+      description: What problem are you trying to solve?
+      placeholder: Describe the problem or pain point...
     validations:
-    required: true
+      required: true
 
   - type: textarea
     id: proposal
     attributes:
-    label: Proposed solution
+      label: Proposed solution
+      description: Describe your proposed solution.
+      placeholder: Explain how your idea would solve the problem...
     validations:
-    required: true
+      required: true
 
   - type: textarea
-    id: philosophy
+    id: alignment
     attributes:
-    label: Alignment with Navo
-    description: Explain how this proposal aligns with the Vision, Mental Model, or Design Principles.
+      label: Alignment with Navo
+      description: Explain how this proposal aligns with the project's Vision, Mental Model, or Design Principles.
+      placeholder: Reference the relevant documents or principles.
+    validations:
+      required: true
 
   - type: textarea
     id: alternatives
     attributes:
-    label: Alternatives considered
+      label: Alternatives considered
+      description: Describe any alternative solutions or approaches you considered.
+      placeholder: What other options did you evaluate?
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples or use cases
+      description: Provide real-world examples where this feature would be valuable.
+      placeholder: Describe one or more scenarios where this feature would help.

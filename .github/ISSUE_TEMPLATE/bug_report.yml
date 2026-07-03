@@ -8,26 +8,42 @@ body:
   - type: textarea
     id: description
     attributes:
-    label: What happened?
+      label: What happened?
+      description: Describe the bug and what you observed.
+      placeholder: Tell us what happened...
     validations:
-    required: true
+      required: true
 
   - type: textarea
     id: expected
     attributes:
-    label: What did you expect?
+      label: What did you expect?
+      description: Describe the expected behavior.
+      placeholder: Tell us what you expected...
 
   - type: textarea
     id: steps
     attributes:
-    label: Steps to reproduce
+      label: Steps to reproduce
+      description: List the steps required to reproduce the issue.
+      placeholder: |
+        1. Go to...
+        2. Click...
+        3. Observe...
 
   - type: textarea
     id: environment
     attributes:
-    label: Environment
+      label: Environment
+      description: Provide information about your environment.
+      placeholder: |
+        OS:
+        Browser:
+        Version:
+        Commit:
 
   - type: textarea
     id: additional
     attributes:
-    label: Additional context
+      label: Additional context
+      description: Add any other relevant information, screenshots, or logs.

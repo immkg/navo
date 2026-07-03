@@ -1,5 +1,5 @@
 name: Documentation
-description: Suggest improvements to documentation.
+description: Suggest improvements to Navo's documentation.
 title: "[Docs]: "
 labels:
   - documentation
@@ -8,15 +8,29 @@ body:
   - type: textarea
     id: section
     attributes:
-    label: Documentation
-    description: Which document needs improvement?
+      label: Documentation
+      description: Which document or section needs improvement?
+      placeholder: |
+        Examples:
+        - README.md
+        - VISION.md
+        - docs/concepts/intent.md
+        - docs/specifications/planner.md
+    validations:
+      required: true
 
   - type: textarea
     id: issue
     attributes:
-    label: Suggested change
+      label: Suggested change
+      description: Describe the documentation improvement you would like to see.
+      placeholder: Explain what should be added, removed, or clarified.
+    validations:
+      required: true
 
   - type: textarea
     id: reason
     attributes:
-    label: Why is this change useful?
+      label: Why is this change useful?
+      description: Explain how this improves the documentation for users or contributors.
+      placeholder: This change will make it easier to...
