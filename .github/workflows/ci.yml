@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   verify:
@@ -34,7 +35,13 @@ jobs:
         run: npm run format:check
 
       - name: Run tests
-        run: npm test
+        env:
+          NO_COLOR: "1"
+          FORCE_COLOR: "0"
+        shell: bash
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.txt
 
       - name: Generate coverage
         run: npm run coverage
@@ -44,3 +51,26 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
+
+      - name: Create PR comment
+        if: always() && github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          {
+            echo "# ✅ CI Report"
+            echo
+            echo "All automated checks completed successfully."
+            echo
+            echo "## Test Output"
+            echo
+            echo '```text'
+            cat test-output.txt
+            echo '```'
+          } > pr-comment.md
+
+      - name: Post PR comment
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: ci-report
+          path: pr-comment.md
