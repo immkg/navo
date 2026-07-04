@@ -35,6 +35,9 @@ jobs:
         run: npm run format:check
 
       - name: Run tests
+        env:
+          NO_COLOR: "1"
+          FORCE_COLOR: "0"
         shell: bash
         run: |
           set -o pipefail
