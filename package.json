@@ -1,0 +1,34 @@
+{
+  "name": "navo",
+  "version": "1.0.0",
+  "description": "<p align=\"center\">   <img src=\"docs/navo-hero.png\" alt=\"Navo Hero\" width=\"100%\" /> </p>",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=api\" \"npm run dev --workspace=web\"",
+    "dev:web": "npm run dev --workspace=web",
+    "dev:api": "npm run dev --workspace=api"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/immkg/navo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/immkg/navo/issues"
+  },
+  "homepage": "https://github.com/immkg/navo#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
