@@ -20,12 +20,12 @@ No view owns information.
 
 ### Benefits
 
-* Consistent behavior.
-* Reduced duplication.
-* Simpler synchronization.
-* Easier extensibility.
+- Consistent behavior.
+- Reduced duplication.
+- Simpler synchronization.
+- Easier extensibility.
 
 ### Trade-offs
 
-* Views become more sophisticated.
-* The core domain model must remain stable.
+- Views become more sophisticated.
+- The core domain model must remain stable.

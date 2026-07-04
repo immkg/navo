@@ -14,10 +14,10 @@ It describes **what someone wants to achieve**, not how it will be achieved.
 
 Examples:
 
-* Buy groceries
-* Plan a vacation
-* Organize a wedding
-* Prepare for an interview
+- Buy groceries
+- Plan a vacation
+- Organize a wedding
+- Prepare for an interview
 
 An intent may evolve into many pieces of work.
 
@@ -31,14 +31,14 @@ Work is the fundamental unit of execution.
 
 Examples include:
 
-* Task
-* Decision
-* Research
-* Approval
-* Purchase
-* Meeting
-* Reminder
-* Review
+- Task
+- Decision
+- Research
+- Approval
+- Purchase
+- Meeting
+- Reminder
+- Review
 
 Every task is work, but not all work is a task.
 
@@ -50,9 +50,9 @@ A task is work that has a clear action.
 
 Examples:
 
-* Call the venue
-* Book the hotel
-* Buy milk
+- Call the venue
+- Book the hotel
+- Buy milk
 
 Tasks are one type of work.
 
@@ -64,9 +64,9 @@ A decision is work that requires choosing between alternatives.
 
 Examples:
 
-* Choose a venue
-* Select a laptop
-* Decide the travel route
+- Choose a venue
+- Select a laptop
+- Decide the travel route
 
 A decision often creates new work.
 
@@ -78,14 +78,14 @@ Context describes the environment in which work happens.
 
 Examples include:
 
-* Time
-* Location
-* People
-* Resources
-* Constraints
-* Opportunities
-* Energy
-* Priority
+- Time
+- Location
+- People
+- Resources
+- Constraints
+- Opportunities
+- Energy
+- Priority
 
 Context influences planning but does not define the work itself.
 
@@ -143,9 +143,9 @@ An opportunity is work that becomes easier or more valuable because of the curre
 
 Examples:
 
-* Buy groceries while already near the market.
-* Print documents while passing a print shop.
-* Visit multiple nearby locations in one trip.
+- Buy groceries while already near the market.
+- Print documents while passing a print shop.
+- Visit multiple nearby locations in one trip.
 
 Opportunities are discovered dynamically.
 
@@ -157,9 +157,9 @@ A location is a place where work may happen.
 
 Work can support:
 
-* One location
-* Multiple possible locations
-* No physical location
+- One location
+- Multiple possible locations
+- No physical location
 
 ---
 
@@ -189,12 +189,12 @@ A view is a way of presenting the same underlying information.
 
 Examples include:
 
-* Daily Planner
-* Timeline
-* Calendar
-* Map
-* Kanban
-* Graph
-* List
+- Daily Planner
+- Timeline
+- Calendar
+- Map
+- Kanban
+- Graph
+- List
 
 Changing the view never changes the underlying model.

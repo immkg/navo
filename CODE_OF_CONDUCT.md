@@ -8,22 +8,22 @@ We are committed to making participation in Navo welcoming, respectful, and cons
 
 Please:
 
-* Be respectful.
-* Assume good intent.
-* Provide constructive feedback.
-* Welcome different perspectives.
-* Focus discussions on ideas rather than individuals.
-* Help create a positive learning environment.
+- Be respectful.
+- Assume good intent.
+- Provide constructive feedback.
+- Welcome different perspectives.
+- Focus discussions on ideas rather than individuals.
+- Help create a positive learning environment.
 
 ## Unacceptable Behavior
 
 Examples include:
 
-* Harassment or discrimination
-* Personal attacks
-* Trolling or inflammatory comments
-* Spam or intentionally disruptive behavior
-* Sharing private information without permission
+- Harassment or discrimination
+- Personal attacks
+- Trolling or inflammatory comments
+- Spam or intentionally disruptive behavior
+- Sharing private information without permission
 
 ## Enforcement
 

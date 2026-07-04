@@ -8,11 +8,11 @@ Navo is an open source project focused on building an intent-first planning syst
 
 Please read the following documents before contributing:
 
-* `VISION.md`
-* `MENTAL_MODEL.md`
-* `DESIGN_PRINCIPLES.md`
-* `ARCHITECTURE.md`
-* `GLOSSARY.md`
+- `VISION.md`
+- `MENTAL_MODEL.md`
+- `DESIGN_PRINCIPLES.md`
+- `ARCHITECTURE.md`
+- `GLOSSARY.md`
 
 These documents define the philosophy and terminology of the project.
 
@@ -20,13 +20,13 @@ These documents define the philosophy and terminology of the project.
 
 You can contribute by:
 
-* Improving documentation
-* Reporting bugs
-* Suggesting new ideas
-* Improving user experience
-* Writing tests
-* Implementing features
-* Reviewing pull requests
+- Improving documentation
+- Reporting bugs
+- Suggesting new ideas
+- Improving user experience
+- Writing tests
+- Implementing features
+- Reviewing pull requests
 
 ## Development Principles
 
@@ -34,10 +34,10 @@ Every contribution should follow the project's design principles.
 
 Before implementing a feature, ask:
 
-* Does it align with the Vision?
-* Does it follow the Design Principles?
-* Does it fit the Mental Model?
-* Does it introduce unnecessary complexity?
+- Does it align with the Vision?
+- Does it follow the Design Principles?
+- Does it fit the Mental Model?
+- Does it introduce unnecessary complexity?
 
 If the answer is uncertain, start a discussion before writing code.
 
@@ -49,11 +49,11 @@ A pull request should solve one problem well rather than several problems at onc
 
 Include:
 
-* A clear description
-* Motivation
-* Design decisions
-* Screenshots when applicable
-* Documentation updates if behavior changes
+- A clear description
+- Motivation
+- Design decisions
+- Screenshots when applicable
+- Documentation updates if behavior changes
 
 ## Coding Standards
 
@@ -61,10 +61,10 @@ As the project evolves, coding standards will be documented separately.
 
 Until then:
 
-* Prefer readability over cleverness.
-* Write self-explanatory code.
-* Keep functions focused.
-* Add comments only when necessary to explain intent.
+- Prefer readability over cleverness.
+- Write self-explanatory code.
+- Keep functions focused.
+- Add comments only when necessary to explain intent.
 
 ## Design Discussions
 

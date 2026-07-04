@@ -49,10 +49,10 @@ Represents an outcome someone wants to achieve.
 
 Examples
 
-* Plan a vacation
-* Organize a wedding
-* Buy groceries
-* Prepare for interviews
+- Plan a vacation
+- Organize a wedding
+- Buy groceries
+- Prepare for interviews
 
 Intent answers:
 
@@ -66,13 +66,13 @@ Represents anything that moves an intent forward.
 
 Examples
 
-* Task
-* Decision
-* Meeting
-* Approval
-* Reminder
-* Research
-* Purchase
+- Task
+- Decision
+- Meeting
+- Approval
+- Reminder
+- Research
+- Purchase
 
 Work answers:
 
@@ -86,14 +86,14 @@ Represents everything that influences work.
 
 Examples
 
-* Time
-* Place
-* People
-* Resources
-* Constraints
-* Priority
-* Energy
-* Budget
+- Time
+- Place
+- People
+- Resources
+- Constraints
+- Priority
+- Energy
+- Budget
 
 Context answers:
 
