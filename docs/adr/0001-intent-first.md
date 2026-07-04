@@ -22,12 +22,12 @@ Tasks are therefore one representation of work rather than the foundation of the
 
 ### Benefits
 
-* Models real-world thinking.
-* Allows planning to evolve naturally.
-* Supports multiple execution strategies.
-* Separates goals from implementation.
+- Models real-world thinking.
+- Allows planning to evolve naturally.
+- Supports multiple execution strategies.
+- Separates goals from implementation.
 
 ### Trade-offs
 
-* More complex than task-based systems.
-* Requires stronger relationships between domain objects.
+- More complex than task-based systems.
+- Requires stronger relationships between domain objects.

@@ -22,12 +22,12 @@ A work item may participate in multiple relationships simultaneously.
 
 ### Benefits
 
-* Supports shared dependencies.
-* Enables richer planning.
-* Better represents real-world workflows.
-* Avoids duplicated work.
+- Supports shared dependencies.
+- Enables richer planning.
+- Better represents real-world workflows.
+- Avoids duplicated work.
 
 ### Trade-offs
 
-* Requires graph-aware algorithms.
-* Visualization becomes more complex.
+- Requires graph-aware algorithms.
+- Visualization becomes more complex.

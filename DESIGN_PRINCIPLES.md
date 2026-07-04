@@ -34,14 +34,14 @@ Every decision depends on context.
 
 Context includes, but is not limited to:
 
-* Time
-* Location
-* People
-* Resources
-* Constraints
-* Opportunities
-* Energy
-* Priority
+- Time
+- Location
+- People
+- Resources
+- Constraints
+- Opportunities
+- Energy
+- Priority
 
 The same work may have different optimal paths under different contexts.
 
@@ -89,9 +89,9 @@ The interface should use language that matches how people naturally think.
 
 Users should create intentions like:
 
-* Buy groceries
-* Plan a vacation
-* Prepare for interview
+- Buy groceries
+- Plan a vacation
+- Prepare for interview
 
 They should not be forced to think in software concepts such as tickets, cards, records, or objects.
 
@@ -117,14 +117,14 @@ Different views exist to answer different questions.
 
 Examples include:
 
-* Intent view
-* Daily planner
-* Timeline
-* Route
-* Calendar
-* Kanban
-* Graph
-* Map
+- Intent view
+- Daily planner
+- Timeline
+- Route
+- Calendar
+- Kanban
+- Graph
+- Map
 
 Changing the view should never change the underlying work.
 

@@ -12,31 +12,31 @@ It is the highest-level object in Navo and answers one question:
 
 An Intent:
 
-* defines an outcome
-* groups related work
-* tracks overall progress
-* remains stable as work changes
+- defines an outcome
+- groups related work
+- tracks overall progress
+- remains stable as work changes
 
 ## Rules
 
-* An Intent may contain zero or more Work Items.
-* An Intent may depend on other Intents.
-* An Intent may be collaborative.
-* An Intent does not define execution order.
-* An Intent does not define a schedule.
+- An Intent may contain zero or more Work Items.
+- An Intent may depend on other Intents.
+- An Intent may be collaborative.
+- An Intent does not define execution order.
+- An Intent does not define a schedule.
 
 ## Relationships
 
 Intent
 
-* contains Work Items
-* may reference other Intents
-* may have participants
-* may have context
+- contains Work Items
+- may reference other Intents
+- may have participants
+- may have context
 
 ## Examples
 
-* Plan a vacation
-* Organize a wedding
-* Buy groceries
-* Prepare for interviews
+- Plan a vacation
+- Organize a wedding
+- Buy groceries
+- Prepare for interviews

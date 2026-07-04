@@ -16,10 +16,10 @@ An intent is simply something you want to accomplish.
 
 Examples:
 
-* Buy groceries
-* Plan a vacation
-* Organize a wedding
-* Prepare for interviews
+- Buy groceries
+- Plan a vacation
+- Organize a wedding
+- Prepare for interviews
 
 An intent does not require a plan.
 
@@ -47,9 +47,9 @@ The same work can be performed differently depending on context.
 
 Examples:
 
-* Buy groceries near home.
-* Buy groceries while returning from work.
-* Buy groceries during the weekly market.
+- Buy groceries near home.
+- Buy groceries while returning from work.
+- Buy groceries during the weekly market.
 
 The work is identical.
 
@@ -95,11 +95,11 @@ It changes the world.
 
 Execution may:
 
-* Complete an intention.
-* Create new work.
-* Remove dependencies.
-* Change priorities.
-* Reveal new opportunities.
+- Complete an intention.
+- Create new work.
+- Remove dependencies.
+- Change priorities.
+- Reveal new opportunities.
 
 Planning therefore never truly ends.
 

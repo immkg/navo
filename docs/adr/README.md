@@ -10,11 +10,11 @@ Each ADR is intended to remain stable over time. If a decision changes, a new AD
 
 Each ADR contains:
 
-* Title
-* Status
-* Context
-* Decision
-* Consequences
+- Title
+- Status
+- Context
+- Decision
+- Consequences
 
 ## Naming
 
@@ -22,8 +22,8 @@ ADRs use sequential numbering.
 
 Examples:
 
-* `0001-intent-first.md`
-* `0002-work-is-a-graph.md`
-* `0003-planning-and-scheduling.md`
+- `0001-intent-first.md`
+- `0002-work-is-a-graph.md`
+- `0003-planning-and-scheduling.md`
 
 Numbers never change after publication.
