@@ -10,22 +10,22 @@ Unlike scheduling, routing optimizes execution.
 
 Routing may optimize for:
 
-* distance
-* time
-* dependencies
-* cost
-* effort
-* priority
-* opportunities
+- distance
+- time
+- dependencies
+- cost
+- effort
+- priority
+- opportunities
 
 ## Rules
 
 Routes are:
 
-* dynamic
-* context-aware
-* explainable
-* continuously recomputed
+- dynamic
+- context-aware
+- explainable
+- continuously recomputed
 
 Multiple valid routes may exist for the same intention.
 

@@ -12,10 +12,10 @@ Instead, report it privately by email.
 
 Please include:
 
-* A description of the issue
-* Steps to reproduce
-* Potential impact
-* Suggested mitigation, if available
+- A description of the issue
+- Steps to reproduce
+- Potential impact
+- Suggested mitigation, if available
 
 We will acknowledge reports as soon as possible and work toward a responsible resolution.
 

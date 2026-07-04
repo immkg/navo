@@ -20,11 +20,11 @@ Their responsibility is to present information in a way that best answers a user
 
 ### Benefits
 
-* Consistent user experience.
-* Easy introduction of new views.
-* Simplified architecture.
+- Consistent user experience.
+- Easy introduction of new views.
+- Simplified architecture.
 
 ### Trade-offs
 
-* More responsibility in the domain layer.
-* Projection logic becomes increasingly important.
+- More responsibility in the domain layer.
+- Projection logic becomes increasingly important.

@@ -8,23 +8,23 @@ Views never own data.
 
 ## Available Views
 
-* Intent
-* Daily Planner
-* Timeline
-* Calendar
-* Kanban
-* List
-* Map
-* Graph
+- Intent
+- Daily Planner
+- Timeline
+- Calendar
+- Kanban
+- List
+- Map
+- Graph
 
 ## Rules
 
 Every View:
 
-* reads from the same underlying model
-* preserves relationships
-* supports interaction
-* never duplicates information
+- reads from the same underlying model
+- preserves relationships
+- supports interaction
+- never duplicates information
 
 Changing a View never changes the underlying data model.
 

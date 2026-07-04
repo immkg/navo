@@ -6,14 +6,14 @@ Unlike traditional task managers, Navo does not assume that all work is a task.
 
 Examples of work include:
 
-* Complete a task
-* Make a decision
-* Conduct research
-* Attend a meeting
-* Purchase an item
-* Review a document
-* Approve a request
-* Wait for someone else
+- Complete a task
+- Make a decision
+- Conduct research
+- Attend a meeting
+- Purchase an item
+- Review a document
+- Approve a request
+- Wait for someone else
 
 Work is the fundamental unit of execution.
 
@@ -23,12 +23,12 @@ Every piece of work exists because it contributes toward one or more intentions.
 
 Work may:
 
-* depend on other work
-* create new work
-* involve multiple people
-* happen at one or many locations
-* be optional or required
-* change over time
+- depend on other work
+- create new work
+- involve multiple people
+- happen at one or many locations
+- be optional or required
+- change over time
 
 Work is connected.
 

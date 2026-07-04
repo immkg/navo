@@ -8,31 +8,31 @@ Its responsibility is to recommend, not control.
 
 ## Inputs
 
-* Intentions
-* Work Items
-* Context
-* Schedule
-* Dependencies
-* Preferences
+- Intentions
+- Work Items
+- Context
+- Schedule
+- Dependencies
+- Preferences
 
 ## Outputs
 
 The Planner produces:
 
-* suggested work
-* execution order
-* grouped work
-* deferred work
-* planning recommendations
+- suggested work
+- execution order
+- grouped work
+- deferred work
+- planning recommendations
 
 ## Rules
 
 The Planner:
 
-* continuously adapts
-* explains recommendations
-* respects user decisions
-* never modifies work automatically
+- continuously adapts
+- explains recommendations
+- respects user decisions
+- never modifies work automatically
 
 ## Goal
 

@@ -8,9 +8,9 @@ The format is based on **Keep a Changelog** and follows **Semantic Versioning**.
 
 ### Added
 
-* Initial project structure
-* Vision and philosophy documentation
-* Architecture documentation
-* Concept documentation
-* Specification documentation
-* Repository governance documents
+- Initial project structure
+- Vision and philosophy documentation
+- Architecture documentation
+- Concept documentation
+- Specification documentation
+- Repository governance documents

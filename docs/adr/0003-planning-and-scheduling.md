@@ -22,11 +22,11 @@ Scheduling becomes one input into planning rather than defining the plan itself.
 
 ### Benefits
 
-* More flexible planning.
-* Better support for dynamic work.
-* Easier adaptation to changing priorities.
+- More flexible planning.
+- Better support for dynamic work.
+- Easier adaptation to changing priorities.
 
 ### Trade-offs
 
-* Requires users to understand two concepts.
-* Increases the sophistication of the planning model.
+- Requires users to understand two concepts.
+- Increases the sophistication of the planning model.

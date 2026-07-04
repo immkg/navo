@@ -20,11 +20,11 @@ It does not describe how something will be completed.
 
 Examples:
 
-* Buy groceries
-* Plan a vacation
-* Organize a wedding
-* Prepare for interviews
-* Learn Spanish
+- Buy groceries
+- Plan a vacation
+- Organize a wedding
+- Prepare for interviews
+- Learn Spanish
 
 Each represents an outcome rather than a predefined sequence of actions.
 
@@ -38,11 +38,11 @@ They begin with an idea.
 
 As work progresses they discover:
 
-* what needs to be done
-* where it can happen
-* who should participate
-* which decisions must be made
-* what new work appears
+- what needs to be done
+- where it can happen
+- who should participate
+- which decisions must be made
+- what new work appears
 
 Navo allows an intent to evolve naturally instead of requiring everything to be planned upfront.
 
@@ -89,11 +89,11 @@ There is no single correct plan.
 
 Different routes may optimize for:
 
-* time
-* cost
-* convenience
-* location
-* personal preference
+- time
+- cost
+- convenience
+- location
+- personal preference
 
 Navo does not prescribe a path.
 
@@ -115,17 +115,17 @@ Progress and completion are different concepts.
 
 An intent should:
 
-* describe an outcome
-* remain understandable without implementation details
-* survive changes to the underlying work
-* support collaboration
-* support multiple planning strategies
-* evolve over time
+- describe an outcome
+- remain understandable without implementation details
+- survive changes to the underlying work
+- support collaboration
+- support multiple planning strategies
+- evolve over time
 
 An intent should not:
 
-* become a checklist
-* contain scheduling information
-* define execution order
-* assume a single owner
-* prescribe a single solution
+- become a checklist
+- contain scheduling information
+- define execution order
+- assume a single owner
+- prescribe a single solution

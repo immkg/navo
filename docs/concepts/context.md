@@ -6,16 +6,16 @@ The same work may be appropriate in one situation and unnecessary in another.
 
 Examples of context include:
 
-* Time
-* Location
-* Weather
-* Energy
-* Budget
-* Available resources
-* Nearby places
-* People
-* Deadlines
-* Existing commitments
+- Time
+- Location
+- Weather
+- Energy
+- Budget
+- Available resources
+- Nearby places
+- People
+- Deadlines
+- Existing commitments
 
 Context does not change the work itself.
 
