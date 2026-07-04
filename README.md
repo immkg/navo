@@ -24,6 +24,12 @@
   <a href="https://github.com/immkg/navo/graphs/contributors">
     <img src="https://img.shields.io/github/contributors/immkg/navo?style=flat-square" alt="Contributors" />
   </a>
+  <a href="https://github.com/immkg/navo/actions/workflows/ci.yml">
+    <img src="https://github.com/immkg/navo/actions/workflows/ci.yml/badge.svg" alt="CI" />
+  </a>
+  <a href="https://codecov.io/gh/immkg/navo">
+    <img src="https://codecov.io/gh/immkg/navo/graph/badge.svg" alt="Contributors" />
+  </a>
   <img src="https://img.shields.io/badge/License-MIT-success?style=flat-square" alt="MIT License" />
 </p>
 
