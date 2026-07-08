@@ -18,7 +18,8 @@
     "format:check": "prettier --check .",
     "test": "npm run test --workspace=api && npm run test --workspace=web",
     "coverage": "npm run test:coverage --workspace=api && npm run test:coverage --workspace=web",
-    "check": "npm run lint && npm run format:check && npm run test"
+    "check": "npm run lint && npm run format:check && npm run test",
+    "generate": "node tools/cli/index.js"
   },
   "repository": {
     "type": "git",
@@ -33,7 +34,12 @@
   },
   "homepage": "https://github.com/immkg/navo#readme",
   "devDependencies": {
+    "@inquirer/prompts": "^8.5.2",
+    "chalk": "^5.6.2",
     "concurrently": "^10.0.3",
+    "ejs": "^6.0.1",
+    "fs-extra": "^11.3.6",
+    "ora": "^9.4.1",
     "prettier": "^3.9.4"
   }
 }
