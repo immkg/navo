@@ -10,7 +10,15 @@ app.get("/health", (req, res) => {
   res.json({
     status: "ok",
     service: "navo-api",
+    timestamp: Date.now(),
+    version: "v1"
   });
 });
+
+const intentsRouter = require("./routes/intents");
+const workRouter = require("./routes/work");
+
+app.use("/api/intents", intentsRouter);
+app.use("/api/work", workRouter);
 
 module.exports = app;

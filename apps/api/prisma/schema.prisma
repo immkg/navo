@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Intent {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  status      String   @default("active") // active, completed, archived
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workItems   Work[]
+}
+
+model Work {
+  id          String   @id @default(uuid())
+  title       String
+  type        String   @default("task") // task, decision, etc.
+  status      String   @default("todo") // todo, in_progress, done
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  intentId    String?
+  intent      Intent?  @relation(fields: [intentId], references: [id])
+
+  contexts    Context[]
+
+  // Self-relations for dependencies (DAG)
+  dependsOn   WorkDependency[] @relation("DependsOn")
+  dependedBy  WorkDependency[] @relation("DependedBy")
+}
+
+model WorkDependency {
+  id          String   @id @default(uuid())
+  
+  workId      String
+  work        Work     @relation("DependsOn", fields: [workId], references: [id], onDelete: Cascade)
+  
+  dependsOnId String
+  dependsOn   Work     @relation("DependedBy", fields: [dependsOnId], references: [id], onDelete: Cascade)
+
+  @@unique([workId, dependsOnId])
+}
+
+model Context {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   // time, location, people, etc.
+  
+  workItems   Work[]
+}
