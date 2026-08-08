@@ -8,134 +8,140 @@ They are intentionally stable and should rarely change.
 
 ## 1. Intent Before Work
 
-Everything begins with an intention.
+Everything begins with an outcome someone wants to achieve.
 
-People start with outcomes they want to achieve, not with predefined tasks. Work is discovered, refined, and expanded as intentions evolve.
+People start with desires, not definitions. "Get vegetables for dinner" exists before any shopping list, any chosen shop, or any planned route.
+
+Work is discovered progressively as the intent becomes clearer.
 
 Navo models intentions first and execution second.
 
 ---
 
-## 2. Planning and Execution Are Connected
+## 2. Context Is Present From the Start
 
-Planning is not a phase.
+Context does not arrive after the plan. It arrives with the intent.
 
-Execution continuously reshapes the plan.
+When someone decides to "get vegetables for dinner," they already know how many people are eating, roughly what the budget is, and what time dinner needs to be ready.
 
-Every completed action, new discovery, changing priority, or unexpected event should naturally influence what happens next.
-
----
-
-## 3. Context Drives Decisions
-
-Work never exists in isolation.
-
-Every decision depends on context.
-
-Context includes, but is not limited to:
-
-- Time
-- Location
-- People
-- Resources
-- Constraints
-- Opportunities
-- Energy
-- Priority
-
-The same work may have different optimal paths under different contexts.
+Navo must capture and use context from the moment an intent is formed, not as an afterthought.
 
 ---
 
-## 4. Work Is a Network
+## 3. The Day Is the Unit of Execution
+
+People do not execute plans in the abstract.
+
+They execute them in a day — in real places, at real times, moving through the world.
+
+Day planning is the primary activity Navo supports. Everything — intents, work, context — ultimately flows into the question: **what am I doing today, where, and in what order?**
+
+---
+
+## 4. Location and Route Are Structural, Not Optional
+
+Location is not a tag or a metadata field. It is a first-class property of work.
+
+The route through locations is the spine of the day. As someone moves along a route, some work becomes possible and other work becomes impossible.
+
+Every design decision must account for the physical dimension of planning.
+
+A feature that ignores location and movement is an incomplete feature.
+
+---
+
+## 5. The Map Is the Foundation
+
+The map is the interface through which planning becomes real.
+
+Without the map, a plan is abstract. It cannot tell you whether the shop is on your way or out of the way. It cannot surface the opportunity to combine two errands into one trip.
+
+The map must be treated as core infrastructure, not as a feature bolt-on.
+
+---
+
+## 6. Opportunities Are Discovered Through Movement
+
+As someone moves through their day along a route, context changes continuously.
+
+Navo must surface opportunities — work that becomes possible or easier because of where someone is or where they are heading — at the right moment.
+
+Opportunities must be relevant to context. They should not be noise.
+
+The right opportunity, surfaced at the right moment, is the product.
+
+---
+
+## 7. Work Is a Network, Not a List
 
 Real work is connected.
 
-Tasks depend on other tasks.
+One task depends on another. Completing a decision unlocks several new tasks. Two intents may share a common piece of work.
 
-One action may unlock many others.
+Navo models work as a connected graph. Relationships between work items are first-class citizens.
 
-Several people may contribute simultaneously.
-
-Relationships between work are first-class citizens.
-
-Navo models work as a connected graph instead of isolated lists.
+Linear lists are never sufficient to represent how things actually get done.
 
 ---
 
-## 5. Discover Before You Define
+## 8. Planning Is Continuous Discovery
 
-Not everything should be planned upfront.
+Not everything can or should be planned upfront.
 
-Many decisions become possible only after progress has been made.
+Many decisions only become clear after earlier work is done. "Which vegetables to buy" cannot be answered before "what to cook for dinner" is decided.
 
-Navo encourages progressive discovery instead of requiring complete planning from the beginning.
+Navo embraces progressive discovery. The plan evolves as the day unfolds and as context changes.
 
----
-
-## 6. Flexible Over Rigid
-
-People should adapt their plans without friction.
-
-Adding, removing, splitting, merging, or restructuring work should always feel natural.
-
-The system should encourage change instead of resisting it.
+Rigidity is a failure of design.
 
 ---
 
-## 7. Human Language First
+## 9. Plans Adapt to Reality
 
-The interface should use language that matches how people naturally think.
+Plans exist to be changed.
 
-Users should create intentions like:
+When a route changes, when a shop is closed, when time runs short — the plan must adapt without friction.
 
-- Buy groceries
-- Plan a vacation
-- Prepare for interview
-
-They should not be forced to think in software concepts such as tickets, cards, records, or objects.
+Navo continuously reconsiders the plan in light of current reality. It does not hold on to a plan that no longer fits.
 
 ---
 
-## 8. Collaboration Is Native
+## 10. One System, Many Perspectives
 
-Work is rarely done alone.
+The underlying model — intents, work, context, locations, routes, opportunities — never changes.
 
-Assignments are not limited to a single owner.
+Different views exist to answer different questions:
 
-People can participate in different roles throughout the lifecycle of the same work item.
+| View | Question |
+|------|----------|
+| Intent View | What am I trying to achieve? |
+| Work Graph | What needs to happen and in what order? |
+| Map View | Where and is it on my route? |
+| Day Planner | What am I doing today? |
+| Timeline | How does this unfold over time? |
 
-Collaboration is part of the model, not an add-on.
+Changing the view never changes the underlying reality.
 
----
-
-## 9. One System, Many Perspectives
-
-The underlying model remains the same.
-
-Different views exist to answer different questions.
-
-Examples include:
-
-- Intent view
-- Daily planner
-- Timeline
-- Route
-- Calendar
-- Kanban
-- Graph
-- Map
-
-Changing the view should never change the underlying work.
+No view owns the data.
 
 ---
 
-## 10. Software Adapts to People
+## 11. Software Adapts to People
 
-People should never have to change the way they naturally think in order to use Navo.
+People do not change the way they think in order to use Navo.
 
-The responsibility belongs to the software.
+Navo changes to match how people naturally think, plan, and move through the world.
 
-Our goal is not to teach users a workflow.
+The software is a model of human behaviour. Not the other way around.
 
-Our goal is to understand theirs.
+---
+
+## 12. Human Language First
+
+The interface uses the language people naturally use.
+
+- "Get vegetables for dinner" not "Create task: Grocery type: errand"
+- "I'm heading downtown this afternoon" not "Set location context: Downtown, time: 14:00"
+- "What can I do while I'm near the market?" not "Filter work items by proximity radius"
+
+Navo listens to how people describe their lives, and it adapts.

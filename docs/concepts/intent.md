@@ -2,130 +2,132 @@
 
 Intent is the foundation of Navo.
 
-Everything begins with an intent.
+Everything starts here — before any plan, before any shopping list, before any scheduled time.
 
 ---
 
 ## What is an Intent?
 
-An intent represents something a person wants to achieve.
+An Intent is something a person wants to achieve.
 
-It answers one question:
+It describes the **desired outcome**, not the steps to get there.
 
-> **What outcome am I trying to reach?**
+**Examples:**
+- "Get vegetables for dinner"
+- "Plan a vacation"
+- "Prepare for the interview"
+- "Organise a birthday dinner"
 
-An intent is not a task.
+An intent is not a task. It is not a project. It is not a checklist.
 
-It does not describe how something will be completed.
+It is simply the answer to: *What am I trying to make happen?*
 
-Examples:
+---
 
-- Buy groceries
-- Plan a vacation
-- Organize a wedding
-- Prepare for interviews
-- Learn Spanish
+## The Critical Point: Intent Carries Context
 
-Each represents an outcome rather than a predefined sequence of actions.
+This is what makes Navo's model different.
+
+When you form an intent, you do not just form a goal. You carry **context** with it immediately — before any planning begins.
+
+"Get vegetables for dinner" already contains:
+- How many people you are cooking for
+- What you roughly want to cook
+- Your budget
+- What time dinner needs to be ready
+- Any dietary preferences or constraints
+
+This context is not entered later. It is present from the moment the intent exists.
+
+Navo captures and uses this context to shape everything that follows — the work discovered, the locations considered, and the opportunities surfaced.
 
 ---
 
 ## Why Intents Exist
 
-People rarely begin with complete plans.
+People rarely start with complete plans.
 
-They begin with an idea.
+They start with an idea of what they want.
 
-As work progresses they discover:
+As the day unfolds, they discover:
+- What work needs to happen
+- Where that work can be done
+- When the timing works
+- Which route makes it efficient
 
-- what needs to be done
-- where it can happen
-- who should participate
-- which decisions must be made
-- what new work appears
-
-Navo allows an intent to evolve naturally instead of requiring everything to be planned upfront.
+Navo allows intent to evolve naturally. The system does not require you to define the plan before you can begin.
 
 ---
 
 ## Intent Is Stable
 
-The intent usually changes less frequently than the work beneath it.
+The intent usually changes far less than the work beneath it.
 
-For example:
+**Example:**
 
-Intent
+Intent: "Prepare for vacation"
 
-```
-Prepare for Vacation
-```
+Work on day 1:
+- Research destinations
+- Check passport validity
 
-Today
+Work on day 5:
+- Book flights
+- Request annual leave
 
-```
-Book hotel
-Renew passport
-```
+Work on day 20:
+- Pack bags
+- Confirm hotel check-in
 
-Tomorrow
+The work changes constantly. The intent remains the same.
 
-```
-Apply for visa
-Buy luggage
-Exchange currency
-```
-
-The work changes.
-
-The intent remains the same.
+This stability is what makes intent the anchor of the planning system.
 
 ---
 
-## One Intent, Many Paths
+## One Intent, Many Possible Paths
 
-The same intent can be completed in many different ways.
+The same intent can be fulfilled in different ways depending on context — especially location and time.
 
-There is no single correct plan.
+"Get vegetables for dinner" might be fulfilled by:
+- Stopping at a market on the way home from the office
+- Ordering from a local delivery service at lunchtime
+- Visiting a supermarket near the gym after a workout
 
-Different routes may optimize for:
+The best path depends on the current context: where you are, where you're going, what time you have, and what the route allows.
 
-- time
-- cost
-- convenience
-- location
-- personal preference
-
-Navo does not prescribe a path.
-
-It helps discover one.
+Navo does not prescribe a path. It helps discover the best one given today's reality.
 
 ---
 
-## Intent Is Never Complete
+## Intent and the Day
 
-An intent becomes complete only when the desired outcome has been achieved.
+Intents come to life through the day.
 
-Completing individual work items does not necessarily complete the intent.
+A day plan is built from:
+1. The active intents you want to make progress on
+2. The work those intents require
+3. The locations where that work can happen
+4. The route connecting those locations
+5. The opportunities that emerge as you move
 
-Progress and completion are different concepts.
+An intent without a route is abstract.
+
+An intent on a map, with a route, is something you can actually do today.
 
 ---
 
-## Design Principles
+## Design Rules
 
 An intent should:
-
-- describe an outcome
-- remain understandable without implementation details
-- survive changes to the underlying work
-- support collaboration
-- support multiple planning strategies
-- evolve over time
+- Describe an outcome in natural language
+- Survive changes to the work beneath it
+- Carry context from the moment it is formed
+- Evolve naturally as work is discovered
+- Support multiple paths to completion
 
 An intent should not:
-
-- become a checklist
-- contain scheduling information
-- define execution order
-- assume a single owner
-- prescribe a single solution
+- Define execution order
+- Contain scheduling details
+- Assume a single correct plan
+- Require a complete work breakdown before it can be created

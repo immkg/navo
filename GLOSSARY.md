@@ -1,200 +1,235 @@
 # Glossary
 
-This document defines the common language used throughout Navo.
+This document defines the language used throughout Navo.
 
-Every feature, discussion, API, and data model should use these terms consistently.
+Every feature, discussion, API, and data model must use these terms consistently. When in doubt, refer to this document before using a term.
 
 ---
 
 ## Intent
 
-An intent represents a desired outcome.
+An **Intent** is an outcome someone wants to achieve.
 
-It describes **what someone wants to achieve**, not how it will be achieved.
+It is formed before the how is known. It represents a desired end state, not a list of steps.
 
-Examples:
+**Examples:**
+- "Get vegetables for dinner"
+- "Plan a vacation"
+- "Prepare for the interview"
 
-- Buy groceries
-- Plan a vacation
-- Organize a wedding
-- Prepare for an interview
+An Intent does not require a plan to exist. It exists the moment someone decides they want something to happen.
 
-An intent may evolve into many pieces of work.
-
----
-
-## Work
-
-Work is any action that moves an intent forward.
-
-Work is the fundamental unit of execution.
-
-Examples include:
-
-- Task
-- Decision
-- Research
-- Approval
-- Purchase
-- Meeting
-- Reminder
-- Review
-
-Every task is work, but not all work is a task.
-
----
-
-## Task
-
-A task is work that has a clear action.
-
-Examples:
-
-- Call the venue
-- Book the hotel
-- Buy milk
-
-Tasks are one type of work.
-
----
-
-## Decision
-
-A decision is work that requires choosing between alternatives.
-
-Examples:
-
-- Choose a venue
-- Select a laptop
-- Decide the travel route
-
-A decision often creates new work.
+Intents carry **Context** from the moment they are formed.
 
 ---
 
 ## Context
 
-Context describes the environment in which work happens.
+**Context** is everything that is true at the moment of forming an intent or making a decision.
 
-Examples include:
+Context comes before the plan. It shapes what work is relevant, when work can happen, and how it should be done.
 
-- Time
-- Location
-- People
-- Resources
-- Constraints
-- Opportunities
-- Energy
-- Priority
+**Examples:**
+- Cooking for 4 people tonight (shapes what vegetables to buy)
+- Budget of ₹500 (rules out premium shops)
+- 30 minutes free before a meeting (limits which errands are feasible)
+- Already in the neighbourhood of a market (makes this the obvious moment)
 
-Context influences planning but does not define the work itself.
+Context is not static. It changes throughout the day. As context changes, the plan adapts.
 
 ---
 
-## Plan
+## Work
 
-A plan is a proposed path toward completing one or more intentions.
+**Work** is any action that moves an intent forward.
 
-Plans are expected to evolve.
+Work is discovered progressively. Not all of it is known when the intent is first formed.
 
-They are never considered final.
+**Types of Work:**
+- **Task** — a clear, actionable step ("write the shopping list")
+- **Decision** — choosing between alternatives ("decide which market to go to")
+- **Errand** — going somewhere to do something ("visit the market")
+- **Research** — gathering information before acting ("check what vegetables are in season")
+- **Purchase** — acquiring something ("buy the tomatoes and spinach")
+- **Preparation** — making something ready for a later step ("chop the vegetables")
 
----
-
-## Schedule
-
-A schedule places work into time.
-
-Scheduling answers **when**.
-
-Planning answers **how**.
+Work has dependencies. Some work can only begin after other work is completed.
 
 ---
 
-## Route
+## Task
 
-A route is an ordered path through work, places, or time.
+A **Task** is work with a clear, specific action.
 
-Routes may optimize for convenience, efficiency, priority, or personal preference.
+All tasks are work. Not all work is a task.
 
-Routes can include both physical movement and logical movement.
+**Examples:**
+- "Buy milk"
+- "Call the venue"
+- "Print the boarding pass"
+
+---
+
+## Decision
+
+A **Decision** is work that requires choosing between alternatives.
+
+Decisions often unlock new work once made.
+
+**Examples:**
+- "Choose which market to visit"
+- "Decide between two routes"
+- "Pick which recipe to cook"
 
 ---
 
 ## Dependency
 
-A dependency describes work that must exist before other work can proceed.
+A **Dependency** is a relationship where one piece of work must be done before another can begin.
 
-Dependencies create relationships between work items.
+Work forms a directed graph through dependencies.
 
----
-
-## Collaboration
-
-Collaboration is the participation of multiple people in the same work.
-
-Different participants may perform different roles throughout the lifecycle of the work.
-
----
-
-## Opportunity
-
-An opportunity is work that becomes easier or more valuable because of the current context.
-
-Examples:
-
-- Buy groceries while already near the market.
-- Print documents while passing a print shop.
-- Visit multiple nearby locations in one trip.
-
-Opportunities are discovered dynamically.
+**Example:**
+- "Write the shopping list" must be done before "Buy the vegetables"
+- "Check what is already at home" must be done before "Write the shopping list"
 
 ---
 
 ## Location
 
-A location is a place where work may happen.
+A **Location** is a physical place where work can happen.
 
-Work can support:
+Location is not a tag or a note. It is a structural property of work.
 
-- One location
-- Multiple possible locations
-- No physical location
+**Properties of a location:**
+- Physical coordinates
+- Name and address
+- Opening hours
+- Type (shop, office, home, gym, etc.)
+- Distance from current position
 
----
-
-## Assignment
-
-Assignment describes who participates in work.
-
-Assignments are not limited to a single owner.
-
-Participants may have different responsibilities.
+A single location may be relevant to multiple pieces of work and multiple intents.
 
 ---
 
-## Flow
+## Route
 
-Flow describes how work evolves over time.
+A **Route** is the planned sequence of locations that makes up a day.
 
-Work may split, merge, branch, pause, resume, or generate additional work.
+The route is the spine of day planning. It determines what is possible.
 
-Flow represents progress rather than hierarchy.
+**A route:**
+- Connects the locations you need to visit
+- Has a travel time and distance between each stop
+- Changes what work is accessible as you move through it
+- Surfaces opportunities for work that fits the path
+
+The route is dynamic. It changes as the day unfolds.
+
+---
+
+## Opportunity
+
+An **Opportunity** is work that becomes possible or easier because of the current context, especially location and time.
+
+Opportunities are surfaced by the system. They are not manually created.
+
+**Examples:**
+- You are passing a pharmacy → "collect the prescription" becomes a natural stop
+- You have 20 free minutes near a print shop → "print the documents" is now feasible
+- Your route passes a farmers' market → "buy vegetables for dinner" is on the way
+
+An opportunity disappears if the relevant context changes (you miss the stop, the shop closes, the time window passes).
+
+---
+
+## Day Plan
+
+A **Day Plan** is the complete picture of a single day: the intents being pursued, the work to be done, the locations to visit, and the route that connects them.
+
+A day plan answers: "What am I doing today, where, and in what order?"
+
+The map is essential to a day plan. Without it, the plan is abstract.
+
+---
+
+## Map
+
+The **Map** is the interface that grounds planning in physical reality.
+
+The map:
+- Shows where work can happen relative to where you are
+- Reveals whether work is on your route or requires a detour
+- Surfaces opportunities as location context changes
+- Makes the cost (time, distance) of decisions visible
+
+The map is not a feature. It is the foundation of day planning in Navo.
+
+---
+
+## Plan
+
+A **Plan** is a proposed path through work, time, and location.
+
+Plans are dynamic. They evolve continuously as work is completed, context changes, and opportunities emerge.
+
+A plan for today is built from:
+1. Active intents
+2. Discovered work
+3. Locations where that work can happen
+4. A route connecting those locations
+5. Time windows when each piece of work is feasible
+
+---
+
+## Schedule
+
+A **Schedule** places work into specific time slots.
+
+Scheduling answers **when**.
+
+Planning answers **how** and **in what order**.
+
+Routing answers **where** and **whether it is feasible today**.
 
 ---
 
 ## View
 
-A view is a way of presenting the same underlying information.
+A **View** is a way of presenting the same underlying model.
 
-Examples include:
+Changing the view never changes the underlying data.
 
-- Daily Planner
-- Timeline
-- Calendar
-- Map
-- Kanban
-- Graph
-- List
+| View | Question it answers |
+|------|-------------------|
+| Intent View | What am I trying to achieve? |
+| Work Graph | What needs to happen and in what order? |
+| Map View | Where does work happen and is it on my route? |
+| Day Planner | What am I doing today and when? |
+| Timeline | How does this unfold over days and weeks? |
+| Calendar | When is work scheduled? |
 
-Changing the view never changes the underlying model.
+---
+
+## Flow
+
+**Flow** describes how work evolves over time.
+
+Work can:
+- Split into multiple sub-tasks
+- Merge with other work
+- Branch based on a decision
+- Pause and resume
+- Generate new work on completion
+
+Flow is not linear. It reflects the real, messy nature of getting things done.
+
+---
+
+## Collaboration
+
+**Collaboration** is the participation of multiple people in the same intent or work.
+
+Different people may contribute at different stages.
+
+Collaboration is part of the model. It is not an add-on.

@@ -1,29 +1,104 @@
 # Navo Agent Instructions
 
-Welcome, Agent. If you are reading this file, you are assisting a user in the Navo repository. 
-Navo is an intent-first planning system built around how people naturally think and work.
+Welcome, Agent. If you are reading this file, you are working in the Navo repository.
 
-Your primary role is to act as an active participant in the continuous cycle of planning, discovery, and execution within this repository. 
+Navo is a **day planning system** grounded in how people naturally move through the world.
 
-When generating code, proposing solutions, or interacting with the user, you MUST adhere to the following principles:
+Before reading any further, read these foundational documents in order:
+1. `MENTAL_MODEL.md` — understand the vision
+2. `ARCHITECTURE.md` — understand the structure
+3. `DESIGN_PRINCIPLES.md` — understand the rules
+4. `GLOSSARY.md` — understand the language
 
-## 1. Understand the Mental Model
-- **Intent**: People start with outcomes they want to achieve, not tasks. Help the user clarify their intentions.
-- **Work**: Work is any action that moves an intent forward. Work is discovered continuously.
-- **Context**: Work happens within context (time, place, people, priority). Always consider the context of a decision.
-- **Plan**: A plan is a dynamic route through work, not a rigid checklist.
+---
 
-## 2. Your Role as an Agent
-- **Propose, Don't Command**: You are a collaborator. Propose routes, discover work, and identify dependencies, but the human remains the single source of truth.
-- **Contextual Awareness**: Look for opportunities. If you notice dependencies that the user missed (e.g., missing API endpoints for a new UI component), point them out naturally.
-- **Progressive Discovery**: Do not force the user to define everything upfront. Allow the system and the work graph to evolve iteratively.
+## The Core Vision (Read This First)
 
-## 3. Communication Style
-- **Human Language First**: Communicate in natural, outcome-driven language. Avoid reducing user requests to rigid database terminology (e.g., avoid forcing them into "tickets", "cards", or "records").
-- **Flexible Collaboration**: Treat your recommendations as flexible. The system (and you) must encourage the user to reject, modify, or merge your proposed work effortlessly.
+Navo is not a task manager. It is not a project management tool.
 
-## 4. Development Guidelines
-- Always refer to `ARCHITECTURE.md`, `DESIGN_PRINCIPLES.md`, and `MENTAL_MODEL.md` before making significant architectural decisions.
-- Any feature you build must support the concept of "One System, Many Perspectives." The underlying data model (the graph of intents and work) must remain unchanged, even if new views (timeline, calendar, Kanban) are added.
+**Navo is a day planning system built around how people move through the physical world.**
 
-By following these instructions, you ensure that Navo remains a system where software adapts to the user, not the other way around.
+The insight at the heart of Navo:
+
+> People form **intents** (outcomes they want) before they know the plan.
+> Intents carry **context** from the start (budget, people, timing, constraints).
+> **Work** to fulfil the intent is discovered progressively, not defined upfront.
+> Work happens in **locations**.
+> Locations are connected by **routes**.
+> As someone moves along a route, **opportunities** to complete work emerge or disappear.
+> The **map** is the interface that makes this real.
+
+**The day is the unit of execution.** Every feature must serve the question: *what am I doing today, where, and in what order?*
+
+---
+
+## Mental Model in One Paragraph
+
+Someone decides to "get vegetables for dinner." At this moment, they do not have a shopping list or a chosen shop. But they know how many people they are cooking for, their budget, and what time dinner needs to be ready. As the day is planned — home → office → gym — they notice the route passes a farmers' market. The context (location, time, intent) surfaces an opportunity: stop at the market on the way. Work that was abstract becomes real and executable because of the route.
+
+**This is the experience Navo builds.**
+
+---
+
+## Your Role as an Agent
+
+### Understand Before You Build
+- Never build a feature without understanding which part of the mental model it serves.
+- Ask: does this feature help someone plan their day? Does it use location and route? Does it surface opportunities?
+
+### Language Matters
+- Always use the terms defined in `GLOSSARY.md`.
+- Never reduce Navo's concepts to generic software terms: no "tickets," "cards," "records," "sprints," or "projects."
+- Intent, Work, Context, Location, Route, Opportunity, Day Plan — these are the vocabulary.
+
+### Location and Map Are Non-Negotiable
+- Any feature that involves "where work happens" must treat location as a first-class property.
+- The map is not optional. It is the foundation of day planning.
+- Do not design features that ignore the physical dimension of execution.
+
+### Progressive Discovery Is the Pattern
+- Do not force users to define everything upfront.
+- Build features that allow work to be discovered incrementally.
+- A plan that starts with just an intent and grows into a fully routed day is the ideal flow.
+
+---
+
+## Development Guidelines
+
+### Architecture
+- Refer to `ARCHITECTURE.md` before making structural decisions.
+- The data model must always support: Intent → Work → Location → Route → Opportunity.
+- Location must be a first-class entity, not a string field.
+
+### Principles
+- Any feature must satisfy at least one of the principles in `DESIGN_PRINCIPLES.md`.
+- If a proposed feature cannot be justified by a design principle, question whether it belongs.
+
+### One System, Many Views
+- The underlying model (intents, work, context, locations, routes) never changes.
+- New views (map, timeline, calendar, kanban) are lenses on the same data.
+- No view should own data that is not part of the shared model.
+
+### Human Language First
+- UI copy should sound like how people talk, not like software.
+- Good: "What do you want to get done?" / "Where will you be today?" / "What's nearby?"
+- Bad: "Create intent" / "Set location context" / "Add work item"
+
+---
+
+## What Navo Is Not
+
+To stay on track, it helps to know what Navo is not:
+
+| Not This | But This |
+|----------|---------|
+| A to-do list app | A day planning system |
+| A project manager | An intent-driven day organiser |
+| A calendar app | A route-aware opportunity engine |
+| A task tracker | A work discovery and execution system |
+
+If a proposed feature makes Navo feel more like any of the left column, pause and reconsider.
+
+---
+
+By following these instructions, you ensure that every decision keeps Navo true to its vision: a system where the route through your day determines what is possible, and where software adapts to the way people actually live.

@@ -1,3 +1,5 @@
+# Navo
+
 <p align="center">
   <img src="docs/navo-hero.png" alt="Navo Hero" width="100%" />
 </p>
@@ -27,61 +29,65 @@
   <a href="https://github.com/immkg/navo/actions/workflows/ci.yml">
     <img src="https://github.com/immkg/navo/actions/workflows/ci.yml/badge.svg" alt="CI" />
   </a>
-  <a href="https://codecov.io/gh/immkg/navo">
-    <img src="https://codecov.io/gh/immkg/navo/graph/badge.svg" alt="Contributors" />
-  </a>
   <img src="https://img.shields.io/badge/License-MIT-success?style=flat-square" alt="MIT License" />
 </p>
 
 ---
 
-Navo is an intent-first planning system built around how people naturally think and work.
-
-People rarely begin with a checklist. They begin with an intention such as planning a trip, buying groceries, preparing for an interview, or organizing an event. The details emerge over time through decisions, collaboration, changing priorities, and new opportunities.
-
-Instead of reducing everything to isolated tasks, Navo models intentions, work, context, dependencies, people, locations, and time as one connected system.
-
-The goal is simple: software should adapt to the way people think, not the other way around.
+Navo is a day planning system built around how people naturally move through the world.
 
 ---
 
-## Vision
+## The Insight
 
-<p align="center">
-  <img src="docs/navo-vision.png" alt="Navo Vision" width="100%" />
-</p>
+You start your day with an intent: **"get vegetables for dinner."**
 
-Navo separates **how work is intended** from **how a day is planned**.
+You don't yet have a shopping list. You don't know which shop. You haven't scheduled anything.
 
-Intentions evolve into work. Work exists within context. The planner continuously connects the two to recommend the best path forward.
+But you do know context — cooking for 4, budget is ₹400, dinner needs to be ready by 7pm.
 
----
+As you plan your day — home to office to gym — the map shows that a fresh produce market is a 3-minute detour off your route to the office. The timing works. The window is there.
 
-## Core Concepts
+**That moment — being in the right place at the right time with the right intent — is the opportunity.**
 
-- **Intent** – The outcome someone wants to achieve.
-- **Work** – Any action that moves an intent forward.
-- **Context** – Information that influences decisions.
-- **Planning** – Choosing the best path toward an outcome.
-- **Scheduling** – Deciding when work should happen.
+Navo surfaces it.
 
 ---
 
 ## What Navo Is
 
-- An intent-first planning system.
-- A connected graph of work instead of isolated tasks.
-- A planning model that understands context, collaboration, and dependencies.
-- A foundation for planning daily life, projects, travel, learning, and everything in between.
+**Navo is a day planning system grounded in physical reality.**
+
+- You form **intents** — outcomes you want to achieve, carrying context from the start.
+- **Work** is discovered progressively as the intent becomes clearer.
+- Work happens at **locations** — first-class entities, not tags.
+- **Routes** connect those locations and determine what is possible each day.
+- **Opportunities** surface when location, time, and available work align.
+- The **map** is the interface through which all of this becomes real.
 
 ---
 
-## What Navo Isn't
+## What Navo Is Not
 
-- A traditional to-do list.
-- A flat checklist.
-- A rigid project management tool.
-- A calendar replacement.
+| Not | But |
+|-----|-----|
+| A to-do list app | A day planning system grounded in location |
+| A project manager | An intent-driven life operating system |
+| A calendar app | A route-aware opportunity engine |
+| A rigid scheduler | A continuously adapting day plan |
+
+---
+
+## Core Concepts
+
+| Concept | What it is |
+|---------|-----------|
+| **Intent** | An outcome you want to achieve, formed with context |
+| **Work** | Any action that moves an intent forward, discovered progressively |
+| **Context** | What is true right now — especially location, time, budget, people |
+| **Location** | Where work happens — a first-class structural property |
+| **Route** | The sequence of locations that makes up your day |
+| **Opportunity** | Work that becomes possible because of where you are or where you're headed |
 
 ---
 
@@ -89,11 +95,11 @@ Intentions evolve into work. Work exists within context. The planner continuousl
 
 ### Foundation
 
-- [Vision](VISION.md)
-- [Mental Model](MENTAL_MODEL.md)
-- [Design Principles](DESIGN_PRINCIPLES.md)
-- [Architecture](ARCHITECTURE.md)
-- [Glossary](GLOSSARY.md)
+- [Vision](VISION.md) — Why Navo exists and the core insight
+- [Mental Model](MENTAL_MODEL.md) — How the system thinks
+- [Design Principles](DESIGN_PRINCIPLES.md) — The rules that guide every decision
+- [Architecture](ARCHITECTURE.md) — The structural model
+- [Glossary](GLOSSARY.md) — The shared language
 
 ### Concepts
 
@@ -107,7 +113,7 @@ Intentions evolve into work. Work exists within context. The planner continuousl
 
 - [Intent](docs/specifications/intent.md)
 - [Work Item](docs/specifications/work-item.md)
-- [Planner](docs/specifications/planner.md)
+- [Day Planner](docs/specifications/planner.md)
 - [Navigation](docs/specifications/navigation.md)
 - [Routing](docs/specifications/routing.md)
 - [Views](docs/specifications/view.md)
