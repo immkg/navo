@@ -48,14 +48,14 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-6 pt-4 sm:px-6 sm:pb-10 sm:pt-6">
-      <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:mb-8 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mx-auto w-full max-w-5xl px-3 pb-5 pt-3 sm:px-6 sm:pb-10 sm:pt-6">
+      <div className="mb-4 rounded-3xl border border-gray-200 bg-white p-3 shadow-sm sm:mb-8 sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Intents</h1>
-            <p className="mt-1 text-sm text-gray-600 sm:text-base">What are you trying to achieve?</p>
+            <h1 className="text-xl font-bold text-gray-900 sm:text-3xl">Intents</h1>
+            <p className="mt-0.5 text-xs text-gray-600 sm:mt-1 sm:text-base">What are you trying to achieve?</p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3">
+          <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:gap-3">
             <button
               onClick={() => setIsModalOpen(true)}
               className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
@@ -77,41 +77,82 @@ export default function Dashboard() {
           Loading intents...
         </div>
       ) : intents.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
           {intents.map((intent) => (
             <Link
               key={intent.id}
               to={`/intent/${intent.id}`}
-              className="group block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md sm:p-5"
+              className="group block rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:p-5"
             >
-              <h2 className="text-lg font-semibold text-gray-900 transition-colors group-hover:text-blue-600 sm:text-xl">
-                {intent.title}
-              </h2>
-              {intent.description && (
-                <p className="text-gray-500 mt-2 text-sm line-clamp-2">
-                  {intent.description}
-                </p>
-              )}
-              <div className="mt-4 space-y-2 text-sm text-gray-500">
-                <div className="flex items-center justify-between">
-                  <span>{intent.workCount ?? 0} work</span>
-                  <span>{intent.completedWorkCount ?? 0} done</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>{intent.placeCount ?? 0} place{intent.placeCount === 1 ? "" : "s"}</span>
-                  <span className="text-xs font-medium px-2.5 py-1 bg-green-100 text-green-800 rounded-full capitalize">
-                    {intent.status}
-                  </span>
-                </div>
-                <div className="pt-1 text-sm text-gray-400 transition-colors group-hover:text-blue-500">
-                  Open &rarr;
-                </div>
-              </div>
+              {(() => {
+                const workCount = intent.workCount ?? 0;
+                const doneCount = intent.completedWorkCount ?? 0;
+                const placeCount = intent.placeCount ?? 0;
+                const remainingWork = Math.max(workCount - doneCount, 0);
+                const completion = workCount > 0 ? Math.round((doneCount / workCount) * 100) : 0;
+                const hasPlace = placeCount > 0;
+
+                return (
+                  <>
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <h2 className="text-base font-semibold text-gray-900 transition-colors group-hover:text-blue-600 sm:text-xl">
+                        {intent.title}
+                      </h2>
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-700 sm:text-xs">
+                        {completion}%
+                      </span>
+                    </div>
+
+                    {intent.description && (
+                      <p className="mt-1.5 line-clamp-2 text-xs text-gray-500 sm:mt-2 sm:text-sm">
+                        {intent.description}
+                      </p>
+                    )}
+
+                    <div className="mt-3">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                        <div
+                          className="h-full rounded-full bg-blue-500 transition-all"
+                          style={{ width: `${completion}%` }}
+                        />
+                      </div>
+                      <div className="mt-1.5 flex items-center justify-between text-[11px] text-gray-500 sm:text-xs">
+                        <span>{doneCount} complete</span>
+                        <span>{remainingWork} left</span>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 sm:text-sm">
+                      <div className="rounded-lg bg-gray-50 px-2.5 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-gray-500 sm:text-xs">Work</p>
+                        <p className="mt-0.5 font-semibold text-gray-900">{workCount}</p>
+                      </div>
+                      <div className="rounded-lg bg-gray-50 px-2.5 py-2">
+                        <p className="text-[11px] uppercase tracking-wide text-gray-500 sm:text-xs">Places</p>
+                        <p className="mt-0.5 font-semibold text-gray-900">{placeCount}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <span className="text-[11px] text-gray-500 sm:text-xs">
+                        {hasPlace ? "Ready to schedule by place" : "Add a place to unlock planning"}
+                      </span>
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium capitalize text-green-800 sm:px-2.5 sm:py-1 sm:text-xs">
+                        {intent.status}
+                      </span>
+                    </div>
+
+                    <div className="pt-2 text-xs font-medium text-blue-600 transition-colors group-hover:text-blue-700 sm:text-sm">
+                      Open intent &rarr;
+                    </div>
+                  </>
+                );
+              })()}
             </Link>
           ))}
         </div>
       ) : (
-        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center sm:p-12">
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center sm:p-12">
           <p className="text-gray-500 mb-4">You have no active intents.</p>
           <button
             onClick={() => setIsModalOpen(true)}
