@@ -11,8 +11,22 @@ export function loadGoogleMaps(apiKey) {
     );
   }
 
+  const ensureMapsReady = async () => {
+    const maps = window.google?.maps;
+    if (!maps) {
+      throw new Error("Google Maps namespace unavailable");
+    }
+
+    if (maps.importLibrary) {
+      await maps.importLibrary("maps");
+      await maps.importLibrary("places");
+    }
+
+    return maps;
+  };
+
   if (window.google?.maps) {
-    return Promise.resolve(window.google.maps);
+    return ensureMapsReady();
   }
 
   if (loadedGoogleMapsPromises.has(apiKey)) {
@@ -22,20 +36,14 @@ export function loadGoogleMaps(apiKey) {
   const promise = new Promise((resolve, reject) => {
     const createAndLoadScript = () => {
       const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=weekly`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=weekly&loading=async`;
       script.async = true;
       script.defer = true;
       script.setAttribute("async", "");
       script.setAttribute("defer", "");
       script.setAttribute("loading", "async");
       script.onload = () => {
-        if (window.google?.maps) {
-          resolve(window.google.maps);
-        } else {
-          reject(
-            new Error("Google Maps loaded but window.google.maps is unavailable")
-          );
-        }
+        ensureMapsReady().then(resolve).catch(reject);
       };
       script.onerror = () =>
         reject(new Error("Failed to load Google Maps JavaScript API"));
@@ -47,7 +55,7 @@ export function loadGoogleMaps(apiKey) {
     );
     if (existingScript) {
       if (window.google?.maps) {
-        resolve(window.google.maps);
+        ensureMapsReady().then(resolve).catch(reject);
         return;
       }
 
@@ -60,9 +68,9 @@ export function loadGoogleMaps(apiKey) {
         return;
       }
 
-      existingScript.addEventListener("load", () =>
-        resolve(window.google.maps)
-      );
+      existingScript.addEventListener("load", () => {
+        ensureMapsReady().then(resolve).catch(reject);
+      });
       existingScript.addEventListener("error", () =>
         reject(new Error("Failed to load Google Maps JavaScript API"))
       );

@@ -28,6 +28,8 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const mapInstanceRef = useRef(null);
   const markerRefs = useRef([]);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const showPlaceSearchPanel =
+    newWorkMode === "place" && newWorkLocationOptionGroups.length > 0;
 
   const resetForm = () => {
     setNewWorkTitle("");
@@ -208,28 +210,66 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
 
   useEffect(() => {
     async function initializeMap() {
-      if (!googleKey || !mapContainerRef.current) return;
+      if (!googleKey || !showPlaceSearchPanel || !mapContainerRef.current) return;
 
       try {
         const maps = await loadGoogleMaps(googleKey);
+
+        let MapCtor = null;
+        for (let attempt = 0; attempt < 6; attempt += 1) {
+          const runtimeMaps = window.google?.maps || maps;
+          if (typeof runtimeMaps?.Map === "function") {
+            MapCtor = runtimeMaps.Map;
+            break;
+          }
+
+          if (runtimeMaps?.importLibrary) {
+            const mapsLib = await runtimeMaps.importLibrary("maps");
+            if (typeof mapsLib?.Map === "function") {
+              MapCtor = mapsLib.Map;
+              break;
+            }
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 80));
+        }
+
+        if (!MapCtor) {
+          throw new Error("Google Maps Map constructor unavailable");
+        }
+
         if (!mapInstanceRef.current) {
-          mapInstanceRef.current = new maps.Map(mapContainerRef.current, {
+          mapInstanceRef.current = new MapCtor(mapContainerRef.current, {
             center: { lat: 39.5, lng: -98.35 },
             zoom: 4,
             disableDefaultUI: true,
           });
+        } else {
+          mapInstanceRef.current.setCenter({ lat: 39.5, lng: -98.35 });
+          mapInstanceRef.current.setZoom(4);
+          maps.event.trigger(mapInstanceRef.current, "resize");
         }
       } catch (error) {
         console.error("Failed to initialize map preview", error);
       }
     }
     initializeMap();
-  }, [googleKey]);
+  }, [googleKey, showPlaceSearchPanel]);
 
   useEffect(() => {
     async function updateMarkers() {
       const maps = window.google?.maps;
       if (!maps || !mapInstanceRef.current) return;
+
+      const mapsLib = maps.importLibrary
+        ? await maps.importLibrary("maps")
+        : null;
+      const MarkerCtor = mapsLib?.Marker || maps.Marker;
+      const LatLngBoundsCtor = mapsLib?.LatLngBounds || maps.LatLngBounds;
+
+      if (!MarkerCtor || !LatLngBoundsCtor) {
+        return;
+      }
 
       markerRefs.current.forEach((marker) => marker.setMap(null));
       markerRefs.current = [];
@@ -242,9 +282,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         return;
       }
 
-      const bounds = new maps.LatLngBounds();
+      const bounds = new LatLngBoundsCtor();
       const newMarkers = validPlaces.map((place) => {
-        const marker = new maps.Marker({
+        const marker = new MarkerCtor({
           map: mapInstanceRef.current,
           position: { lat: place.latitude, lng: place.longitude },
           title: place.name,
