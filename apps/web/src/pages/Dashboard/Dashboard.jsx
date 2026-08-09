@@ -233,6 +233,12 @@ export default function Dashboard() {
     const doneCount = intent.completedWorkCount;
     const placeCount = intent.placeCount;
     const completion = workCount > 0 ? Math.round((doneCount / workCount) * 100) : 0;
+    const statusStyle =
+      intent.status === "completed"
+        ? "bg-emerald-100 text-emerald-800"
+        : intent.status === "not_required"
+          ? "bg-slate-200 text-slate-700"
+          : "bg-blue-100 text-blue-800";
     const priorityStyle =
       intent.priority === "high"
         ? "bg-rose-100 text-rose-800"
@@ -264,39 +270,48 @@ export default function Dashboard() {
             </p>
           )}
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-1 text-xs">
-            <select
-              value={intent.priority}
-              onChange={(e) => handleUpdatePriority(intent.id, e.target.value)}
-              disabled={updatingIntentId === intent.id}
-              className={`rounded-full border-0 px-2 py-0.5 font-medium capitalize outline-none ${priorityStyle}`}
-              title="Set priority"
-            >
-              <option value="high">high</option>
-              <option value="medium">medium</option>
-              <option value="low">low</option>
-            </select>
+          <div className="mt-2 grid grid-cols-3 gap-1.5">
+            <label className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Priority</span>
+              <select
+                value={intent.priority}
+                onChange={(e) => handleUpdatePriority(intent.id, e.target.value)}
+                disabled={updatingIntentId === intent.id}
+                className={`h-7 rounded-md border border-gray-200 px-1.5 text-xs font-medium capitalize outline-none disabled:opacity-60 ${priorityStyle}`}
+                title="Set priority"
+              >
+                <option value="high">high</option>
+                <option value="medium">medium</option>
+                <option value="low">low</option>
+              </select>
+            </label>
 
-            <input
-              type="date"
-              value={toDateInputValue(intent.dueDate)}
-              onChange={(e) => handleUpdateDueDate(intent.id, e.target.value)}
-              disabled={updatingIntentId === intent.id}
-              className="rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 font-medium text-gray-700 disabled:opacity-60"
-              title="Set due date"
-            />
+            <label className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Start</span>
+              <input
+                type="date"
+                value={toDateInputValue(intent.startDate)}
+                onChange={(e) => handleUpdateStartDate(intent.id, e.target.value)}
+                disabled={updatingIntentId === intent.id}
+                className="h-7 rounded-md border border-gray-200 bg-gray-100 px-1.5 text-xs font-medium text-gray-700 disabled:opacity-60"
+                title="Set start date"
+              />
+            </label>
 
-            <input
-              type="date"
-              value={toDateInputValue(intent.startDate)}
-              onChange={(e) => handleUpdateStartDate(intent.id, e.target.value)}
-              disabled={updatingIntentId === intent.id}
-              className="rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 font-medium text-gray-700 disabled:opacity-60"
-              title="Set start date"
-            />
+            <label className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Due</span>
+              <input
+                type="date"
+                value={toDateInputValue(intent.dueDate)}
+                onChange={(e) => handleUpdateDueDate(intent.id, e.target.value)}
+                disabled={updatingIntentId === intent.id}
+                className="h-7 rounded-md border border-gray-200 bg-gray-100 px-1.5 text-xs font-medium text-gray-700 disabled:opacity-60"
+                title="Set due date"
+              />
+            </label>
           </div>
 
-          <div className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+          <div className="mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
             <span className="text-xs text-gray-600">
               {doneCount}/{workCount}w · {placeCount}p
             </span>
@@ -306,20 +321,20 @@ export default function Dashboard() {
                 style={{ width: `${completion}%` }}
               />
             </div>
-            <Link to={`/intent/${intent.id}`} className="text-xs font-medium text-blue-600 hover:text-blue-700">
-              Open
-            </Link>
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusStyle}`}>
+              {intent.status.replace("_", " ")}
+            </span>
           </div>
         </div>
 
-        <div className="flex w-14 shrink-0 flex-col items-stretch justify-center gap-1">
+        <div className="flex w-16 shrink-0 flex-col items-stretch justify-center gap-1.5">
           <button
             type="button"
             onClick={() => handleUpdateIntentStatus(intent.id, "active")}
             disabled={updatingIntentId === intent.id || intent.status === "active"}
             aria-label="Set active"
             title="Set active"
-            className={`inline-flex h-6 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold transition disabled:opacity-50 ${
+            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 ${
               intent.status === "active"
                 ? "border-blue-200 bg-blue-50 text-blue-700"
                 : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
@@ -333,7 +348,7 @@ export default function Dashboard() {
             disabled={updatingIntentId === intent.id || intent.status === "completed"}
             aria-label="Set completed"
             title="Set completed"
-            className={`inline-flex h-6 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold transition disabled:opacity-50 ${
+            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 ${
               intent.status === "completed"
                 ? "border-emerald-200 bg-emerald-100 text-emerald-800"
                 : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
@@ -347,7 +362,7 @@ export default function Dashboard() {
             disabled={updatingIntentId === intent.id || intent.status === "not_required"}
             aria-label="Set not required"
             title="Set not required"
-            className={`inline-flex h-6 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold transition disabled:opacity-50 ${
+            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 ${
               intent.status === "not_required"
                 ? "border-slate-300 bg-slate-200 text-slate-800"
                 : "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
