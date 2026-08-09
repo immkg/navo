@@ -5,6 +5,11 @@ export default function WorkNode({ work, onAddLocation }) {
     done: "bg-green-100 text-green-800",
   };
 
+  const chosenOption =
+    work.locationOptions?.find(
+      (option) => option.id === work.selectedLocationOptionId
+    ) || work.locationOptions?.[0];
+
   return (
     <div className="p-4 border rounded-lg shadow-sm hover:shadow-md transition-shadow bg-white">
       <div className="flex justify-between items-start gap-4">
@@ -35,33 +40,41 @@ export default function WorkNode({ work, onAddLocation }) {
         </div>
       )}
 
-      <div className="mt-4 text-sm text-gray-600 space-y-2">
-        <div className="font-medium text-gray-800">Locations</div>
-        {work.locations && work.locations.length > 0 ? (
-          <div className="space-y-2">
-            {work.locations.map((location) => (
-              <div
-                key={location.id}
-                className="rounded-xl bg-gray-50 border border-gray-200 p-3"
-              >
-                <div className="font-medium text-gray-900">{location.name}</div>
-                {location.address && (
-                  <div className="text-gray-500 text-xs">
-                    {location.address}
-                  </div>
-                )}
-                {location.latitude !== null && location.longitude !== null && (
-                  <div className="text-gray-500 text-xs">
-                    {location.latitude.toFixed(4)},{" "}
-                    {location.longitude.toFixed(4)}
-                  </div>
-                )}
+      <div className="mt-4 text-sm text-gray-600 space-y-3">
+        <div>
+          <div className="font-medium text-gray-800">Location option</div>
+          {chosenOption ? (
+            <div className="mt-2 rounded-xl bg-gray-50 border border-gray-200 p-3">
+              {chosenOption.title && (
+                <div className="text-sm font-semibold text-gray-900">
+                  {chosenOption.title}
+                </div>
+              )}
+              <div className="text-sm text-gray-700">
+                {chosenOption.locations?.length ?? 0} place option
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-gray-500">No location attached yet.</div>
-        )}
+              {chosenOption.locations?.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {chosenOption.locations.map((location) => (
+                    <div
+                      key={location.id}
+                      className="rounded-xl bg-white border border-gray-200 p-3"
+                    >
+                      <div className="font-medium text-gray-900">{location.name}</div>
+                      {location.address && (
+                        <div className="text-gray-500 text-xs">
+                          {location.address}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-gray-500">No location option selected yet.</div>
+          )}
+        </div>
       </div>
 
       <div className="mt-4 pt-3 border-t border-gray-100 flex flex-wrap gap-2">

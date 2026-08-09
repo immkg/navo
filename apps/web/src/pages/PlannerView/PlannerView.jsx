@@ -104,6 +104,21 @@ function buildStaticMapUrl(stops, startPoint, apiKey) {
   return `https://maps.googleapis.com/maps/api/staticmap?size=900x320&maptype=roadmap&key=${apiKey}&${markers.join("&")}${path ? `&path=color:0x2f6ce5|weight:4|${path}` : ""}`;
 }
 
+function getChosenOption(work) {
+  if (!work.locationOptions || work.locationOptions.length === 0) {
+    return null;
+  }
+
+  if (work.selectedLocationOptionId) {
+    const selected = work.locationOptions.find(
+      (option) => option.id === work.selectedLocationOptionId
+    );
+    if (selected) return selected;
+  }
+
+  return work.locationOptions[0];
+}
+
 export default function PlannerView() {
   const [workItems, setWorkItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -129,6 +144,72 @@ export default function PlannerView() {
     }
     fetchWork();
   }, []);
+
+  const handleAddLocation = async (work) => {
+    const optionTitle = window.prompt(
+      "Location option title (optional)",
+      work.locationOptions?.length
+        ? `Option ${work.locationOptions.length + 1}`
+        : "Option 1"
+    );
+    if (optionTitle === null) return;
+
+    const locationName = window.prompt("Location name");
+    if (!locationName?.trim()) {
+      alert("Location name is required.");
+      return;
+    }
+
+    const locationAddress = window.prompt("Location address (optional)");
+
+    try {
+      const response = await axios.post(
+        `http://localhost:3001/api/work/${work.id}/location-option`,
+        {
+          title: optionTitle.trim() || undefined,
+          locations: [
+            {
+              name: locationName.trim(),
+              address: locationAddress?.trim() || undefined,
+            },
+          ],
+        }
+      );
+
+      setWorkItems((prev) =>
+        prev.map((item) =>
+          item.id === work.id
+            ? {
+                ...item,
+                locationOptions: [...(item.locationOptions || []), response.data],
+              }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error("Failed to add location option", error);
+      alert("Failed to add location option");
+    }
+  };
+
+  const handleSelectLocationOption = async (workId, optionId) => {
+    try {
+      const response = await axios.patch(`http://localhost:3001/api/work/${workId}`, {
+        selectedLocationOptionId: optionId,
+      });
+      const updated = response.data;
+      setWorkItems((prev) =>
+        prev.map((item) =>
+          item.id === workId
+            ? { ...item, selectedLocationOptionId: updated.selectedLocationOptionId }
+            : item
+        )
+      );
+    } catch (error) {
+      console.error("Failed to select location option", error);
+      alert("Failed to choose location option");
+    }
+  };
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -159,24 +240,27 @@ export default function PlannerView() {
 
   const locatedWork = useMemo(
     () =>
-      actionableWork.filter(
-        (item) => item.locations && item.locations.length > 0
-      ),
+      actionableWork.filter((item) => {
+        const chosenOption = getChosenOption(item);
+        return chosenOption?.locations?.length > 0;
+      }),
     [actionableWork]
   );
 
   const unplacedWork = useMemo(
     () =>
-      actionableWork.filter(
-        (item) => !item.locations || item.locations.length === 0
-      ),
+      actionableWork.filter((item) => {
+        const chosenOption = getChosenOption(item);
+        return !chosenOption?.locations?.length;
+      }),
     [actionableWork]
   );
 
   const routeStops = useMemo(() => {
     const map = new Map();
     locatedWork.forEach((work) => {
-      work.locations?.forEach((location) => {
+      const chosenOption = getChosenOption(work);
+      chosenOption?.locations?.forEach((location) => {
         if (!location) return;
         const existing = map.get(location.id);
         if (existing) {
@@ -539,19 +623,60 @@ export default function PlannerView() {
                       </div>
                     </div>
                     <div className="mt-4 grid gap-3">
-                      {stop.works.map((work) => (
-                        <div
-                          key={work.id}
-                          className="rounded-2xl bg-gray-50 p-3"
-                        >
-                          <div className="font-medium text-gray-800">
-                            {work.title}
+                      {stop.works.map((work) => {
+                        const chosenOption = getChosenOption(work);
+                        return (
+                          <div
+                            key={work.id}
+                            className="rounded-2xl bg-gray-50 p-3"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="font-medium text-gray-800">
+                                {work.title}
+                              </div>
+                              {chosenOption?.title && (
+                                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                                  {chosenOption.title}
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="text-sm text-gray-500">
+                                {work.type} · {work.durationMinutes || 30} min
+                              </div>
+                              {work.locationOptions?.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const optionTitles = work.locationOptions
+                                      .map((option, index) =>
+                                        `${index + 1}. ${option.title || `Option ${index + 1}`}`
+                                      )
+                                      .join("\n");
+                                    const selection = window.prompt(
+                                      `Switch selected option for ${work.title}:\n${optionTitles}`
+                                    );
+                                    const selectedIndex = Number(selection) - 1;
+                                    if (
+                                      Number.isInteger(selectedIndex) &&
+                                      selectedIndex >= 0 &&
+                                      selectedIndex < work.locationOptions.length
+                                    ) {
+                                      handleSelectLocationOption(
+                                        work.id,
+                                        work.locationOptions[selectedIndex].id
+                                      );
+                                    }
+                                  }}
+                                  className="text-xs rounded-full border border-blue-200 bg-white px-3 py-1 font-semibold text-blue-700 hover:bg-blue-50 transition"
+                                >
+                                  Switch option
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {work.type} · {work.durationMinutes || 30} min
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 ))
@@ -599,17 +724,73 @@ export default function PlannerView() {
                 These items still need a location to be part of the route.
               </p>
               <div className="mt-4 space-y-3">
-                {unplacedWork.map((work) => (
-                  <div
-                    key={work.id}
-                    className="rounded-3xl bg-yellow-50 p-4 text-sm text-yellow-900 border border-yellow-100"
-                  >
-                    <div className="font-medium">{work.title}</div>
-                    <div className="text-gray-600">
-                      {work.type} · {work.durationMinutes || 30} min
+                {unplacedWork.map((work) => {
+                  const chosenOption = getChosenOption(work);
+                  const hasOptions = work.locationOptions?.length > 0;
+                  return (
+                    <div
+                      key={work.id}
+                      className="rounded-3xl bg-yellow-50 p-4 border border-yellow-100"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <div className="font-medium text-yellow-900">{work.title}</div>
+                          <div className="text-gray-600 text-sm mt-1">
+                            {work.type} · {work.durationMinutes || 30} min
+                          </div>
+                          {chosenOption && (
+                            <div className="mt-2 text-xs text-yellow-900">
+                              Selected: {chosenOption.title || `Option ${work.locationOptions.indexOf(chosenOption) + 1}`}
+                            </div>
+                          )}
+                          {hasOptions && (
+                            <div className="mt-2 text-xs text-yellow-900">
+                              {work.locationOptions.length} saved option{work.locationOptions.length === 1 ? "" : "s"}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleAddLocation(work)}
+                            className="rounded-full bg-yellow-900 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-800 transition"
+                          >
+                            + Add location
+                          </button>
+                          {hasOptions && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const optionTitles = work.locationOptions
+                                  .map((option, index) =>
+                                    `${index + 1}. ${option.title || `Option ${index + 1}`}`
+                                  )
+                                  .join("\n");
+                                const selection = window.prompt(
+                                  `Select option to use:\n${optionTitles}`
+                                );
+                                const selectedIndex = Number(selection) - 1;
+                                if (
+                                  Number.isInteger(selectedIndex) &&
+                                  selectedIndex >= 0 &&
+                                  selectedIndex < work.locationOptions.length
+                                ) {
+                                  handleSelectLocationOption(
+                                    work.id,
+                                    work.locationOptions[selectedIndex].id
+                                  );
+                                }
+                              }}
+                              className="rounded-full border border-yellow-900 bg-white px-3 py-1 text-xs font-semibold text-yellow-900 hover:bg-yellow-100 transition"
+                            >
+                              Choose option
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

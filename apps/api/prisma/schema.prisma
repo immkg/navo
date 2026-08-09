@@ -22,23 +22,25 @@ model Intent {
 }
 
 model Work {
-  id              String   @id @default(uuid())
-  title           String
-  type            String   @default("task") // task, decision, etc.
-  status          String   @default("todo") // todo, in_progress, done
-  durationMinutes Int      @default(30)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                      String           @id @default(uuid())
+  title                   String
+  type                    String           @default("task") // task, decision, etc.
+  status                  String           @default("todo") // todo, in_progress, done
+  durationMinutes         Int              @default(30)
+  notes                   String?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
 
-  intentId    String?
-  intent      Intent?  @relation(fields: [intentId], references: [id])
+  intentId                String?
+  intent                  Intent?          @relation(fields: [intentId], references: [id])
 
-  contexts    Context[]
-  locations   Location[]
+  contexts                Context[]
+  locationOptions         LocationOption[]
+  selectedLocationOptionId String?
 
   // Self-relations for dependencies (DAG)
-  dependsOn   WorkDependency[] @relation("DependsOn")
-  dependedBy  WorkDependency[] @relation("DependedBy")
+  dependsOn               WorkDependency[] @relation("DependsOn")
+  dependedBy              WorkDependency[] @relation("DependedBy")
 }
 
 model Location {
@@ -47,11 +49,22 @@ model Location {
   address     String?
   latitude    Float?
   longitude   Float?
-  placeId     String?
+  placeId     String?   @unique
+  provider    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  workItems   Work[]
+  locationOptions LocationOption[] @relation("LocationOptionLocations")
+}
+
+model LocationOption {
+  id          String   @id @default(uuid())
+  title       String?
+  workId      String
+  work        Work     @relation(fields: [workId], references: [id])
+  locations   Location[] @relation("LocationOptionLocations")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model WorkDependency {

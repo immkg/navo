@@ -9,8 +9,46 @@ router.get("/", async (req, res) => {
     const intents = await prisma.intent.findMany({
       where: { status: { not: "archived" } },
       orderBy: { createdAt: "desc" },
+      include: {
+        workItems: {
+          select: {
+            status: true,
+            locationOptions: {
+              select: {
+                locations: { select: { id: true } },
+              },
+            },
+          },
+        },
+      },
     });
-    res.json(intents);
+
+    const summaryIntents = intents.map((intent) => {
+      const workCount = intent.workItems.length;
+      const completedWorkCount = intent.workItems.filter(
+        (work) => work.status === "done"
+      ).length;
+      const placeIds = new Set();
+      intent.workItems.forEach((work) => {
+        work.locationOptions.forEach((option) => {
+          option.locations.forEach((location) => placeIds.add(location.id));
+        });
+      });
+
+      return {
+        id: intent.id,
+        title: intent.title,
+        description: intent.description,
+        status: intent.status,
+        createdAt: intent.createdAt,
+        updatedAt: intent.updatedAt,
+        workCount,
+        completedWorkCount,
+        placeCount: placeIds.size,
+      };
+    });
+
+    res.json(summaryIntents);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch intents" });
@@ -29,7 +67,11 @@ router.get("/:id", async (req, res) => {
             contexts: true,
             dependsOn: true,
             dependedBy: true,
-            locations: true,
+            locationOptions: {
+              include: {
+                locations: true,
+              },
+            },
           },
         },
       },
@@ -67,6 +109,28 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to create intent" });
+  }
+});
+
+// Update an intent
+router.patch("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, status } = req.body;
+
+    const updatedIntent = await prisma.intent.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        status,
+      },
+    });
+
+    res.json(updatedIntent);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update intent" });
   }
 });
 

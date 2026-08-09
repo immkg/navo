@@ -8,9 +8,11 @@ router.get("/", async (req, res) => {
   try {
     const workItems = await prisma.work.findMany({
       include: {
-        contexts: true,
         intent: true,
-        locations: true,
+        contexts: true,
+        locationOptions: {
+          include: { locations: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -24,41 +26,112 @@ router.get("/", async (req, res) => {
 // Create a new piece of work
 router.post("/", async (req, res) => {
   try {
-    const { title, type, intentId, durationMinutes, locations } = req.body;
+    const { title, type, intentId, durationMinutes, notes, locationOptions } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: "Title is required" });
     }
+
+    const createLocationOption = (option) => {
+      const locationData = {
+        create: option.locations
+          .filter((loc) => !loc.id && !loc.placeId)
+          .map((loc) => ({
+            name: loc.name,
+            address: loc.address,
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            placeId: loc.placeId,
+            provider: loc.provider,
+          })),
+      };
+
+      const connect = option.locations
+        .filter((loc) => loc.id)
+        .map((loc) => ({ id: loc.id }));
+
+      const connectOrCreate = option.locations
+        .filter((loc) => !loc.id && loc.placeId)
+        .map((loc) => ({
+          where: { placeId: loc.placeId },
+          create: {
+            name: loc.name,
+            address: loc.address,
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            placeId: loc.placeId,
+            provider: loc.provider,
+          },
+        }));
+
+      return {
+        title: option.title,
+        locations: {
+          ...(!connect.length ? {} : { connect }),
+          ...(!connectOrCreate.length ? {} : { connectOrCreate }),
+          ...(!locationData.create.length ? {} : { create: locationData.create }),
+        },
+      };
+    };
 
     const data = {
       title,
       type: type || "task",
       durationMinutes:
         typeof durationMinutes === "number" ? durationMinutes : 30,
+      notes,
       intentId: intentId || null,
-      locations:
-        locations && Array.isArray(locations) && locations.length > 0
+      locationOptions:
+        locationOptions && Array.isArray(locationOptions) && locationOptions.length > 0
           ? {
-              create: locations.map((loc) => ({
-                name: loc.name,
-                address: loc.address,
-                latitude: loc.latitude,
-                longitude: loc.longitude,
-                placeId: loc.placeId,
-              })),
+              create: locationOptions.map(createLocationOption),
             }
           : undefined,
     };
 
     const newWork = await prisma.work.create({
       data,
-      include: { locations: true },
+      include: {
+        locationOptions: {
+          include: { locations: true },
+        },
+      },
     });
 
     res.status(201).json(newWork);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to create work item" });
+  }
+});
+
+// Update a work item
+router.patch("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, type, status, durationMinutes, notes, selectedLocationOptionId } = req.body;
+
+    const updatedWork = await prisma.work.update({
+      where: { id },
+      data: {
+        title,
+        type,
+        status,
+        durationMinutes,
+        notes,
+        selectedLocationOptionId,
+      },
+      include: {
+        locationOptions: {
+          include: { locations: true },
+        },
+      },
+    });
+
+    res.json(updatedWork);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update work item" });
   }
 });
 
@@ -138,21 +211,60 @@ router.post("/:id/context", async (req, res) => {
   }
 });
 
-// Add or attach a location to this work item
-router.post("/:id/location", async (req, res) => {
+// Create a new location option for this work item
+router.post("/:id/location-option", async (req, res) => {
   try {
     const { id } = req.params;
-    const { locationId, name, address, latitude, longitude, placeId } =
+    const { title, locations } = req.body;
+
+    if (!locations || !Array.isArray(locations) || locations.length === 0) {
+      return res.status(400).json({ error: "At least one location is required" });
+    }
+
+    const createdOption = await prisma.locationOption.create({
+      data: {
+        title,
+        work: { connect: { id } },
+        locations: {
+          connectOrCreate: locations.map((loc) => ({
+            where: loc.id ? { id: loc.id } : { placeId: loc.placeId || "" },
+            create: {
+              name: loc.name,
+              address: loc.address,
+              latitude: loc.latitude,
+              longitude: loc.longitude,
+              placeId: loc.placeId,
+              provider: loc.provider,
+            },
+          })),
+        },
+      },
+      include: { locations: true },
+    });
+
+    res.status(201).json(createdOption);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to create location option" });
+  }
+});
+
+// Add or attach a location to an existing location option
+router.post("/:id/location-option/:optionId/location", async (req, res) => {
+  try {
+    const { optionId } = req.params;
+    const { locationId, name, address, latitude, longitude, placeId, provider } =
       req.body;
 
     if (!locationId && !name) {
       return res.status(400).json({ error: "locationId or name is required" });
     }
 
-    const updateData = locationId
-      ? { locations: { connect: { id: locationId } } }
+    const locationConnectOrCreate = locationId
+      ? { connect: { id: locationId } }
       : {
-          locations: {
+          connectOrCreate: {
+            where: { placeId: placeId || "" },
             create: {
               name,
               address,
@@ -160,20 +272,35 @@ router.post("/:id/location", async (req, res) => {
               longitude:
                 longitude === undefined ? undefined : Number(longitude),
               placeId,
+              provider,
             },
           },
         };
 
-    const updatedWork = await prisma.work.update({
-      where: { id },
-      data: updateData,
+    const updatedOption = await prisma.locationOption.update({
+      where: { id: optionId },
+      data: {
+        locations: locationConnectOrCreate,
+      },
       include: { locations: true },
     });
 
-    res.json(updatedWork);
+    res.json(updatedOption);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Failed to attach location" });
+    res.status(500).json({ error: "Failed to attach location to option" });
+  }
+});
+
+// Delete a work item
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await prisma.work.delete({ where: { id } });
+    res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete work item" });
   }
 });
 

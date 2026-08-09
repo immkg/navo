@@ -90,13 +90,20 @@ export default function Dashboard() {
                   {intent.description}
                 </p>
               )}
-              <div className="mt-4 pt-4 border-t flex justify-between items-center">
-                <span className="text-xs font-medium px-2.5 py-1 bg-green-100 text-green-800 rounded-full capitalize">
-                  {intent.status}
-                </span>
-                <span className="text-sm text-gray-400 group-hover:text-blue-500 transition-colors">
-                  View Graph &rarr;
-                </span>
+              <div className="mt-4 space-y-2 text-sm text-gray-500">
+                <div className="flex items-center justify-between">
+                  <span>{intent.workCount ?? 0} work</span>
+                  <span>{intent.completedWorkCount ?? 0} done</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>{intent.placeCount ?? 0} place{intent.placeCount === 1 ? "" : "s"}</span>
+                  <span className="text-xs font-medium px-2.5 py-1 bg-green-100 text-green-800 rounded-full capitalize">
+                    {intent.status}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-400 group-hover:text-blue-500 transition-colors">
+                  Open &rarr;
+                </div>
               </div>
             </Link>
           ))}
