@@ -6,6 +6,17 @@ The format is based on **Keep a Changelog** and follows **Semantic Versioning**.
 
 ---
 
+## [1.6.0] - 2026-08-09
+
+### Changed
+
+- Duration picker now defaults to 15 minutes, starts at 5 minutes, and caps at 4 hours in 15-minute steps
+- Moved work notes directly below the work title field in the add-work form
+
+### Documentation
+
+- Recorded the 1.6.0 work form update
+
 ## [1.5.0] - 2026-08-09
 
 ### Added
