@@ -14,7 +14,10 @@ model Intent {
   id          String   @id @default(uuid())
   title       String
   description String?
-  status      String   @default("active") // active, completed, archived
+  status      String   @default("active") // active, completed, not_required, archived
+  priority    String   @default("medium") // low, medium, high
+  startDate   DateTime?
+  dueDate     DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

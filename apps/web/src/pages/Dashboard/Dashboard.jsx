@@ -1,6 +1,72 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+
+const PRIORITY_ORDER = {
+  high: 0,
+  medium: 1,
+  low: 2,
+};
+
+function startOfToday() {
+  const value = new Date();
+  value.setHours(0, 0, 0, 0);
+  return value;
+}
+
+function formatDate(dateValue) {
+  if (!dateValue) return "-";
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date);
+}
+
+function getDueMeta(dueDate) {
+  if (!dueDate) {
+    return { label: "No due", tone: "bg-slate-100 text-slate-600" };
+  }
+
+  const today = startOfToday();
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const diffDays = Math.round((due.getTime() - today.getTime()) / dayMs);
+
+  if (diffDays < 0) {
+    return {
+      label: `${Math.abs(diffDays)}d overdue`,
+      tone: "bg-rose-100 text-rose-700",
+    };
+  }
+
+  if (diffDays === 0) {
+    return { label: "Due today", tone: "bg-amber-100 text-amber-800" };
+  }
+
+  return { label: `${diffDays}d left`, tone: "bg-emerald-100 text-emerald-700" };
+}
+
+function normalizeIntent(intent) {
+  return {
+    ...intent,
+    workCount: intent.workCount ?? 0,
+    completedWorkCount: intent.completedWorkCount ?? 0,
+    placeCount: intent.placeCount ?? 0,
+    priority: intent.priority ?? "medium",
+    status: intent.status ?? "active",
+  };
+}
+
+function toDateInputValue(dateValue) {
+  if (!dateValue) return "";
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
 
 export default function Dashboard() {
   const [intents, setIntents] = useState([]);
@@ -10,7 +76,7 @@ export default function Dashboard() {
     async function fetchIntents() {
       try {
         const response = await axios.get("http://localhost:3001/api/intents");
-        setIntents(response.data);
+        setIntents(response.data.map(normalizeIntent));
       } catch (error) {
         console.error("Failed to fetch intents", error);
       } finally {
@@ -23,7 +89,11 @@ export default function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newIntentTitle, setNewIntentTitle] = useState("");
   const [newIntentDescription, setNewIntentDescription] = useState("");
+  const [newIntentPriority, setNewIntentPriority] = useState("medium");
+  const [newIntentStartDate, setNewIntentStartDate] = useState("");
+  const [newIntentDueDate, setNewIntentDueDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [updatingIntentId, setUpdatingIntentId] = useState("");
 
   const handleCreateIntent = async (e) => {
     e.preventDefault();
@@ -34,11 +104,17 @@ export default function Dashboard() {
       const res = await axios.post("http://localhost:3001/api/intents", {
         title: newIntentTitle,
         description: newIntentDescription,
+        priority: newIntentPriority,
+        startDate: newIntentStartDate || null,
+        dueDate: newIntentDueDate || null,
       });
-      setIntents([res.data, ...intents]);
+      setIntents([normalizeIntent(res.data), ...intents]);
       setIsModalOpen(false);
       setNewIntentTitle("");
       setNewIntentDescription("");
+      setNewIntentPriority("medium");
+      setNewIntentStartDate("");
+      setNewIntentDueDate("");
     } catch (error) {
       console.error("Failed to create intent", error);
       alert("Failed to create intent. Make sure the API is running.");
@@ -47,24 +123,279 @@ export default function Dashboard() {
     }
   };
 
-  return (
-    <div className="mx-auto w-full max-w-5xl px-3 pb-5 pt-3 sm:px-6 sm:pb-10 sm:pt-6">
-      <div className="mb-4 rounded-3xl border border-gray-200 bg-white p-3 shadow-sm sm:mb-8 sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900 sm:text-3xl">Intents</h1>
-            <p className="mt-0.5 text-xs text-gray-600 sm:mt-1 sm:text-base">What are you trying to achieve?</p>
+  const handlePatchIntent = async (intentId, patch, failureMessage) => {
+    setUpdatingIntentId(intentId);
+    try {
+      await axios.patch(`http://localhost:3001/api/intents/${intentId}`, patch);
+      setIntents((previous) =>
+        previous.map((intent) =>
+          intent.id === intentId ? normalizeIntent({ ...intent, ...patch }) : intent
+        )
+      );
+    } catch (error) {
+      console.error("Failed to patch intent", error);
+      alert(failureMessage);
+    } finally {
+      setUpdatingIntentId("");
+    }
+  };
+
+  const handleUpdateIntentStatus = async (intentId, status) => {
+    await handlePatchIntent(intentId, { status }, "Unable to update status right now.");
+  };
+
+  const handleUpdatePriority = async (intentId, priority) => {
+    await handlePatchIntent(
+      intentId,
+      { priority },
+      "Unable to update priority right now."
+    );
+  };
+
+  const handleUpdateDueDate = async (intentId, dueDateValue) => {
+    await handlePatchIntent(
+      intentId,
+      { dueDate: dueDateValue || null },
+      "Unable to update due date right now."
+    );
+  };
+
+  const handleUpdateStartDate = async (intentId, startDateValue) => {
+    await handlePatchIntent(
+      intentId,
+      { startDate: startDateValue || null },
+      "Unable to update start date right now."
+    );
+  };
+
+  const groupedIntents = useMemo(() => {
+    const today = startOfToday();
+    const next = {
+      overdue: [],
+      upcoming: [],
+      active: [],
+      closed: [],
+    };
+
+    intents.forEach((intent) => {
+      const due = intent.dueDate ? new Date(intent.dueDate) : null;
+      const start = intent.startDate ? new Date(intent.startDate) : null;
+
+      if (intent.status === "completed" || intent.status === "not_required") {
+        next.closed.push(intent);
+        return;
+      }
+
+      if (due && due < today) {
+        next.overdue.push(intent);
+        return;
+      }
+
+      if (start && start > today) {
+        next.upcoming.push(intent);
+        return;
+      }
+
+      next.active.push(intent);
+    });
+
+    const byDueDateAsc = (a, b) => {
+      const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+      const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+      if (aDue !== bDue) return aDue - bDue;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    };
+
+    const byStartDateAsc = (a, b) => {
+      const aStart = a.startDate ? new Date(a.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+      const bStart = b.startDate ? new Date(b.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+      if (aStart !== bStart) return aStart - bStart;
+      return byDueDateAsc(a, b);
+    };
+
+    const byPriorityThenDue = (a, b) => {
+      const aPriority = PRIORITY_ORDER[a.priority] ?? PRIORITY_ORDER.medium;
+      const bPriority = PRIORITY_ORDER[b.priority] ?? PRIORITY_ORDER.medium;
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      return byDueDateAsc(a, b);
+    };
+
+    next.overdue.sort(byDueDateAsc);
+    next.upcoming.sort(byStartDateAsc);
+    next.active.sort(byPriorityThenDue);
+    next.closed.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+    return next;
+  }, [intents]);
+
+  const renderIntentCard = (intent) => {
+    const workCount = intent.workCount;
+    const doneCount = intent.completedWorkCount;
+    const placeCount = intent.placeCount;
+    const completion = workCount > 0 ? Math.round((doneCount / workCount) * 100) : 0;
+    const priorityStyle =
+      intent.priority === "high"
+        ? "bg-rose-100 text-rose-800"
+        : intent.priority === "low"
+          ? "bg-slate-100 text-slate-700"
+          : "bg-amber-100 text-amber-800";
+    const dueMeta = getDueMeta(intent.dueDate);
+
+    return (
+      <article
+        key={intent.id}
+        className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm transition-all hover:border-blue-300 sm:p-3"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <Link to={`/intent/${intent.id}`} className="group min-w-0">
+              <h2 className="line-clamp-1 text-sm font-semibold text-gray-900 transition-colors group-hover:text-blue-600 sm:text-base">
+                {intent.title}
+              </h2>
+            </Link>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${dueMeta.tone}`}>
+              {dueMeta.label}
+            </span>
           </div>
-          <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:flex-row sm:gap-3">
+
+          {intent.description && (
+            <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">
+              {intent.description}
+            </p>
+          )}
+
+          <div className="mt-1.5 flex flex-wrap items-center gap-1 text-xs">
+            <select
+              value={intent.priority}
+              onChange={(e) => handleUpdatePriority(intent.id, e.target.value)}
+              disabled={updatingIntentId === intent.id}
+              className={`rounded-full border-0 px-2 py-0.5 font-medium capitalize outline-none ${priorityStyle}`}
+              title="Set priority"
+            >
+              <option value="high">high</option>
+              <option value="medium">medium</option>
+              <option value="low">low</option>
+            </select>
+
+            <input
+              type="date"
+              value={toDateInputValue(intent.dueDate)}
+              onChange={(e) => handleUpdateDueDate(intent.id, e.target.value)}
+              disabled={updatingIntentId === intent.id}
+              className="rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 font-medium text-gray-700 disabled:opacity-60"
+              title="Set due date"
+            />
+
+            <input
+              type="date"
+              value={toDateInputValue(intent.startDate)}
+              onChange={(e) => handleUpdateStartDate(intent.id, e.target.value)}
+              disabled={updatingIntentId === intent.id}
+              className="rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 font-medium text-gray-700 disabled:opacity-60"
+              title="Set start date"
+            />
+          </div>
+
+          <div className="mt-1.5 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+            <span className="text-xs text-gray-600">
+              {doneCount}/{workCount}w · {placeCount}p
+            </span>
+            <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all"
+                style={{ width: `${completion}%` }}
+              />
+            </div>
+            <Link to={`/intent/${intent.id}`} className="text-xs font-medium text-blue-600 hover:text-blue-700">
+              Open
+            </Link>
+          </div>
+        </div>
+
+        <div className="flex w-14 shrink-0 flex-col items-stretch justify-center gap-1">
+          <button
+            type="button"
+            onClick={() => handleUpdateIntentStatus(intent.id, "active")}
+            disabled={updatingIntentId === intent.id || intent.status === "active"}
+            aria-label="Set active"
+            title="Set active"
+            className={`inline-flex h-6 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold transition disabled:opacity-50 ${
+              intent.status === "active"
+                ? "border-blue-200 bg-blue-50 text-blue-700"
+                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            Active
+          </button>
+          <button
+            type="button"
+            onClick={() => handleUpdateIntentStatus(intent.id, "completed")}
+            disabled={updatingIntentId === intent.id || intent.status === "completed"}
+            aria-label="Set completed"
+            title="Set completed"
+            className={`inline-flex h-6 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold transition disabled:opacity-50 ${
+              intent.status === "completed"
+                ? "border-emerald-200 bg-emerald-100 text-emerald-800"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            }`}
+          >
+            Done
+          </button>
+          <button
+            type="button"
+            onClick={() => handleUpdateIntentStatus(intent.id, "not_required")}
+            disabled={updatingIntentId === intent.id || intent.status === "not_required"}
+            aria-label="Set not required"
+            title="Set not required"
+            className={`inline-flex h-6 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold transition disabled:opacity-50 ${
+              intent.status === "not_required"
+                ? "border-slate-300 bg-slate-200 text-slate-800"
+                : "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
+            }`}
+          >
+            N/A
+          </button>
+        </div>
+      </article>
+    );
+  };
+
+  const renderSection = (title, sectionIntents) => {
+    if (sectionIntents.length === 0) return null;
+
+    return (
+    <section className="mb-3 sm:mb-4">
+      <div className="mb-1.5 flex items-center justify-between">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-700 sm:text-sm">{title}</h2>
+        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600 sm:text-xs">
+          {sectionIntents.length}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5 lg:grid-cols-3 lg:gap-3">
+        {sectionIntents.map(renderIntentCard)}
+      </div>
+    </section>
+    );
+  };
+
+  return (
+    <div className="mx-auto w-full max-w-6xl px-2.5 pb-4 pt-2 sm:px-4 sm:pb-7 sm:pt-4">
+      <div className="mb-3 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm sm:mb-4 sm:p-3.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900 sm:text-2xl">Intents</h1>
+            <p className="mt-0.5 text-[11px] text-gray-600 sm:text-sm">What are you trying to achieve?</p>
+          </div>
+          <div className="flex w-full flex-col gap-1 sm:w-auto sm:flex-row sm:gap-2">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+              className="inline-flex min-h-10 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:text-sm"
             >
               + New Intent
             </button>
             <Link
               to="/planner"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+              className="inline-flex min-h-10 items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-gray-800 sm:text-sm"
             >
               Go to Planner
             </Link>
@@ -77,80 +408,12 @@ export default function Dashboard() {
           Loading intents...
         </div>
       ) : intents.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
-          {intents.map((intent) => (
-            <Link
-              key={intent.id}
-              to={`/intent/${intent.id}`}
-              className="group block rounded-2xl border border-gray-200 bg-white p-3.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md sm:p-5"
-            >
-              {(() => {
-                const workCount = intent.workCount ?? 0;
-                const doneCount = intent.completedWorkCount ?? 0;
-                const placeCount = intent.placeCount ?? 0;
-                const remainingWork = Math.max(workCount - doneCount, 0);
-                const completion = workCount > 0 ? Math.round((doneCount / workCount) * 100) : 0;
-                const hasPlace = placeCount > 0;
-
-                return (
-                  <>
-                    <div className="mb-2 flex items-start justify-between gap-2">
-                      <h2 className="text-base font-semibold text-gray-900 transition-colors group-hover:text-blue-600 sm:text-xl">
-                        {intent.title}
-                      </h2>
-                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-700 sm:text-xs">
-                        {completion}%
-                      </span>
-                    </div>
-
-                    {intent.description && (
-                      <p className="mt-1.5 line-clamp-2 text-xs text-gray-500 sm:mt-2 sm:text-sm">
-                        {intent.description}
-                      </p>
-                    )}
-
-                    <div className="mt-3">
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                        <div
-                          className="h-full rounded-full bg-blue-500 transition-all"
-                          style={{ width: `${completion}%` }}
-                        />
-                      </div>
-                      <div className="mt-1.5 flex items-center justify-between text-[11px] text-gray-500 sm:text-xs">
-                        <span>{doneCount} complete</span>
-                        <span>{remainingWork} left</span>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 sm:text-sm">
-                      <div className="rounded-lg bg-gray-50 px-2.5 py-2">
-                        <p className="text-[11px] uppercase tracking-wide text-gray-500 sm:text-xs">Work</p>
-                        <p className="mt-0.5 font-semibold text-gray-900">{workCount}</p>
-                      </div>
-                      <div className="rounded-lg bg-gray-50 px-2.5 py-2">
-                        <p className="text-[11px] uppercase tracking-wide text-gray-500 sm:text-xs">Places</p>
-                        <p className="mt-0.5 font-semibold text-gray-900">{placeCount}</p>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between">
-                      <span className="text-[11px] text-gray-500 sm:text-xs">
-                        {hasPlace ? "Ready to schedule by place" : "Add a place to unlock planning"}
-                      </span>
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-medium capitalize text-green-800 sm:px-2.5 sm:py-1 sm:text-xs">
-                        {intent.status}
-                      </span>
-                    </div>
-
-                    <div className="pt-2 text-xs font-medium text-blue-600 transition-colors group-hover:text-blue-700 sm:text-sm">
-                      Open intent &rarr;
-                    </div>
-                  </>
-                );
-              })()}
-            </Link>
-          ))}
-        </div>
+        <>
+          {renderSection("Overdue", groupedIntents.overdue)}
+          {renderSection("Upcoming", groupedIntents.upcoming)}
+          {renderSection("Active", groupedIntents.active)}
+          {renderSection("Closed", groupedIntents.closed)}
+        </>
       ) : (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center sm:p-12">
           <p className="text-gray-500 mb-4">You have no active intents.</p>
@@ -186,6 +449,44 @@ export default function Dashboard() {
                   value={newIntentTitle}
                   onChange={(e) => setNewIntentTitle(e.target.value)}
                 />
+              </div>
+              <div className="mb-4">
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Priority
+                </label>
+                <select
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring focus:ring-blue-200 outline-none"
+                  value={newIntentPriority}
+                  onChange={(e) => setNewIntentPriority(e.target.value)}
+                >
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+              <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Start date
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring focus:ring-blue-200 outline-none"
+                    value={newIntentStartDate}
+                    onChange={(e) => setNewIntentStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Due date
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring focus:ring-blue-200 outline-none"
+                    value={newIntentDueDate}
+                    onChange={(e) => setNewIntentDueDate(e.target.value)}
+                  />
+                </div>
               </div>
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
