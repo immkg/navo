@@ -5,6 +5,7 @@ import {
   autocompletePlaces,
   getPlaceDetails,
   loadGoogleMaps,
+  reverseGeocodeLocation,
 } from "../../utils/googleMaps";
 import LocationCard from "./LocationCard";
 
@@ -19,6 +20,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const [newWorkAutocompleteResults, setNewWorkAutocompleteResults] = useState([]);
   const [newWorkPlaceResults, setNewWorkPlaceResults] = useState([]);
   const [selectedPreviewPlace, setSelectedPreviewPlace] = useState(null);
+  const [droppedPinPlace, setDroppedPinPlace] = useState(null);
   const [newWorkPlaceSearchError, setNewWorkPlaceSearchError] = useState(null);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
   const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
@@ -27,6 +29,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRefs = useRef([]);
+  const mapClickListenerRef = useRef(null);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const showPlaceSearchPanel =
     newWorkMode === "place" && newWorkLocationOptionGroups.length > 0;
@@ -40,6 +43,8 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     setNewWorkSelectedOptionGroupIndex(0);
     setNewWorkPlaceQuery("");
     setNewWorkPlaceResults([]);
+    setSelectedPreviewPlace(null);
+    setDroppedPinPlace(null);
     setNewWorkPlaceSearchError(null);
   };
 
@@ -118,6 +123,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     setNewWorkAutocompleteResults([]);
     setNewWorkPlaceResults([]);
     setSelectedPreviewPlace(null);
+    setDroppedPinPlace(null);
     setNewWorkPlaceSearchError(null);
   };
 
@@ -135,6 +141,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     setIsSearchingPlaces(true);
     setNewWorkPlaceSearchError(null);
     setSelectedPreviewPlace(null);
+    setDroppedPinPlace(null);
 
     try {
       const results = await searchPlaces(newWorkPlaceQuery.trim(), googleKey);
@@ -155,6 +162,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const handleAutocomplete = async (query) => {
     setNewWorkPlaceSearchError(null);
     setSelectedPreviewPlace(null);
+    setDroppedPinPlace(null);
     if (!googleKey || !query.trim()) {
       setNewWorkAutocompleteResults([]);
       return;
@@ -206,6 +214,54 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
 
   const previewPlaceInMap = (place) => {
     setSelectedPreviewPlace(place);
+
+    if (
+      mapInstanceRef.current &&
+      place?.latitude != null &&
+      place?.longitude != null
+    ) {
+      mapInstanceRef.current.setCenter({
+        lat: place.latitude,
+        lng: place.longitude,
+      });
+      mapInstanceRef.current.setZoom(15);
+    }
+  };
+
+  const handleMapClickDropPin = async (lat, lng) => {
+    const coordinateLabel = `Lat ${lat.toFixed(5)}, Lng ${lng.toFixed(5)}`;
+    let label = coordinateLabel;
+    let placeId = `pin:${lat.toFixed(6)},${lng.toFixed(6)}`;
+
+    if (googleKey) {
+      try {
+        const reverse = await reverseGeocodeLocation(lat, lng, googleKey);
+        if (reverse?.label) {
+          label = reverse.label;
+        }
+        if (reverse?.placeId) {
+          placeId = reverse.placeId;
+        }
+      } catch {
+        // Fallback to coordinate label when reverse geocode is unavailable.
+      }
+    }
+
+    const dropped = {
+      name: label,
+      formattedAddress: label,
+      latitude: lat,
+      longitude: lng,
+      placeId,
+      provider: "google",
+    };
+    setDroppedPinPlace(dropped);
+    setSelectedPreviewPlace(dropped);
+  };
+
+  const handleAddDroppedPinToGroup = () => {
+    if (!droppedPinPlace) return;
+    handleAddLocationResultToGroup(newWorkSelectedOptionGroupIndex, droppedPinPlace);
   };
 
   useEffect(() => {
@@ -216,7 +272,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         const maps = await loadGoogleMaps(googleKey);
 
         let MapCtor = null;
-        for (let attempt = 0; attempt < 6; attempt += 1) {
+        for (let attempt = 0; attempt < 40; attempt += 1) {
           const runtimeMaps = window.google?.maps || maps;
           if (typeof runtimeMaps?.Map === "function") {
             MapCtor = runtimeMaps.Map;
@@ -231,7 +287,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
             }
           }
 
-          await new Promise((resolve) => setTimeout(resolve, 80));
+          await new Promise((resolve) => setTimeout(resolve, 75));
         }
 
         if (!MapCtor) {
@@ -244,16 +300,36 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
             zoom: 4,
             disableDefaultUI: true,
           });
+          setMapReady(true);
+
+          if (mapClickListenerRef.current) {
+            mapClickListenerRef.current.remove();
+          }
+          mapClickListenerRef.current = mapInstanceRef.current.addListener("click", (event) => {
+            const lat = event?.latLng?.lat?.();
+            const lng = event?.latLng?.lng?.();
+            if (lat == null || lng == null) return;
+            handleMapClickDropPin(lat, lng);
+          });
         } else {
           mapInstanceRef.current.setCenter({ lat: 39.5, lng: -98.35 });
           mapInstanceRef.current.setZoom(4);
+          setMapReady(true);
           maps.event.trigger(mapInstanceRef.current, "resize");
         }
       } catch (error) {
+        setMapReady(false);
         console.error("Failed to initialize map preview", error);
       }
     }
     initializeMap();
+
+    return () => {
+      if (mapClickListenerRef.current) {
+        mapClickListenerRef.current.remove();
+        mapClickListenerRef.current = null;
+      }
+    };
   }, [googleKey, showPlaceSearchPanel]);
 
   useEffect(() => {
@@ -261,11 +337,8 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
       const maps = window.google?.maps;
       if (!maps || !mapInstanceRef.current) return;
 
-      const mapsLib = maps.importLibrary
-        ? await maps.importLibrary("maps")
-        : null;
-      const MarkerCtor = mapsLib?.Marker || maps.Marker;
-      const LatLngBoundsCtor = mapsLib?.LatLngBounds || maps.LatLngBounds;
+      const MarkerCtor = maps.Marker;
+      const LatLngBoundsCtor = maps.LatLngBounds;
 
       if (!MarkerCtor || !LatLngBoundsCtor) {
         return;
@@ -274,8 +347,21 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
       markerRefs.current.forEach((marker) => marker.setMap(null));
       markerRefs.current = [];
 
-      const sourcePlaces = selectedPreviewPlace ? [selectedPreviewPlace] : newWorkPlaceResults;
-      const validPlaces = sourcePlaces.filter(
+      const candidatePlaces = [...newWorkPlaceResults];
+      if (
+        selectedPreviewPlace &&
+        !candidatePlaces.some((place) => place.placeId === selectedPreviewPlace.placeId)
+      ) {
+        candidatePlaces.push(selectedPreviewPlace);
+      }
+      if (
+        droppedPinPlace &&
+        !candidatePlaces.some((place) => place.placeId === droppedPinPlace.placeId)
+      ) {
+        candidatePlaces.push(droppedPinPlace);
+      }
+
+      const validPlaces = candidatePlaces.filter(
         (place) => place?.latitude != null && place?.longitude != null
       );
       if (validPlaces.length === 0) {
@@ -289,13 +375,24 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
           position: { lat: place.latitude, lng: place.longitude },
           title: place.name,
         });
+
+        marker.addListener("click", () => {
+          setSelectedPreviewPlace(place);
+        });
+
         bounds.extend(marker.getPosition());
         return marker;
       });
 
       markerRefs.current = newMarkers;
 
-      if (validPlaces.length === 1) {
+      if (selectedPreviewPlace?.latitude != null && selectedPreviewPlace?.longitude != null) {
+        mapInstanceRef.current.setCenter({
+          lat: selectedPreviewPlace.latitude,
+          lng: selectedPreviewPlace.longitude,
+        });
+        mapInstanceRef.current.setZoom(15);
+      } else if (validPlaces.length === 1) {
         mapInstanceRef.current.setCenter({
           lat: validPlaces[0].latitude,
           lng: validPlaces[0].longitude,
@@ -307,7 +404,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     }
 
     updateMarkers();
-  }, [newWorkPlaceResults, selectedPreviewPlace]);
+  }, [newWorkPlaceResults, selectedPreviewPlace, droppedPinPlace, mapReady]);
 
   return (
     <div id="new-work-form" className="mt-10 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -535,10 +632,28 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                   </div>
                   <div className="rounded-3xl border border-gray-200 bg-white p-3">
                     <div className="mb-2 text-sm font-semibold text-gray-900">Map preview</div>
+                    <div className="mb-2 text-xs text-gray-500">
+                      Click on map to drop a pin, then add it to the active group.
+                    </div>
                     <div
                       ref={mapContainerRef}
                       className="h-64 rounded-3xl border border-gray-200 bg-gray-100"
                     />
+                    {droppedPinPlace && (
+                      <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3">
+                        <div className="text-sm font-semibold text-blue-900">Dropped pin</div>
+                        <div className="text-sm text-blue-700">{droppedPinPlace.formattedAddress}</div>
+                        <div className="mt-2">
+                          <button
+                            type="button"
+                            onClick={handleAddDroppedPinToGroup}
+                            className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition"
+                          >
+                            Add dropped pin
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

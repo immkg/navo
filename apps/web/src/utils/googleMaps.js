@@ -12,17 +12,33 @@ export function loadGoogleMaps(apiKey) {
   }
 
   const ensureMapsReady = async () => {
-    const maps = window.google?.maps;
-    if (!maps) {
-      throw new Error("Google Maps namespace unavailable");
-    }
+    const waitForReady = async () => {
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        const maps = window.google?.maps;
+        if (!maps) {
+          await new Promise((resolve) => setTimeout(resolve, 75));
+          continue;
+        }
 
-    if (maps.importLibrary) {
-      await maps.importLibrary("maps");
-      await maps.importLibrary("places");
-    }
+        if (typeof maps.Map === "function") {
+          return maps;
+        }
 
-    return maps;
+        if (maps.importLibrary) {
+          const mapsLib = await maps.importLibrary("maps");
+          await maps.importLibrary("places");
+          if (typeof mapsLib?.Map === "function" || typeof maps.Map === "function") {
+            return maps;
+          }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 75));
+      }
+
+      throw new Error("Google Maps Map constructor unavailable");
+    };
+
+    return waitForReady();
   };
 
   if (window.google?.maps) {
@@ -103,6 +119,28 @@ export function geocodeLocation(query, apiKey) {
           });
         } else {
           reject(new Error(status || "Geocode failed"));
+        }
+      });
+    });
+  });
+}
+
+export function reverseGeocodeLocation(latitude, longitude, apiKey) {
+  if (latitude == null || longitude == null) {
+    return Promise.reject(new Error("Latitude and longitude are required"));
+  }
+
+  return loadGoogleMaps(apiKey).then((maps) => {
+    const geocoder = new maps.Geocoder();
+    return new Promise((resolve, reject) => {
+      geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results, status) => {
+        if (status === "OK" && results && results.length > 0) {
+          resolve({
+            label: results[0].formatted_address,
+            placeId: results[0].place_id,
+          });
+        } else {
+          reject(new Error(status || "Reverse geocode failed"));
         }
       });
     });
