@@ -6,7 +6,7 @@ The format is based on **Keep a Changelog** and follows **Semantic Versioning**.
 
 ---
 
-## [Unreleased]
+## [1.2.0] - 2026-08-09
 
 ### Added
 
@@ -21,6 +21,7 @@ The format is based on **Keep a Changelog** and follows **Semantic Versioning**.
 
 - Clarified route-first planning and location as a core concept
 - Updated docs to reflect map-based intent/work flow and opportunity discovery
+
 
 ---
 
