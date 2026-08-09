@@ -1,8 +1,17 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import IntentWorkForm from "./IntentWorkForm";
 import LocationCard from "./LocationCard";
+import {
+  autocompletePlaces,
+  getPlaceDetails,
+  loadGoogleMaps,
+  reverseGeocodeLocation,
+  searchPlaces,
+} from "../../utils/googleMaps";
+
+const DURATION_OPTIONS = [5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240];
 
 function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
   const [intentTitle, setIntentTitle] = useState(intent.title || "");
@@ -191,15 +200,800 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
   );
 }
 
+function buildLocationOptionGroupsFromWork(work) {
+  return (work?.locationOptions || []).map((option) => ({
+    id: option.id,
+    title: option.title || "",
+    locations: (option.locations || []).map((location) => ({
+      id: location.id,
+      name: location.name,
+      address: location.address,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      placeId: location.placeId,
+      provider: location.provider,
+    })),
+  }));
+}
+
+function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached, onGroupRemoved, onCancel }) {
+  const initialLocationOptionGroups = buildLocationOptionGroupsFromWork(work);
+  const [locationOptionGroups, setLocationOptionGroups] = useState(initialLocationOptionGroups);
+  const [selectedGroupIndex, setSelectedGroupIndex] = useState(() => {
+    const selectedIndex = initialLocationOptionGroups.findIndex(
+      (group) => group.id === work?.selectedLocationOptionId
+    );
+    return selectedIndex >= 0 ? selectedIndex : 0;
+  });
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [autocompleteResults, setAutocompleteResults] = useState([]);
+  const [placeResults, setPlaceResults] = useState([]);
+  const [selectedPreviewPlace, setSelectedPreviewPlace] = useState(null);
+  const [droppedPinPlace, setDroppedPinPlace] = useState(null);
+  const [searchError, setSearchError] = useState(null);
+  const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerRefs = useRef([]);
+  const mapClickListenerRef = useRef(null);
+  const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const showPlaceSearchPanel = locationOptionGroups.length > 0;
+  const workId = work?.id;
+
+  const resetEditor = () => {
+    const nextGroups = buildLocationOptionGroupsFromWork(work);
+    setLocationOptionGroups(nextGroups);
+    const selectedIndex = nextGroups.findIndex((group) => group.id === work?.selectedLocationOptionId);
+    setSelectedGroupIndex(selectedIndex >= 0 ? selectedIndex : 0);
+    setPlaceQuery("");
+    setAutocompleteResults([]);
+    setPlaceResults([]);
+    setSelectedPreviewPlace(null);
+    setDroppedPinPlace(null);
+    setSearchError(null);
+  };
+
+  const handleAddLocationOptionGroup = () => {
+    const nextIndex = locationOptionGroups.length;
+    setLocationOptionGroups((prev) => [
+      ...prev,
+      { id: null, title: `Option ${nextIndex + 1}`, locations: [] },
+    ]);
+    setSelectedGroupIndex(nextIndex);
+  };
+
+  const removeGroupAtIndex = (groupIndex) => {
+    setLocationOptionGroups((prev) => prev.filter((_, index) => index !== groupIndex));
+    setSelectedGroupIndex((prevSelectedIndex) => {
+      if (groupIndex < prevSelectedIndex) {
+        return prevSelectedIndex - 1;
+      }
+      if (groupIndex === prevSelectedIndex) {
+        return Math.max(0, prevSelectedIndex - 1);
+      }
+      return prevSelectedIndex;
+    });
+  };
+
+  const handleRemoveGroup = async (groupIndex) => {
+    const group = locationOptionGroups[groupIndex];
+    if (!group) return;
+
+    if (!group.id) {
+      removeGroupAtIndex(groupIndex);
+      return;
+    }
+
+    if (!workId) return;
+
+    setIsSaving(true);
+    try {
+      const response = await axios.delete(`http://localhost:3001/api/work/${workId}/location-option/${group.id}`);
+      onGroupRemoved?.(group.id, response.data?.selectedLocationOptionId || null);
+      removeGroupAtIndex(groupIndex);
+    } catch (error) {
+      console.error("Failed to remove location option group", error);
+      alert("Failed to remove location option group");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRemoveLocationFromGroup = async (groupIndex, locationIndex) => {
+    const group = locationOptionGroups[groupIndex];
+    const location = group?.locations?.[locationIndex];
+    if (!group || !location) return;
+
+    if (!group.id || !location.id) {
+      setLocationOptionGroups((prev) => {
+        const next = [...prev];
+        const nextGroup = next[groupIndex];
+        if (!nextGroup) return prev;
+        nextGroup.locations = nextGroup.locations.filter((_, index) => index !== locationIndex);
+        return next;
+      });
+      return;
+    }
+
+    if (!workId) return;
+
+    setIsSaving(true);
+    try {
+      const response = await axios.delete(
+        `http://localhost:3001/api/work/${workId}/location-option/${group.id}/location/${location.id}`
+      );
+      const updatedOption = response.data;
+      setLocationOptionGroups((prev) =>
+        prev.map((item, index) =>
+          index === groupIndex
+            ? {
+                ...item,
+                locations: (updatedOption.locations || []).map((updatedLocation) => ({
+                  id: updatedLocation.id,
+                  name: updatedLocation.name,
+                  address: updatedLocation.address,
+                  latitude: updatedLocation.latitude,
+                  longitude: updatedLocation.longitude,
+                  placeId: updatedLocation.placeId,
+                  provider: updatedLocation.provider,
+                })),
+              }
+            : item
+        )
+      );
+      onLocationAttached?.(group.id, updatedOption);
+    } catch (error) {
+      console.error("Failed to remove location from group", error);
+      alert("Failed to remove location from group");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const attachLocationToExistingGroup = async (groupIndex, place) => {
+    const group = locationOptionGroups[groupIndex];
+    if (!group?.id || !workId) {
+      return false;
+    }
+
+    const response = await axios.post(
+      `http://localhost:3001/api/work/${workId}/location-option/${group.id}/location`,
+      {
+        name: place.name,
+        address: place.address,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        placeId: place.placeId,
+        provider: place.provider,
+      }
+    );
+
+    const updatedOption = response.data;
+    setLocationOptionGroups((prev) =>
+      prev.map((item, index) =>
+        index === groupIndex
+          ? {
+              ...item,
+              locations: updatedOption.locations.map((location) => ({
+                id: location.id,
+                name: location.name,
+                address: location.address,
+                latitude: location.latitude,
+                longitude: location.longitude,
+                placeId: location.placeId,
+                provider: location.provider,
+              })),
+            }
+          : item
+      )
+    );
+
+    onLocationAttached?.(group.id, updatedOption);
+    return true;
+  };
+
+  const handleAutocomplete = async (query) => {
+    setSearchError(null);
+    setSelectedPreviewPlace(null);
+    setDroppedPinPlace(null);
+
+    if (!googleKey || !query.trim()) {
+      setAutocompleteResults([]);
+      return;
+    }
+
+    try {
+      const results = await autocompletePlaces(query.trim(), googleKey);
+      setAutocompleteResults(results);
+    } catch (error) {
+      console.error("Autocomplete failed", error);
+      setSearchError(error.message || "Autocomplete failed.");
+      setAutocompleteResults([]);
+    }
+  };
+
+  const handleSearchPlaces = async () => {
+    if (!googleKey) {
+      setSearchError("Google Maps API key is not configured.");
+      return;
+    }
+
+    if (!placeQuery.trim()) {
+      setSearchError("Enter a place name or address to search.");
+      return;
+    }
+
+    setIsSearchingPlaces(true);
+    setSearchError(null);
+    setSelectedPreviewPlace(null);
+    setDroppedPinPlace(null);
+
+    try {
+      const results = await searchPlaces(placeQuery.trim(), googleKey);
+      setPlaceResults(results);
+      if (results.length > 0) {
+        setSelectedPreviewPlace(results[0]);
+      }
+    } catch (error) {
+      console.error("Place search failed", error);
+      setSearchError(error.message || "Place search failed.");
+      setPlaceResults([]);
+      setSelectedPreviewPlace(null);
+    } finally {
+      setIsSearchingPlaces(false);
+    }
+  };
+
+  const handleAddLocationToGroup = (groupIndex, place) => {
+    const group = locationOptionGroups[groupIndex];
+    if (!group) return;
+
+    const isDuplicate = group.locations.some((location) => location.placeId === place.placeId);
+    if (isDuplicate) {
+      return;
+    }
+
+    const nextLocation = {
+      name: place.name,
+      address: place.formattedAddress,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      placeId: place.placeId,
+      provider: place.provider || "google",
+    };
+
+    if (group.id) {
+      setIsSaving(true);
+      attachLocationToExistingGroup(groupIndex, nextLocation)
+        .catch((error) => {
+          console.error("Failed to add location to existing group", error);
+          alert("Failed to add location to group");
+        })
+        .finally(() => {
+          setIsSaving(false);
+        });
+    } else {
+      setLocationOptionGroups((prev) => {
+        const next = [...prev];
+        const targetGroup = next[groupIndex];
+        if (!targetGroup) return prev;
+
+        targetGroup.locations = [...targetGroup.locations, nextLocation];
+        return next;
+      });
+    }
+
+    setPlaceResults([]);
+    setPlaceQuery("");
+    setAutocompleteResults([]);
+  };
+
+  const hasPendingNewGroups = locationOptionGroups.some((group) => !group.id);
+
+  const previewPlaceInMap = (place) => {
+    setSelectedPreviewPlace(place);
+
+    if (
+      mapInstanceRef.current &&
+      place?.latitude != null &&
+      place?.longitude != null
+    ) {
+      mapInstanceRef.current.setCenter({
+        lat: place.latitude,
+        lng: place.longitude,
+      });
+      mapInstanceRef.current.setZoom(15);
+    }
+  };
+
+  const handleMapClickDropPin = useCallback(async (lat, lng) => {
+    const coordinateLabel = `Lat ${lat.toFixed(5)}, Lng ${lng.toFixed(5)}`;
+    let label = coordinateLabel;
+    let placeId = `pin:${lat.toFixed(6)},${lng.toFixed(6)}`;
+
+    if (googleKey) {
+      try {
+        const reverse = await reverseGeocodeLocation(lat, lng, googleKey);
+        if (reverse?.label) {
+          label = reverse.label;
+        }
+        if (reverse?.placeId) {
+          placeId = reverse.placeId;
+        }
+      } catch {
+        // Fallback to coordinate label when reverse geocode is unavailable.
+      }
+    }
+
+    const dropped = {
+      name: label,
+      formattedAddress: label,
+      latitude: lat,
+      longitude: lng,
+      placeId,
+      provider: "google",
+    };
+    setDroppedPinPlace(dropped);
+    setSelectedPreviewPlace(dropped);
+  }, [googleKey]);
+
+  const handleAddDroppedPinToGroup = () => {
+    if (!droppedPinPlace) return;
+    handleAddLocationToGroup(selectedGroupIndex, droppedPinPlace);
+  };
+
+  useEffect(() => {
+    async function initializeMap() {
+      if (!googleKey || !showPlaceSearchPanel || placeResults.length === 0 || !mapContainerRef.current) return;
+
+      try {
+        const maps = await loadGoogleMaps(googleKey);
+
+        let MapCtor = null;
+        for (let attempt = 0; attempt < 40; attempt += 1) {
+          const runtimeMaps = window.google?.maps || maps;
+          if (typeof runtimeMaps?.Map === "function") {
+            MapCtor = runtimeMaps.Map;
+            break;
+          }
+
+          if (runtimeMaps?.importLibrary) {
+            const mapsLib = await runtimeMaps.importLibrary("maps");
+            if (typeof mapsLib?.Map === "function") {
+              MapCtor = mapsLib.Map;
+              break;
+            }
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 75));
+        }
+
+        if (!MapCtor) {
+          throw new Error("Google Maps Map constructor unavailable");
+        }
+
+        if (!mapInstanceRef.current) {
+          mapInstanceRef.current = new MapCtor(mapContainerRef.current, {
+            center: { lat: 39.5, lng: -98.35 },
+            zoom: 4,
+            disableDefaultUI: true,
+          });
+          setMapReady(true);
+
+          if (mapClickListenerRef.current) {
+            mapClickListenerRef.current.remove();
+          }
+          mapClickListenerRef.current = mapInstanceRef.current.addListener("click", (event) => {
+            const lat = event?.latLng?.lat?.();
+            const lng = event?.latLng?.lng?.();
+            if (lat == null || lng == null) return;
+            handleMapClickDropPin(lat, lng);
+          });
+        } else {
+          mapInstanceRef.current.setCenter({ lat: 39.5, lng: -98.35 });
+          mapInstanceRef.current.setZoom(4);
+          setMapReady(true);
+          maps.event.trigger(mapInstanceRef.current, "resize");
+        }
+      } catch (error) {
+        setMapReady(false);
+        console.error("Failed to initialize map preview", error);
+      }
+    }
+
+    initializeMap();
+
+    return () => {
+      if (mapClickListenerRef.current) {
+        mapClickListenerRef.current.remove();
+        mapClickListenerRef.current = null;
+      }
+    };
+  }, [googleKey, showPlaceSearchPanel, placeResults.length, handleMapClickDropPin]);
+
+  useEffect(() => {
+    async function updateMarkers() {
+      const maps = window.google?.maps;
+      if (!maps || !mapInstanceRef.current) return;
+
+      const MarkerCtor = maps.Marker;
+      const LatLngBoundsCtor = maps.LatLngBounds;
+
+      if (!MarkerCtor || !LatLngBoundsCtor) {
+        return;
+      }
+
+      markerRefs.current.forEach((marker) => marker.setMap(null));
+      markerRefs.current = [];
+
+      const candidatePlaces = [...placeResults];
+      if (
+        selectedPreviewPlace &&
+        !candidatePlaces.some((place) => place.placeId === selectedPreviewPlace.placeId)
+      ) {
+        candidatePlaces.push(selectedPreviewPlace);
+      }
+      if (
+        droppedPinPlace &&
+        !candidatePlaces.some((place) => place.placeId === droppedPinPlace.placeId)
+      ) {
+        candidatePlaces.push(droppedPinPlace);
+      }
+
+      const validPlaces = candidatePlaces.filter(
+        (place) => place?.latitude != null && place?.longitude != null
+      );
+      if (validPlaces.length === 0) {
+        return;
+      }
+
+      const bounds = new LatLngBoundsCtor();
+      const newMarkers = validPlaces.map((place) => {
+        const marker = new MarkerCtor({
+          map: mapInstanceRef.current,
+          position: { lat: place.latitude, lng: place.longitude },
+          title: place.name,
+        });
+
+        marker.addListener("click", () => {
+          setSelectedPreviewPlace(place);
+        });
+
+        bounds.extend(marker.getPosition());
+        return marker;
+      });
+
+      markerRefs.current = newMarkers;
+
+      if (selectedPreviewPlace?.latitude != null && selectedPreviewPlace?.longitude != null) {
+        mapInstanceRef.current.setCenter({
+          lat: selectedPreviewPlace.latitude,
+          lng: selectedPreviewPlace.longitude,
+        });
+        mapInstanceRef.current.setZoom(15);
+      } else if (validPlaces.length === 1) {
+        mapInstanceRef.current.setCenter({
+          lat: validPlaces[0].latitude,
+          lng: validPlaces[0].longitude,
+        });
+        mapInstanceRef.current.setZoom(14);
+      } else {
+        mapInstanceRef.current.fitBounds(bounds, 48);
+      }
+    }
+
+    updateMarkers();
+  }, [placeResults, selectedPreviewPlace, droppedPinPlace, mapReady]);
+
+  const handleSubmit = async () => {
+    const validGroups = locationOptionGroups
+      .filter((group) => !group.id)
+      .map((group) => ({
+        title: group.title?.trim() || undefined,
+        locations: group.locations.filter((location) => location.name),
+      }))
+      .filter((group) => group.locations.length > 0);
+
+    if (validGroups.length === 0) {
+      if (!hasPendingNewGroups) {
+        resetEditor();
+        onCancel?.();
+        return;
+      }
+
+      alert("Please add at least one location option group with at least one place.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const createdOptions = [];
+      for (const group of validGroups) {
+        const response = await axios.post(`http://localhost:3001/api/work/${workId}/location-option`, {
+          title: group.title,
+          locations: group.locations.map((location) => ({
+            name: location.name,
+            address: location.address,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            placeId: location.placeId,
+            provider: location.provider,
+          })),
+        });
+        createdOptions.push(response.data);
+      }
+
+      onOptionsCreated(createdOptions);
+      resetEditor();
+      onCancel?.();
+    } catch (error) {
+      console.error("Failed to add location option", error);
+      alert("Failed to add location option");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="mt-4 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <button
+          type="button"
+          onClick={handleAddLocationOptionGroup}
+          className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+        >
+          {locationOptionGroups.length === 0 ? "Edit Locations" : "+ Add group"}
+        </button>
+      </div>
+
+      {locationOptionGroups.length === 0 ? (
+        <div className="mt-4 rounded-3xl border border-dashed border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+          Add a location option group first, then add one or more places inside it.
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4">
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <input
+              value={placeQuery}
+              onChange={(e) => {
+                const nextQuery = e.target.value;
+                setPlaceQuery(nextQuery);
+                handleAutocomplete(nextQuery);
+              }}
+              placeholder="Search for a place"
+              className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+            />
+            <button
+              type="button"
+              onClick={handleSearchPlaces}
+              disabled={isSearchingPlaces}
+              className="rounded-full bg-blue-600 px-4 py-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSearchingPlaces ? "Searching…" : "Search"}
+            </button>
+          </div>
+
+          {searchError && <div className="text-sm text-red-600">{searchError}</div>}
+
+          {autocompleteResults.length > 0 && (
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+              <div className="mb-2 text-sm font-semibold text-gray-900">Suggestions</div>
+              <div className="space-y-2">
+                {autocompleteResults.map((suggestion) => (
+                  <button
+                    key={suggestion.placeId}
+                    type="button"
+                    onClick={async () => {
+                      setPlaceQuery(suggestion.description);
+                      setAutocompleteResults([]);
+                      setIsSearchingPlaces(true);
+                      try {
+                        const placeDetails = await getPlaceDetails(suggestion.placeId, googleKey);
+                        setPlaceResults([placeDetails]);
+                        setSearchError(null);
+                      } catch (error) {
+                        console.error("Autocomplete selection failed", error);
+                        setSearchError(error.message || "Place details failed.");
+                        setPlaceResults([]);
+                      } finally {
+                        setIsSearchingPlaces(false);
+                      }
+                    }}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100"
+                  >
+                    {suggestion.description}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {placeResults.length > 0 && (
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.95fr)]">
+              <div className="space-y-2">
+                <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-gray-900">Places</div>
+                    <div className="text-xs text-gray-500">{placeResults.length} results</div>
+                  </div>
+                  <div className="space-y-2">
+                    {placeResults.map((place, resultIndex) => (
+                      <div
+                        key={resultIndex}
+                        className={`rounded-2xl border p-3 ${selectedPreviewPlace?.placeId === place.placeId ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-gray-50"}`}
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium text-gray-900">{place.name}</div>
+                            {place.formattedAddress && (
+                              <div className="truncate text-sm text-gray-500">{place.formattedAddress}</div>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <button
+                              type="button"
+                              onClick={() => previewPlaceInMap(place)}
+                              className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                            >
+                              Preview
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAddLocationToGroup(selectedGroupIndex, place)}
+                              className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
+                            >
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
+                <div className="mb-2 text-sm font-semibold text-gray-900">Map preview</div>
+                <div className="mb-2 text-xs text-gray-500">Click on map to drop a pin, then add it to the active group.</div>
+                <div
+                  ref={mapContainerRef}
+                  className="h-56 rounded-3xl border border-gray-200 bg-gray-100 sm:h-64"
+                />
+                {droppedPinPlace && (
+                  <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3">
+                    <div className="text-sm font-semibold text-blue-900">Dropped pin</div>
+                    <div className="text-sm text-blue-700">{droppedPinPlace.formattedAddress}</div>
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={handleAddDroppedPinToGroup}
+                        className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
+                      >
+                        Add dropped pin
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-4">
+            {locationOptionGroups.map((group, index) => (
+              <div
+                key={index}
+                className={`rounded-3xl border p-4 ${selectedGroupIndex === index ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`}
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <input
+                        value={group.title}
+                        readOnly={Boolean(group.id)}
+                        onChange={(e) => {
+                          if (group.id) return;
+                          const title = e.target.value;
+                          setLocationOptionGroups((prev) => {
+                            const next = [...prev];
+                            next[index] = { ...next[index], title };
+                            return next;
+                          });
+                        }}
+                        placeholder={group.id ? "Existing group" : "Option title (optional)"}
+                        className="w-full max-w-[260px] rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                      />
+                      <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                        {group.locations.length} place{group.locations.length === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    {group.locations.length > 0 && (
+                      <div className="mt-2 text-sm text-gray-500">
+                        {group.locations.length === 1 ? "1 place added" : `${group.locations.length} places added`}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedGroupIndex(index)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${selectedGroupIndex === index ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
+                  >
+                    {selectedGroupIndex === index ? "Selected" : "Select"}
+                  </button>
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveGroup(index)}
+                    disabled={isSaving}
+                    className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                  >
+                    Remove group
+                  </button>
+                </div>
+                {group.locations.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {group.locations.map((location, locationIndex) => (
+                      <LocationCard
+                        key={location.id || `${location.placeId || location.name}-${locationIndex}`}
+                        location={location}
+                        actions={(
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLocationFromGroup(index, locationIndex)}
+                            disabled={isSaving}
+                            className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                          >
+                            Remove place
+                          </button>
+                        )}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                resetEditor();
+                onCancel?.();
+              }}
+              className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isSaving || locationOptionGroups.length === 0}
+              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+            >
+              {isSaving ? "Adding..." : hasPendingNewGroups ? "Add location option" : "Done"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function IntentView() {
   const { id } = useParams();
   const [intent, setIntent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updatingIntent, setUpdatingIntent] = useState(false);
+  const [editingWorkId, setEditingWorkId] = useState(null);
+  const [editingWorkTitle, setEditingWorkTitle] = useState("");
+  const [editingWorkNotes, setEditingWorkNotes] = useState("");
+  const [editingWorkDuration, setEditingWorkDuration] = useState(15);
+  const [editingWorkStatus, setEditingWorkStatus] = useState("todo");
+  const [updatingWorkId, setUpdatingWorkId] = useState(null);
   const [addingOptionForWorkId, setAddingOptionForWorkId] = useState(null);
-  const [newLocationOptionTitle, setNewLocationOptionTitle] = useState("");
-  const [newLocationName, setNewLocationName] = useState("");
-  const [newLocationAddress, setNewLocationAddress] = useState("");
 
   useEffect(() => {
     async function fetchIntent() {
@@ -231,76 +1025,128 @@ export default function IntentView() {
     }
   };
 
-
-  const handleAddLocationOption = async (workId, title, name, address) => {
-    if (!name?.trim()) {
-      alert("Location name is required.");
-      return;
-    }
+  const handlePatchWork = async (workId, patch) => {
+    setUpdatingWorkId(workId);
 
     try {
-      const response = await axios.post(`http://localhost:3001/api/work/${workId}/location-option`, {
-        title: title.trim() || undefined,
-        locations: [
-          {
-            name: name.trim(),
-            address: address?.trim() || undefined,
-          },
-        ],
-      });
+      const response = await axios.patch(`http://localhost:3001/api/work/${workId}`, patch);
+      const updatedWork = response.data;
 
       setIntent((prev) => ({
         ...prev,
         workItems: prev.workItems.map((item) =>
-          item.id === workId
-            ? {
-                ...item,
-                locationOptions: [...(item.locationOptions || []), response.data],
-              }
-            : item
+          item.id === workId ? { ...item, ...updatedWork } : item
         ),
       }));
 
-      setAddingOptionForWorkId(null);
-      setNewLocationOptionTitle("");
-      setNewLocationName("");
-      setNewLocationAddress("");
+      return updatedWork;
     } catch (error) {
-      console.error("Failed to add location option", error);
-      alert("Failed to add location option");
+      console.error("Failed to update work", error);
+      alert("Unable to update work right now.");
+      throw error;
+    } finally {
+      setUpdatingWorkId(null);
     }
   };
 
+  const handleLocationOptionsCreated = (workId, createdOptions) => {
+    setIntent((prev) => ({
+      ...prev,
+      workItems: prev.workItems.map((item) =>
+        item.id === workId
+          ? {
+              ...item,
+              locationOptions: [...(item.locationOptions || []), ...createdOptions],
+              selectedLocationOptionId: createdOptions[createdOptions.length - 1]?.id || item.selectedLocationOptionId,
+            }
+          : item
+      ),
+    }));
+  };
+
+  const handleLocationAttached = (workId, optionId, updatedOption) => {
+    setIntent((prev) => ({
+      ...prev,
+      workItems: prev.workItems.map((item) =>
+        item.id === workId
+          ? {
+              ...item,
+              locationOptions: (item.locationOptions || []).map((option) =>
+                option.id === optionId ? updatedOption : option
+              ),
+            }
+          : item
+      ),
+    }));
+  };
+
+  const handleLocationOptionRemoved = (workId, optionId, selectedLocationOptionId) => {
+    setIntent((prev) => ({
+      ...prev,
+      workItems: prev.workItems.map((item) => {
+        if (item.id !== workId) {
+          return item;
+        }
+
+        const remainingOptions = (item.locationOptions || []).filter((option) => option.id !== optionId);
+        return {
+          ...item,
+          locationOptions: remainingOptions,
+          selectedLocationOptionId:
+            selectedLocationOptionId || remainingOptions[0]?.id || null,
+        };
+      }),
+    }));
+  };
+
+
   const startAddLocationOption = (work) => {
     setAddingOptionForWorkId(work.id);
-    setNewLocationOptionTitle(
-      work.locationOptions?.length ? `Option ${work.locationOptions.length + 1}` : "Option 1"
-    );
-    setNewLocationName("");
-    setNewLocationAddress("");
+  };
+
+  const startEditWork = (work) => {
+    setEditingWorkId(work.id);
+    setEditingWorkTitle(work.title || "");
+    setEditingWorkNotes(work.notes || "");
+    setEditingWorkDuration(work.durationMinutes || 15);
+    setEditingWorkStatus(work.status || "todo");
+  };
+
+  const cancelEditWork = () => {
+    setEditingWorkId(null);
+    setEditingWorkTitle("");
+    setEditingWorkNotes("");
+    setEditingWorkDuration(15);
+    setEditingWorkStatus("todo");
+  };
+
+  const saveEditWork = async (workId) => {
+    const nextTitle = editingWorkTitle.trim();
+    if (!nextTitle) {
+      alert("Work title is required.");
+      return;
+    }
+
+    await handlePatchWork(workId, {
+      title: nextTitle,
+      notes: editingWorkNotes.trim() || null,
+      durationMinutes: Number(editingWorkDuration) || 15,
+      status: editingWorkStatus,
+    });
+
+    cancelEditWork();
   };
 
   const cancelAddLocationOption = () => {
     setAddingOptionForWorkId(null);
-    setNewLocationOptionTitle("");
-    setNewLocationName("");
-    setNewLocationAddress("");
   };
 
   const handleSelectLocationOption = async (workId, optionId) => {
     try {
-      const response = await axios.patch(`http://localhost:3001/api/work/${workId}`, {
+      const updated = await handlePatchWork(workId, {
         selectedLocationOptionId: optionId,
       });
-      const updated = response.data;
-      setIntent((prev) => ({
-        ...prev,
-        workItems: prev.workItems.map((item) =>
-          item.id === workId
-            ? { ...item, selectedLocationOptionId: updated.selectedLocationOptionId }
-            : item
-        ),
-      }));
+      return updated;
     } catch (error) {
       console.error("Failed to select location option", error);
       alert("Failed to choose location option");
@@ -370,6 +1216,14 @@ export default function IntentView() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                      <button
+                        type="button"
+                        onClick={() => startEditWork(work)}
+                        disabled={updatingWorkId === work.id}
+                        className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+                      >
+                        Edit
+                      </button>
                       <span className="rounded-full bg-gray-100 px-3 py-1 text-center text-xs font-semibold uppercase text-gray-600">
                         {work.locationOptions?.length > 0
                           ? `${work.locationOptions.length} option${work.locationOptions.length === 1 ? "" : "s"}`
@@ -380,62 +1234,94 @@ export default function IntentView() {
                         onClick={() => startAddLocationOption(work)}
                         className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                       >
-                        + Location option
+                        Edit locations
                       </button>
                     </div>
                   </div>
 
-                  {addingOptionForWorkId === work.id && (
-                    <div className="mt-4 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
-                      <div className="mb-3 text-sm font-semibold text-gray-900">Add location option</div>
+                  {editingWorkId === work.id && (
+                    <div className="mt-4 rounded-3xl border border-gray-200 bg-gray-50 p-4">
+                      <div className="mb-3 text-sm font-semibold text-gray-900">Edit Work</div>
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <label className="space-y-2">
-                          <span className="text-sm font-medium text-gray-700">Option title (optional)</span>
+                        <label className="space-y-2 sm:col-span-2">
+                          <span className="text-sm font-medium text-gray-700">What needs to happen?</span>
                           <input
-                            value={newLocationOptionTitle}
-                            onChange={(e) => setNewLocationOptionTitle(e.target.value)}
+                            value={editingWorkTitle}
+                            onChange={(e) => setEditingWorkTitle(e.target.value)}
                             className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
-                            placeholder="Option 1"
                           />
                         </label>
+
                         <label className="space-y-2">
-                          <span className="text-sm font-medium text-gray-700">Location name</span>
-                          <input
-                            value={newLocationName}
-                            onChange={(e) => setNewLocationName(e.target.value)}
+                          <span className="text-sm font-medium text-gray-700">Duration</span>
+                          <select
+                            value={editingWorkDuration}
+                            onChange={(e) => setEditingWorkDuration(Number(e.target.value))}
                             className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
-                            placeholder="Coffee shop, hardware store, office"
-                          />
+                          >
+                            {DURATION_OPTIONS.map((minutes) => (
+                              <option key={minutes} value={minutes}>
+                                {minutes < 60 ? `${minutes} min` : `${minutes / 60} hr${minutes === 60 ? "" : "s"}`}
+                              </option>
+                            ))}
+                          </select>
                         </label>
-                      </div>
-                      <div className="mt-4">
-                        <label className="space-y-2 w-full">
-                          <span className="text-sm font-medium text-gray-700">Location address (optional)</span>
-                          <input
-                            value={newLocationAddress}
-                            onChange={(e) => setNewLocationAddress(e.target.value)}
+
+                        <label className="space-y-2">
+                          <span className="text-sm font-medium text-gray-700">Status</span>
+                          <select
+                            value={editingWorkStatus}
+                            onChange={(e) => setEditingWorkStatus(e.target.value)}
                             className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
-                            placeholder="123 Main St, City"
+                          >
+                            <option value="todo">Todo</option>
+                            <option value="in_progress">In progress</option>
+                            <option value="done">Done</option>
+                          </select>
+                        </label>
+
+                        <label className="space-y-2 sm:col-span-2">
+                          <span className="text-sm font-medium text-gray-700">Notes</span>
+                          <input
+                            value={editingWorkNotes}
+                            onChange={(e) => setEditingWorkNotes(e.target.value)}
+                            className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                            placeholder="Add context or details"
                           />
                         </label>
                       </div>
                       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                         <button
                           type="button"
-                          onClick={cancelAddLocationOption}
+                          onClick={cancelEditWork}
                           className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
                         >
                           Cancel
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleAddLocationOption(work.id, newLocationOptionTitle, newLocationName, newLocationAddress)}
-                          className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                          onClick={() => saveEditWork(work.id)}
+                          disabled={updatingWorkId === work.id || !editingWorkTitle.trim()}
+                          className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
                         >
-                          Add location option
+                          {updatingWorkId === work.id ? "Saving..." : "Save changes"}
                         </button>
                       </div>
                     </div>
+                  )}
+
+                  {addingOptionForWorkId === work.id && (
+                    <WorkLocationOptionsEditor
+                      work={work}
+                      onOptionsCreated={(createdOptions) => handleLocationOptionsCreated(work.id, createdOptions)}
+                      onLocationAttached={(optionId, updatedOption) =>
+                        handleLocationAttached(work.id, optionId, updatedOption)
+                      }
+                      onGroupRemoved={(optionId, nextSelectedOptionId) =>
+                        handleLocationOptionRemoved(work.id, optionId, nextSelectedOptionId)
+                      }
+                      onCancel={cancelAddLocationOption}
+                    />
                   )}
 
                   {work.notes && <div className="mt-4 text-sm text-gray-600">{work.notes}</div>}

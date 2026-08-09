@@ -292,6 +292,88 @@ router.post("/:id/location-option/:optionId/location", async (req, res) => {
   }
 });
 
+// Remove a location from an existing location option
+router.delete("/:id/location-option/:optionId/location/:locationId", async (req, res) => {
+  try {
+    const { id, optionId, locationId } = req.params;
+
+    const option = await prisma.locationOption.findFirst({
+      where: {
+        id: optionId,
+        workId: id,
+        locations: {
+          some: { id: locationId },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!option) {
+      return res.status(404).json({ error: "Location option or location not found" });
+    }
+
+    const updatedOption = await prisma.locationOption.update({
+      where: { id: optionId },
+      data: {
+        locations: {
+          disconnect: { id: locationId },
+        },
+      },
+      include: { locations: true },
+    });
+
+    res.json(updatedOption);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to remove location from option" });
+  }
+});
+
+// Remove an existing location option from a work item
+router.delete("/:id/location-option/:optionId", async (req, res) => {
+  try {
+    const { id, optionId } = req.params;
+
+    const option = await prisma.locationOption.findFirst({
+      where: { id: optionId, workId: id },
+      select: { id: true },
+    });
+
+    if (!option) {
+      return res.status(404).json({ error: "Location option not found" });
+    }
+
+    await prisma.locationOption.delete({ where: { id: optionId } });
+
+    const work = await prisma.work.findUnique({
+      where: { id },
+      include: {
+        locationOptions: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true },
+        },
+      },
+    });
+
+    let selectedLocationOptionId = work?.selectedLocationOptionId || null;
+    if (selectedLocationOptionId === optionId) {
+      selectedLocationOptionId = work?.locationOptions?.[0]?.id || null;
+      await prisma.work.update({
+        where: { id },
+        data: { selectedLocationOptionId },
+      });
+    }
+
+    res.json({
+      deletedOptionId: optionId,
+      selectedLocationOptionId,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to remove location option" });
+  }
+});
+
 // Delete a work item
 router.delete("/:id", async (req, res) => {
   try {

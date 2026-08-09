@@ -140,6 +140,29 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     setNewWorkSelectedOptionGroupIndex(nextIndex);
   };
 
+  const handleRemoveLocationOptionGroup = (groupIndex) => {
+    setNewWorkLocationOptionGroups((prev) => prev.filter((_, index) => index !== groupIndex));
+    setNewWorkSelectedOptionGroupIndex((prevSelectedIndex) => {
+      if (groupIndex < prevSelectedIndex) {
+        return prevSelectedIndex - 1;
+      }
+      if (groupIndex === prevSelectedIndex) {
+        return Math.max(0, prevSelectedIndex - 1);
+      }
+      return prevSelectedIndex;
+    });
+  };
+
+  const handleRemoveLocationFromGroup = (groupIndex, locationIndex) => {
+    setNewWorkLocationOptionGroups((prev) => {
+      const next = [...prev];
+      const group = next[groupIndex];
+      if (!group) return prev;
+      group.locations = group.locations.filter((_, index) => index !== locationIndex);
+      return next;
+    });
+  };
+
   const handleSearchPlaces = async () => {
     if (!googleKey) {
       setNewWorkPlaceSearchError("Google Maps API key is not configured.");
@@ -487,7 +510,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                 onClick={handleAddLocationOptionGroup}
                 className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
               >
-                + Add Group
+                {newWorkLocationOptionGroups.length === 0 ? "Edit Locations" : "+ Add Group"}
               </button>
             </div>
 
@@ -666,10 +689,31 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                             {newWorkSelectedOptionGroupIndex === index ? "Selected" : "Select"}
                           </button>
                         </div>
+                        <div className="mt-3">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveLocationOptionGroup(index)}
+                            className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                          >
+                            Remove group
+                          </button>
+                        </div>
                         {group.locations.length > 0 && (
                           <div className="mt-3 space-y-2">
                             {group.locations.map((location, locationIndex) => (
-                              <LocationCard key={locationIndex} location={location} />
+                              <LocationCard
+                                key={`${location.placeId || location.name}-${locationIndex}`}
+                                location={location}
+                                actions={(
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveLocationFromGroup(index, locationIndex)}
+                                    className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                                  >
+                                    Remove place
+                                  </button>
+                                )}
+                              />
                             ))}
                           </div>
                         )}
