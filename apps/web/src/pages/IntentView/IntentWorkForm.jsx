@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { searchPlaces } from "../../utils/googleMaps";
+import {
+  searchPlaces,
+  autocompletePlaces,
+  getPlaceDetails,
+  loadGoogleMaps,
+} from "../../utils/googleMaps";
+import LocationCard from "./LocationCard";
 
 export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const [newWorkTitle, setNewWorkTitle] = useState("");
@@ -10,10 +16,17 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const [newWorkLocationOptionGroups, setNewWorkLocationOptionGroups] = useState([]);
   const [newWorkSelectedOptionGroupIndex, setNewWorkSelectedOptionGroupIndex] = useState(0);
   const [newWorkPlaceQuery, setNewWorkPlaceQuery] = useState("");
+  const [newWorkAutocompleteResults, setNewWorkAutocompleteResults] = useState([]);
   const [newWorkPlaceResults, setNewWorkPlaceResults] = useState([]);
+  const [selectedPreviewPlace, setSelectedPreviewPlace] = useState(null);
   const [newWorkPlaceSearchError, setNewWorkPlaceSearchError] = useState(null);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+  const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  const mapContainerRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markerRefs = useRef([]);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   const resetForm = () => {
@@ -100,7 +113,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const handlePreparePlaceSearch = (groupIndex) => {
     setNewWorkSelectedOptionGroupIndex(groupIndex);
     setNewWorkPlaceQuery("");
+    setNewWorkAutocompleteResults([]);
     setNewWorkPlaceResults([]);
+    setSelectedPreviewPlace(null);
     setNewWorkPlaceSearchError(null);
   };
 
@@ -117,16 +132,42 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
 
     setIsSearchingPlaces(true);
     setNewWorkPlaceSearchError(null);
+    setSelectedPreviewPlace(null);
 
     try {
       const results = await searchPlaces(newWorkPlaceQuery.trim(), googleKey);
       setNewWorkPlaceResults(results);
+      if (results.length > 0) {
+        setSelectedPreviewPlace(results[0]);
+      }
     } catch (error) {
       console.error("Place search failed", error);
       setNewWorkPlaceSearchError(error.message || "Place search failed.");
       setNewWorkPlaceResults([]);
+      setSelectedPreviewPlace(null);
     } finally {
       setIsSearchingPlaces(false);
+    }
+  };
+
+  const handleAutocomplete = async (query) => {
+    setNewWorkPlaceSearchError(null);
+    setSelectedPreviewPlace(null);
+    if (!googleKey || !query.trim()) {
+      setNewWorkAutocompleteResults([]);
+      return;
+    }
+
+    setIsAutocompleteLoading(true);
+    try {
+      const autocomplete = await autocompletePlaces(query.trim(), googleKey);
+      setNewWorkAutocompleteResults(autocomplete);
+    } catch (error) {
+      console.error("Autocomplete failed", error);
+      setNewWorkPlaceSearchError(error.message || "Autocomplete failed.");
+      setNewWorkAutocompleteResults([]);
+    } finally {
+      setIsAutocompleteLoading(false);
     }
   };
 
@@ -135,6 +176,14 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
       const next = [...prev];
       const group = next[groupIndex];
       if (!group) return prev;
+
+      const isDuplicate = group.locations.some(
+        (location) => location.placeId === place.placeId
+      );
+      if (isDuplicate) {
+        return prev;
+      }
+
       group.locations = [
         ...group.locations,
         {
@@ -150,12 +199,75 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     });
     setNewWorkPlaceResults([]);
     setNewWorkPlaceQuery("");
+    setNewWorkAutocompleteResults([]);
   };
 
-  const openPlaceInMaps = (place) => {
-    const query = encodeURIComponent(place.name || place.formattedAddress || "");
-    window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, "_blank");
+  const previewPlaceInMap = (place) => {
+    setSelectedPreviewPlace(place);
   };
+
+  useEffect(() => {
+    async function initializeMap() {
+      if (!googleKey || !mapContainerRef.current) return;
+
+      try {
+        const maps = await loadGoogleMaps(googleKey);
+        if (!mapInstanceRef.current) {
+          mapInstanceRef.current = new maps.Map(mapContainerRef.current, {
+            center: { lat: 39.5, lng: -98.35 },
+            zoom: 4,
+            disableDefaultUI: true,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to initialize map preview", error);
+      }
+    }
+    initializeMap();
+  }, [googleKey]);
+
+  useEffect(() => {
+    async function updateMarkers() {
+      const maps = window.google?.maps;
+      if (!maps || !mapInstanceRef.current) return;
+
+      markerRefs.current.forEach((marker) => marker.setMap(null));
+      markerRefs.current = [];
+
+      const sourcePlaces = selectedPreviewPlace ? [selectedPreviewPlace] : newWorkPlaceResults;
+      const validPlaces = sourcePlaces.filter(
+        (place) => place?.latitude != null && place?.longitude != null
+      );
+      if (validPlaces.length === 0) {
+        return;
+      }
+
+      const bounds = new maps.LatLngBounds();
+      const newMarkers = validPlaces.map((place) => {
+        const marker = new maps.Marker({
+          map: mapInstanceRef.current,
+          position: { lat: place.latitude, lng: place.longitude },
+          title: place.name,
+        });
+        bounds.extend(marker.getPosition());
+        return marker;
+      });
+
+      markerRefs.current = newMarkers;
+
+      if (validPlaces.length === 1) {
+        mapInstanceRef.current.setCenter({
+          lat: validPlaces[0].latitude,
+          lng: validPlaces[0].longitude,
+        });
+        mapInstanceRef.current.setZoom(14);
+      } else {
+        mapInstanceRef.current.fitBounds(bounds, 48);
+      }
+    }
+
+    updateMarkers();
+  }, [newWorkPlaceResults, selectedPreviewPlace]);
 
   return (
     <div id="new-work-form" className="mt-10 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
@@ -280,7 +392,11 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                 <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
                   <input
                     value={newWorkPlaceQuery}
-                    onChange={(e) => setNewWorkPlaceQuery(e.target.value)}
+                    onChange={(e) => {
+                      const nextQuery = e.target.value;
+                      setNewWorkPlaceQuery(nextQuery);
+                      handleAutocomplete(nextQuery);
+                    }}
                     placeholder="Search for a place"
                     className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                   />
@@ -296,41 +412,95 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                 {newWorkPlaceSearchError && (
                   <div className="mt-3 text-sm text-red-600">{newWorkPlaceSearchError}</div>
                 )}
-                {newWorkPlaceResults.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    {newWorkPlaceResults.map((place, resultIndex) => (
-                      <div
-                        key={resultIndex}
-                        className="rounded-2xl border border-gray-200 bg-gray-50 p-3"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="font-medium text-gray-900">{place.name}</div>
-                            {place.formattedAddress && (
-                              <div className="text-sm text-gray-500">{place.formattedAddress}</div>
-                            )}
-                          </div>
-                          <div className="flex gap-2">
+                <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+                  <div className="space-y-2">
+                    {newWorkAutocompleteResults.length > 0 && (
+                      <div className="rounded-3xl border border-gray-200 bg-gray-50 p-3">
+                        <div className="mb-2 text-sm font-semibold text-gray-900">Autocomplete suggestions</div>
+                        <div className="space-y-2">
+                          {newWorkAutocompleteResults.map((suggestion) => (
                             <button
+                              key={suggestion.placeId}
                               type="button"
-                              onClick={() => openPlaceInMaps(place)}
-                              className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
+                              onClick={async () => {
+                                setNewWorkPlaceQuery(suggestion.description);
+                                setNewWorkAutocompleteResults([]);
+                                setIsSearchingPlaces(true);
+                                try {
+                                  const placeDetails = await getPlaceDetails(suggestion.placeId, googleKey);
+                                  setNewWorkPlaceResults([placeDetails]);
+                                  setNewWorkPlaceSearchError(null);
+                                } catch (error) {
+                                  console.error("Autocomplete selection failed", error);
+                                  setNewWorkPlaceSearchError(error.message || "Place details failed.");
+                                  setNewWorkPlaceResults([]);
+                                } finally {
+                                  setIsSearchingPlaces(false);
+                                }
+                              }}
+                              className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition"
                             >
-                              Locate on map
+                              {suggestion.description}
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleAddLocationResultToGroup(newWorkSelectedOptionGroupIndex, place)}
-                              className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition"
-                            >
-                              Add
-                            </button>
-                          </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
+                    )}
+
+                    {newWorkPlaceResults.length > 0 ? (
+                      <div className="rounded-3xl border border-gray-200 bg-white p-3">
+                        <div className="mb-2 flex items-center justify-between">
+                          <div className="text-sm font-semibold text-gray-900">Places</div>
+                          <div className="text-xs text-gray-500">{newWorkPlaceResults.length} results</div>
+                        </div>
+                        <div className="space-y-2">
+                          {newWorkPlaceResults.map((place, resultIndex) => (
+                            <div
+                              key={resultIndex}
+                              className={`rounded-2xl border p-3 ${selectedPreviewPlace?.placeId === place.placeId ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-gray-50"}`}
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="font-medium text-gray-900 truncate">{place.name}</div>
+                                  {place.formattedAddress && (
+                                    <div className="text-sm text-gray-500 truncate">{place.formattedAddress}</div>
+                                  )}
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => previewPlaceInMap(place)}
+                                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
+                                  >
+                                    Preview
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleAddLocationResultToGroup(newWorkSelectedOptionGroupIndex, place)}
+                                    className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition"
+                                  >
+                                    Add
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                        Search to preview results and add places to the selected group.
+                      </div>
+                    )}
                   </div>
-                )}
+                  <div className="rounded-3xl border border-gray-200 bg-white p-3">
+                    <div className="mb-2 text-sm font-semibold text-gray-900">Map preview</div>
+                    <div
+                      ref={mapContainerRef}
+                      className="h-64 rounded-3xl border border-gray-200 bg-gray-100"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
@@ -345,24 +515,33 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                     key={index}
                     className={`rounded-3xl border p-4 ${newWorkSelectedOptionGroupIndex === index ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`}
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <input
-                          value={group.title}
-                          onChange={(e) => {
-                            const title = e.target.value;
-                            setNewWorkLocationOptionGroups((prev) => {
-                              const next = [...prev];
-                              next[index] = { ...next[index], title };
-                              return next;
-                            });
-                          }}
-                          placeholder="Option title (optional)"
-                          className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
-                        />
-                        <div className="mt-2 text-sm text-gray-500">
-                          {group.locations.length} place{group.locations.length === 1 ? "" : "s"}
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-3">
+                          <input
+                            value={group.title}
+                            onChange={(e) => {
+                              const title = e.target.value;
+                              setNewWorkLocationOptionGroups((prev) => {
+                                const next = [...prev];
+                                next[index] = { ...next[index], title };
+                                return next;
+                              });
+                            }}
+                            placeholder="Option title (optional)"
+                            className="max-w-[260px] w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                          />
+                          <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                            {group.locations.length} place{group.locations.length === 1 ? "" : "s"}
+                          </span>
                         </div>
+                        {group.locations.length > 0 && (
+                          <div className="mt-2 text-sm text-gray-500">
+                            {group.locations.length === 1
+                              ? "1 place added"
+                              : `${group.locations.length} places added`}
+                          </div>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -375,15 +554,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                     {group.locations.length > 0 && (
                       <div className="mt-3 space-y-2">
                         {group.locations.map((location, locationIndex) => (
-                          <div
-                            key={locationIndex}
-                            className="rounded-2xl bg-white border border-gray-200 p-3"
-                          >
-                            <div className="font-medium text-gray-900">{location.name}</div>
-                            {location.address && (
-                              <div className="text-sm text-gray-500">{location.address}</div>
-                            )}
-                          </div>
+                          <LocationCard key={locationIndex} location={location} />
                         ))}
                       </div>
                     )}

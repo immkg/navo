@@ -20,6 +20,28 @@ export function loadGoogleMaps(apiKey) {
   }
 
   const promise = new Promise((resolve, reject) => {
+    const createAndLoadScript = () => {
+      const script = document.createElement("script");
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&v=weekly`;
+      script.async = true;
+      script.defer = true;
+      script.setAttribute("async", "");
+      script.setAttribute("defer", "");
+      script.setAttribute("loading", "async");
+      script.onload = () => {
+        if (window.google?.maps) {
+          resolve(window.google.maps);
+        } else {
+          reject(
+            new Error("Google Maps loaded but window.google.maps is unavailable")
+          );
+        }
+      };
+      script.onerror = () =>
+        reject(new Error("Failed to load Google Maps JavaScript API"));
+      document.head.appendChild(script);
+    };
+
     const existingScript = document.querySelector(
       'script[src*="maps.googleapis.com/maps/api/js"]'
     );
@@ -28,6 +50,16 @@ export function loadGoogleMaps(apiKey) {
         resolve(window.google.maps);
         return;
       }
+
+      const hadAsyncLoading =
+        existingScript.getAttribute("loading") === "async";
+
+      if (!hadAsyncLoading) {
+        existingScript.remove();
+        createAndLoadScript();
+        return;
+      }
+
       existingScript.addEventListener("load", () =>
         resolve(window.google.maps)
       );
@@ -37,22 +69,7 @@ export function loadGoogleMaps(apiKey) {
       return;
     }
 
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      if (window.google?.maps) {
-        resolve(window.google.maps);
-      } else {
-        reject(
-          new Error("Google Maps loaded but window.google.maps is unavailable")
-        );
-      }
-    };
-    script.onerror = () =>
-      reject(new Error("Failed to load Google Maps JavaScript API"));
-    document.head.appendChild(script);
+    createAndLoadScript();
   });
 
   loadedGoogleMapsPromises.set(apiKey, promise);
@@ -91,28 +108,133 @@ export function searchPlaces(query, apiKey) {
 
   return loadGoogleMaps(apiKey).then((maps) => {
     return new Promise((resolve, reject) => {
-      const service = new maps.places.PlacesService(document.createElement("div"));
-      service.findPlaceFromQuery(
-        {
-          query,
-          fields: ["name", "formatted_address", "geometry", "place_id"],
-        },
-        (results, status) => {
-          if (status === "OK" && results && results.length > 0) {
-            resolve(
-              results.map((result) => ({
-                name: result.name,
-                formattedAddress: result.formatted_address,
-                latitude: result.geometry?.location?.lat(),
-                longitude: result.geometry?.location?.lng(),
-                placeId: result.place_id,
-              }))
-            );
-          } else {
-            reject(new Error(status || "Place search failed"));
-          }
+      const finish = (results, status) => {
+        if (status === "OK" && results && results.length > 0) {
+          resolve(
+            results.map((result) => ({
+              name: result.name,
+              formattedAddress: result.formatted_address,
+              latitude: result.geometry?.location?.lat(),
+              longitude: result.geometry?.location?.lng(),
+              placeId: result.place_id,
+            }))
+          );
+        } else {
+          reject(new Error(status || "Place search failed"));
         }
-      );
+      };
+
+      if (maps.places.Place) {
+        const service = new maps.places.PlacesService(document.createElement("div"));
+        service.findPlaceFromQuery(
+          {
+            query,
+            fields: ["name", "formatted_address", "geometry", "place_id"],
+          },
+          finish
+        );
+      } else {
+        const service = new maps.places.PlacesService(document.createElement("div"));
+        service.findPlaceFromQuery(
+          {
+            query,
+            fields: ["name", "formatted_address", "geometry", "place_id"],
+          },
+          finish
+        );
+      }
+    });
+  });
+}
+
+export function autocompletePlaces(query, apiKey) {
+  if (!query) {
+    return Promise.reject(new Error("Autocomplete query is required"));
+  }
+
+  return loadGoogleMaps(apiKey).then((maps) => {
+    return new Promise((resolve, reject) => {
+      const finalize = (predictions, status) => {
+        if (status === "OK" && predictions && predictions.length > 0) {
+          resolve(
+            predictions.map((prediction) => ({
+              description: prediction.description,
+              placeId: prediction.place_id,
+            }))
+          );
+          return;
+        }
+        resolve([]);
+      };
+
+      try {
+        const suggestionProto = maps.places.AutocompleteSuggestion?.prototype;
+        if (suggestionProto?.getPlacePredictions) {
+          const service = new maps.places.AutocompleteSuggestion();
+          service.getPlacePredictions(
+            {
+              input: query,
+            },
+            finalize
+          );
+          return;
+        }
+
+        const service = new maps.places.AutocompleteService();
+        service.getPlacePredictions(
+          {
+            input: query,
+            types: ["establishment", "geocode"],
+          },
+          finalize
+        );
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
+
+export function getPlaceDetails(placeId, apiKey) {
+  if (!placeId) {
+    return Promise.reject(new Error("Place ID is required"));
+  }
+
+  return loadGoogleMaps(apiKey).then((maps) => {
+    return new Promise((resolve, reject) => {
+      const finish = (result, status) => {
+        if (status === "OK" && result) {
+          resolve({
+            name: result.name,
+            formattedAddress: result.formatted_address,
+            latitude: result.geometry?.location?.lat(),
+            longitude: result.geometry?.location?.lng(),
+            placeId: result.place_id,
+          });
+        } else {
+          reject(new Error(status || "Place details failed"));
+        }
+      };
+
+      if (maps.places.Place) {
+        const service = new maps.places.PlacesService(document.createElement("div"));
+        service.getDetails(
+          {
+            placeId,
+            fields: ["name", "formatted_address", "geometry", "place_id"],
+          },
+          finish
+        );
+      } else {
+        const service = new maps.places.PlacesService(document.createElement("div"));
+        service.getDetails(
+          {
+            placeId,
+            fields: ["name", "formatted_address", "geometry", "place_id"],
+          },
+          finish
+        );
+      }
     });
   });
 }

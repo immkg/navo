@@ -2,11 +2,16 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 import IntentWorkForm from "./IntentWorkForm";
+import LocationCard from "./LocationCard";
 
 export default function IntentView() {
   const { id } = useParams();
   const [intent, setIntent] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [addingOptionForWorkId, setAddingOptionForWorkId] = useState(null);
+  const [newLocationOptionTitle, setNewLocationOptionTitle] = useState("");
+  const [newLocationName, setNewLocationName] = useState("");
+  const [newLocationAddress, setNewLocationAddress] = useState("");
 
   useEffect(() => {
     async function fetchIntent() {
@@ -22,23 +27,14 @@ export default function IntentView() {
     fetchIntent();
   }, [id]);
 
-  const handleAddLocationOption = async (work) => {
-    const title = window.prompt(
-      "New location option title (optional)",
-      work.locationOptions?.length ? `Option ${work.locationOptions.length + 1}` : "Option 1"
-    );
-    if (title === null) return;
-
-    const name = window.prompt("Location name");
+  const handleAddLocationOption = async (workId, title, name, address) => {
     if (!name?.trim()) {
       alert("Location name is required.");
       return;
     }
 
-    const address = window.prompt("Location address (optional)");
-
     try {
-      const response = await axios.post(`http://localhost:3001/api/work/${work.id}/location-option`, {
+      const response = await axios.post(`http://localhost:3001/api/work/${workId}/location-option`, {
         title: title.trim() || undefined,
         locations: [
           {
@@ -51,7 +47,7 @@ export default function IntentView() {
       setIntent((prev) => ({
         ...prev,
         workItems: prev.workItems.map((item) =>
-          item.id === work.id
+          item.id === workId
             ? {
                 ...item,
                 locationOptions: [...(item.locationOptions || []), response.data],
@@ -59,10 +55,31 @@ export default function IntentView() {
             : item
         ),
       }));
+
+      setAddingOptionForWorkId(null);
+      setNewLocationOptionTitle("");
+      setNewLocationName("");
+      setNewLocationAddress("");
     } catch (error) {
       console.error("Failed to add location option", error);
       alert("Failed to add location option");
     }
+  };
+
+  const startAddLocationOption = (work) => {
+    setAddingOptionForWorkId(work.id);
+    setNewLocationOptionTitle(
+      work.locationOptions?.length ? `Option ${work.locationOptions.length + 1}` : "Option 1"
+    );
+    setNewLocationName("");
+    setNewLocationAddress("");
+  };
+
+  const cancelAddLocationOption = () => {
+    setAddingOptionForWorkId(null);
+    setNewLocationOptionTitle("");
+    setNewLocationName("");
+    setNewLocationAddress("");
   };
 
   const handleSelectLocationOption = async (workId, optionId) => {
@@ -168,18 +185,70 @@ export default function IntentView() {
                       </span>
                       <button
                         type="button"
-                        onClick={() => handleAddLocationOption(work)}
-                        className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
+                      onClick={() => startAddLocationOption(work)}
+                      className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
+                    >
+                      + Location option
+                    </button>
+                  </div>
+                </div>
+
+                {addingOptionForWorkId === work.id && (
+                  <div className="mt-4 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+                    <div className="mb-3 text-sm font-semibold text-gray-900">Add location option</div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium text-gray-700">Option title (optional)</span>
+                        <input
+                          value={newLocationOptionTitle}
+                          onChange={(e) => setNewLocationOptionTitle(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                          placeholder="Option 1"
+                        />
+                      </label>
+                      <label className="space-y-2">
+                        <span className="text-sm font-medium text-gray-700">Location name</span>
+                        <input
+                          value={newLocationName}
+                          onChange={(e) => setNewLocationName(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                          placeholder="Coffee shop, hardware store, office"
+                        />
+                      </label>
+                    </div>
+                    <div className="mt-4">
+                      <label className="space-y-2 w-full">
+                        <span className="text-sm font-medium text-gray-700">Location address (optional)</span>
+                        <input
+                          value={newLocationAddress}
+                          onChange={(e) => setNewLocationAddress(e.target.value)}
+                          className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                          placeholder="123 Main St, City"
+                        />
+                      </label>
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2 justify-end">
+                      <button
+                        type="button"
+                        onClick={cancelAddLocationOption}
+                        className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 transition"
                       >
-                        + Location option
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddLocationOption(work.id, newLocationOptionTitle, newLocationName, newLocationAddress)}
+                        className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+                      >
+                        Add location option
                       </button>
                     </div>
                   </div>
+                )}
 
-                  {work.notes && <div className="mt-4 text-sm text-gray-600">{work.notes}</div>}
-
-                  {work.locationOptions && work.locationOptions.length > 0 && (
-                    <div className="mt-4 space-y-3">
+                {work.notes && <div className="mt-4 text-sm text-gray-600">{work.notes}</div>}
+                {work.locationOptions && work.locationOptions.length > 0 && (
+                  <div className="mt-4 space-y-3">
                       <div className="rounded-3xl border border-gray-200 bg-blue-50 p-4">
                         <div className="flex items-center justify-between gap-4">
                           <div>
@@ -220,10 +289,7 @@ export default function IntentView() {
                             </div>
                             <div className="mt-3 space-y-2">
                               {option.locations.map((location) => (
-                                <div key={location.id} className="rounded-2xl bg-white border border-gray-200 p-3">
-                                  <div className="font-medium text-gray-900">{location.name}</div>
-                                  {location.address && <div className="text-sm text-gray-500">{location.address}</div>}
-                                </div>
+                                <LocationCard key={location.id} location={location} />
                               ))}
                             </div>
                           </div>
