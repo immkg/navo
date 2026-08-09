@@ -43,6 +43,12 @@ Navo is a day planning system built around how people naturally move through the
 - Added travel-time estimation and unplaced-work visibility
 - Added selected location option support for work items
 - Improved planner UX for unplaced work and route summaries
+
+## Upcoming v1.3.0
+
+- Add remote/mobile/laptop work mode for location-independent work
+- Add nested location option groups for work that requires one or more places
+- Add Google Maps autocomplete and locate-on-map support for place selection
 ---
 
 ## The Insight

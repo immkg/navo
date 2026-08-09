@@ -74,11 +74,45 @@ export function geocodeLocation(query, apiKey) {
             latitude: result.geometry.location.lat(),
             longitude: result.geometry.location.lng(),
             formattedAddress: result.formatted_address,
+            placeId: result.place_id,
           });
         } else {
           reject(new Error(status || "Geocode failed"));
         }
       });
+    });
+  });
+}
+
+export function searchPlaces(query, apiKey) {
+  if (!query) {
+    return Promise.reject(new Error("Place query is required"));
+  }
+
+  return loadGoogleMaps(apiKey).then((maps) => {
+    return new Promise((resolve, reject) => {
+      const service = new maps.places.PlacesService(document.createElement("div"));
+      service.findPlaceFromQuery(
+        {
+          query,
+          fields: ["name", "formatted_address", "geometry", "place_id"],
+        },
+        (results, status) => {
+          if (status === "OK" && results && results.length > 0) {
+            resolve(
+              results.map((result) => ({
+                name: result.name,
+                formattedAddress: result.formatted_address,
+                latitude: result.geometry?.location?.lat(),
+                longitude: result.geometry?.location?.lng(),
+                placeId: result.place_id,
+              }))
+            );
+          } else {
+            reject(new Error(status || "Place search failed"));
+          }
+        }
+      );
     });
   });
 }

@@ -105,6 +105,16 @@ This is the core of day planning in Navo: work is enabled or disabled by your ro
 
 ---
 
+## Remote and Virtual Work
+
+Some work does not require a specific physical location. Remote or virtual work can happen anywhere on a mobile device or laptop, and it remains valid in the plan without creating a route stop.
+
+Remote work is still work. It can be used to advance an intent, carry dependencies, and be scheduled alongside location-based work.
+
+When work does require a physical place, Navo can model one or more location option groups so the same work can be satisfied by different venues.
+
+---
+
 ## Work Is Connected Across Intents
 
 Multiple intents can share work.

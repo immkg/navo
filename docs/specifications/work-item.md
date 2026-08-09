@@ -33,6 +33,15 @@ Location is not a tag or optional metadata. It is a structural property that det
 
 Work with a specific or type-based location is what the **route** is built around.
 
+## Remote vs Place-driven Work
+
+Navo distinguishes between remote/virtual work and work that requires one or more physical places.
+
+- **Remote/virtual work** can be performed anywhere with a device. It is location-independent and does not generate a route stop.
+- **Place-driven work** requires one or more physical locations. It may define one or more location option groups, each containing one or more places.
+
+When creating place-driven work, users can choose a location option group and then select a place using map-backed place discovery.
+
 ---
 
 ## Types
