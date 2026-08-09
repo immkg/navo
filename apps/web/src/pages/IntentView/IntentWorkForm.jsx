@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import {
   searchPlaces,
+  autocompletePlaces,
+  getPlaceDetails,
   loadGoogleMaps,
   reverseGeocodeLocation,
 } from "../../utils/googleMaps";
@@ -17,6 +19,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const [newWorkLocationOptionGroups, setNewWorkLocationOptionGroups] = useState([]);
   const [newWorkSelectedOptionGroupIndex, setNewWorkSelectedOptionGroupIndex] = useState(0);
   const [newWorkPlaceQuery, setNewWorkPlaceQuery] = useState("");
+  const [newWorkAutocompleteResults, setNewWorkAutocompleteResults] = useState([]);
   const [newWorkPlaceResults, setNewWorkPlaceResults] = useState([]);
   const [selectedPreviewPlace, setSelectedPreviewPlace] = useState(null);
   const [droppedPinPlace, setDroppedPinPlace] = useState(null);
@@ -40,10 +43,32 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     setNewWorkLocationOptionGroups([]);
     setNewWorkSelectedOptionGroupIndex(0);
     setNewWorkPlaceQuery("");
+    setNewWorkAutocompleteResults([]);
+    setNewWorkAutocompleteResults([]);
     setNewWorkPlaceResults([]);
     setSelectedPreviewPlace(null);
     setDroppedPinPlace(null);
     setNewWorkPlaceSearchError(null);
+  };
+
+  const handleAutocomplete = async (query) => {
+    setNewWorkPlaceSearchError(null);
+    setSelectedPreviewPlace(null);
+    setDroppedPinPlace(null);
+
+    if (!googleKey || !query.trim()) {
+      setNewWorkAutocompleteResults([]);
+      return;
+    }
+
+    try {
+      const autocomplete = await autocompletePlaces(query.trim(), googleKey);
+      setNewWorkAutocompleteResults(autocomplete);
+    } catch (error) {
+      console.error("Autocomplete failed", error);
+      setNewWorkPlaceSearchError(error.message || "Autocomplete failed.");
+      setNewWorkAutocompleteResults([]);
+    }
   };
 
   const handleCreateWork = async (event) => {
@@ -175,6 +200,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     });
     setNewWorkPlaceResults([]);
     setNewWorkPlaceQuery("");
+    setNewWorkAutocompleteResults([]);
   };
 
   const previewPlaceInMap = (place) => {
@@ -231,7 +257,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
 
   useEffect(() => {
     async function initializeMap() {
-      if (!googleKey || !showPlaceSearchPanel || !mapContainerRef.current) return;
+      if (!googleKey || !showPlaceSearchPanel || newWorkPlaceResults.length === 0 || !mapContainerRef.current) return;
 
       try {
         const maps = await loadGoogleMaps(googleKey);
@@ -295,7 +321,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         mapClickListenerRef.current = null;
       }
     };
-  }, [googleKey, showPlaceSearchPanel, handleMapClickDropPin]);
+  }, [googleKey, showPlaceSearchPanel, newWorkPlaceResults.length, handleMapClickDropPin]);
 
   useEffect(() => {
     async function updateMarkers() {
@@ -473,6 +499,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                     onChange={(e) => {
                       const nextQuery = e.target.value;
                       setNewWorkPlaceQuery(nextQuery);
+                      handleAutocomplete(nextQuery);
                     }}
                     placeholder="Search for a place"
                     className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
@@ -490,10 +517,43 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                   <div className="mt-3 text-sm text-red-600">{newWorkPlaceSearchError}</div>
                 )}
 
-                {newWorkPlaceResults.length > 0 && (
-                  <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,1fr)]">
+                {newWorkAutocompleteResults.length > 0 && (
+                  <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-3">
+                    <div className="mb-2 text-sm font-semibold text-gray-900">Suggestions</div>
                     <div className="space-y-2">
-                      <div className="rounded-3xl border border-gray-200 bg-white p-3">
+                      {newWorkAutocompleteResults.map((suggestion) => (
+                        <button
+                          key={suggestion.placeId}
+                          type="button"
+                          onClick={async () => {
+                            setNewWorkPlaceQuery(suggestion.description);
+                            setNewWorkAutocompleteResults([]);
+                            setIsSearchingPlaces(true);
+                            try {
+                              const placeDetails = await getPlaceDetails(suggestion.placeId, googleKey);
+                              setNewWorkPlaceResults([placeDetails]);
+                              setNewWorkPlaceSearchError(null);
+                            } catch (error) {
+                              console.error("Autocomplete selection failed", error);
+                              setNewWorkPlaceSearchError(error.message || "Place details failed.");
+                              setNewWorkPlaceResults([]);
+                            } finally {
+                              setIsSearchingPlaces(false);
+                            }
+                          }}
+                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100"
+                        >
+                          {suggestion.description}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {newWorkPlaceResults.length > 0 && (
+                  <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.95fr)]">
+                    <div className="space-y-2">
+                      <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
                         <div className="mb-2 flex items-center justify-between">
                           <div className="text-sm font-semibold text-gray-900">Places</div>
                           <div className="text-xs text-gray-500">{newWorkPlaceResults.length} results</div>
@@ -533,7 +593,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-3xl border border-gray-200 bg-white p-3">
+                    <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
                       <div className="mb-2 text-sm font-semibold text-gray-900">Map preview</div>
                       <div className="mb-2 text-xs text-gray-500">Click on map to drop a pin, then add it to the active group.</div>
                       <div
