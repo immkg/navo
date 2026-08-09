@@ -1,6 +1,6 @@
 export default function LocationCard({ location, actions }) {
   return (
-    <div className="rounded-2xl bg-white border border-gray-200 p-3">
+    <div className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4">
       <div className="font-medium text-gray-900">{location.name}</div>
       {location.address && (
         <div className="text-sm text-gray-500">{location.address}</div>

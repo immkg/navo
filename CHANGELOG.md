@@ -6,6 +6,18 @@ The format is based on **Keep a Changelog** and follows **Semantic Versioning**.
 
 ---
 
+## [1.5.0] - 2026-08-09
+
+### Added
+
+- Mobile-friendly Intent view layout with tighter spacing and stacked controls
+- Responsive work form, location option cards, and places sidebar
+- Compact intent detail header and action areas for smaller screens
+
+### Documentation
+
+- Recorded the Intent view mobile pass and release 1.5.0 notes
+
 ## [1.2.0] - 2026-08-09
 
 ### Added

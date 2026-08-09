@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
 import {
   searchPlaces,
@@ -23,7 +23,6 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const [droppedPinPlace, setDroppedPinPlace] = useState(null);
   const [newWorkPlaceSearchError, setNewWorkPlaceSearchError] = useState(null);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
-  const [isAutocompleteLoading, setIsAutocompleteLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const mapContainerRef = useRef(null);
@@ -168,7 +167,6 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
       return;
     }
 
-    setIsAutocompleteLoading(true);
     try {
       const autocomplete = await autocompletePlaces(query.trim(), googleKey);
       setNewWorkAutocompleteResults(autocomplete);
@@ -176,8 +174,6 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
       console.error("Autocomplete failed", error);
       setNewWorkPlaceSearchError(error.message || "Autocomplete failed.");
       setNewWorkAutocompleteResults([]);
-    } finally {
-      setIsAutocompleteLoading(false);
     }
   };
 
@@ -228,7 +224,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     }
   };
 
-  const handleMapClickDropPin = async (lat, lng) => {
+  const handleMapClickDropPin = useCallback(async (lat, lng) => {
     const coordinateLabel = `Lat ${lat.toFixed(5)}, Lng ${lng.toFixed(5)}`;
     let label = coordinateLabel;
     let placeId = `pin:${lat.toFixed(6)},${lng.toFixed(6)}`;
@@ -257,7 +253,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     };
     setDroppedPinPlace(dropped);
     setSelectedPreviewPlace(dropped);
-  };
+  }, [googleKey]);
 
   const handleAddDroppedPinToGroup = () => {
     if (!droppedPinPlace) return;
@@ -330,7 +326,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         mapClickListenerRef.current = null;
       }
     };
-  }, [googleKey, showPlaceSearchPanel]);
+  }, [googleKey, showPlaceSearchPanel, handleMapClickDropPin]);
 
   useEffect(() => {
     async function updateMarkers() {
@@ -407,11 +403,11 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   }, [newWorkPlaceResults, selectedPreviewPlace, droppedPinPlace, mapReady]);
 
   return (
-    <div id="new-work-form" className="mt-10 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-      <h2 className="text-xl font-semibold text-gray-900 mb-4">Add Work</h2>
-      <form onSubmit={handleCreateWork} className="space-y-5">
+    <div id="new-work-form" className="mt-10 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+      <h2 className="mb-4 text-lg font-semibold text-gray-900 sm:text-xl">Add Work</h2>
+      <form onSubmit={handleCreateWork} className="space-y-4 sm:space-y-5">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
             What needs to happen?
           </label>
           <input
@@ -423,9 +419,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               Duration (optional)
             </label>
             <input
@@ -437,7 +433,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
               Notes (optional)
             </label>
             <input
@@ -449,7 +445,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-gray-200 bg-gray-50 p-4 space-y-4">
+        <div className="space-y-4 rounded-3xl border border-gray-200 bg-gray-50 p-4">
           <div className="text-sm font-medium text-gray-700">Work location</div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-gray-200 bg-white p-4">
@@ -487,7 +483,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         </div>
 
         {newWorkMode === "place" && (
-          <div className="rounded-3xl border border-blue-200 bg-blue-50 p-4 space-y-4">
+          <div className="space-y-4 rounded-3xl border border-blue-200 bg-blue-50 p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <div className="text-sm font-semibold text-gray-900">Location option groups</div>
@@ -495,11 +491,11 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                   Add a group first, then add places inside it using Google Maps.
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 <button
                   type="button"
                   onClick={handleAddLocationOptionGroup}
-                  className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
+                  className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                 >
                   + Add option group
                 </button>
@@ -507,7 +503,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                   <button
                     type="button"
                     onClick={() => handlePreparePlaceSearch(newWorkSelectedOptionGroupIndex)}
-                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
+                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                   >
                     + Search places
                   </button>
@@ -517,7 +513,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
 
             {newWorkLocationOptionGroups.length > 0 && (
               <div className="rounded-3xl border border-gray-200 bg-white p-4">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <div>
                     <div className="text-sm font-semibold text-gray-900">Search places for {newWorkLocationOptionGroups[newWorkSelectedOptionGroupIndex]?.title || `Option ${newWorkSelectedOptionGroupIndex + 1}`}</div>
                     <div className="text-sm text-gray-500">Enter a query and add a place from Google Maps search results.</div>
@@ -526,7 +522,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                     Active group: {newWorkSelectedOptionGroupIndex + 1}
                   </div>
                 </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                   <input
                     value={newWorkPlaceQuery}
                     onChange={(e) => {
@@ -549,7 +545,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                 {newWorkPlaceSearchError && (
                   <div className="mt-3 text-sm text-red-600">{newWorkPlaceSearchError}</div>
                 )}
-                <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
+                <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,1fr)]">
                   <div className="space-y-2">
                     {newWorkAutocompleteResults.length > 0 && (
                       <div className="rounded-3xl border border-gray-200 bg-gray-50 p-3">
@@ -575,7 +571,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                                   setIsSearchingPlaces(false);
                                 }
                               }}
-                              className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 transition"
+                              className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100"
                             >
                               {suggestion.description}
                             </button>
@@ -596,25 +592,25 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                               key={resultIndex}
                               className={`rounded-2xl border p-3 ${selectedPreviewPlace?.placeId === place.placeId ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-gray-50"}`}
                             >
-                              <div className="flex items-center justify-between gap-3">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                 <div className="min-w-0">
                                   <div className="font-medium text-gray-900 truncate">{place.name}</div>
                                   {place.formattedAddress && (
                                     <div className="text-sm text-gray-500 truncate">{place.formattedAddress}</div>
                                   )}
                                 </div>
-                                <div className="flex gap-2">
+                                <div className="flex flex-col gap-2 sm:flex-row">
                                   <button
                                     type="button"
                                     onClick={() => previewPlaceInMap(place)}
-                                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 transition"
+                                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                                   >
                                     Preview
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleAddLocationResultToGroup(newWorkSelectedOptionGroupIndex, place)}
-                                    className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition"
+                                    className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
                                   >
                                     Add
                                   </button>
@@ -630,14 +626,14 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                       </div>
                     )}
                   </div>
-                  <div className="rounded-3xl border border-gray-200 bg-white p-3">
+                    <div className="rounded-3xl border border-gray-200 bg-white p-3">
                     <div className="mb-2 text-sm font-semibold text-gray-900">Map preview</div>
                     <div className="mb-2 text-xs text-gray-500">
                       Click on map to drop a pin, then add it to the active group.
                     </div>
                     <div
                       ref={mapContainerRef}
-                      className="h-64 rounded-3xl border border-gray-200 bg-gray-100"
+                        className="h-56 rounded-3xl border border-gray-200 bg-gray-100 sm:h-64"
                     />
                     {droppedPinPlace && (
                       <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3">
@@ -647,7 +643,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                           <button
                             type="button"
                             onClick={handleAddDroppedPinToGroup}
-                            className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 transition"
+                              className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
                           >
                             Add dropped pin
                           </button>
@@ -670,7 +666,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                     key={index}
                     className={`rounded-3xl border p-4 ${newWorkSelectedOptionGroupIndex === index ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`}
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-3">
                           <input
@@ -684,7 +680,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                               });
                             }}
                             placeholder="Option title (optional)"
-                            className="max-w-[260px] w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                            className="w-full max-w-[260px] rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                           />
                           <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
                             {group.locations.length} place{group.locations.length === 1 ? "" : "s"}
@@ -720,18 +716,18 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
           </div>
         )}
 
-        <div className="flex justify-end gap-3">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
           <button
             type="button"
             onClick={resetForm}
-            className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 transition"
+            className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={isSubmitting || !newWorkTitle.trim()}
-            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition"
+            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
             {isSubmitting ? "Adding..." : "Add Work"}
           </button>
