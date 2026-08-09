@@ -252,6 +252,21 @@ export default function Dashboard() {
         : intent.status === "not_required"
           ? "bg-slate-200 text-slate-700"
           : "bg-blue-100 text-blue-800";
+    const actionConfigs =
+      intent.status === "active"
+        ? [
+            { label: "Complete", value: "completed", style: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" },
+            { label: "Not Required", value: "not_required", style: "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200" },
+          ]
+        : intent.status === "completed"
+          ? [
+              { label: "Active", value: "active", style: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" },
+              { label: "Not Required", value: "not_required", style: "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200" },
+            ]
+          : [
+              { label: "Active", value: "active", style: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" },
+              { label: "Complete", value: "completed", style: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" },
+            ];
     const priorityStyle =
       intent.priority === "high"
         ? "bg-rose-100 text-rose-800"
@@ -367,49 +382,20 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5 sm:flex sm:w-16 sm:shrink-0 sm:flex-col sm:items-stretch sm:justify-center">
-          <button
-            type="button"
-            onClick={() => handleUpdateIntentStatus(intent.id, "active")}
-            disabled={updatingIntentId === intent.id || intent.status === "active"}
-            aria-label="Set active"
-            title="Set active"
-            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 sm:h-7 ${
-              intent.status === "active"
-                ? "border-blue-200 bg-blue-50 text-blue-700"
-                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
-            }`}
-          >
-            Active
-          </button>
-          <button
-            type="button"
-            onClick={() => handleUpdateIntentStatus(intent.id, "completed")}
-            disabled={updatingIntentId === intent.id || intent.status === "completed"}
-            aria-label="Set completed"
-            title="Set completed"
-            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 sm:h-7 ${
-              intent.status === "completed"
-                ? "border-emerald-200 bg-emerald-100 text-emerald-800"
-                : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-            }`}
-          >
-            Done
-          </button>
-          <button
-            type="button"
-            onClick={() => handleUpdateIntentStatus(intent.id, "not_required")}
-            disabled={updatingIntentId === intent.id || intent.status === "not_required"}
-            aria-label="Set not required"
-            title="Set not required"
-            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 sm:h-7 ${
-              intent.status === "not_required"
-                ? "border-slate-300 bg-slate-200 text-slate-800"
-                : "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
-          >
-            N/A
-          </button>
+        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:w-16 sm:shrink-0 sm:flex-col sm:items-stretch sm:justify-center">
+          {actionConfigs.map((action) => (
+            <button
+              key={action.value}
+              type="button"
+              onClick={() => handleUpdateIntentStatus(intent.id, action.value)}
+              disabled={updatingIntentId === intent.id || intent.status === action.value}
+              aria-label={`Set ${action.label.toLowerCase()}`}
+              title={`Set ${action.label.toLowerCase()}`}
+              className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 sm:h-7 ${action.style}`}
+            >
+              {action.label}
+            </button>
+          ))}
         </div>
       </article>
     );
