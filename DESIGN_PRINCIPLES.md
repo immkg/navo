@@ -112,13 +112,13 @@ The underlying model — intents, work, context, locations, routes, opportunitie
 
 Different views exist to answer different questions:
 
-| View | Question |
-|------|----------|
-| Intent View | What am I trying to achieve? |
-| Work Graph | What needs to happen and in what order? |
-| Map View | Where and is it on my route? |
-| Day Planner | What am I doing today? |
-| Timeline | How does this unfold over time? |
+| View        | Question                                |
+| ----------- | --------------------------------------- |
+| Intent View | What am I trying to achieve?            |
+| Work Graph  | What needs to happen and in what order? |
+| Map View    | Where and is it on my route?            |
+| Day Planner | What am I doing today?                  |
+| Timeline    | How does this unfold over time?         |
 
 Changing the view never changes the underlying reality.
 

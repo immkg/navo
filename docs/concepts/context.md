@@ -26,6 +26,7 @@ Navo treats context as a first-class property — present at intent formation, a
 ### Intent Context
 
 Context that comes with the intent itself:
+
 - **Who**: number of people, dietary needs, preferences
 - **Budget**: financial constraints
 - **Timing**: deadlines, desired completion time
@@ -36,6 +37,7 @@ This context stays relatively stable. It shapes what work is relevant.
 ### Day Context
 
 Context that changes throughout the day:
+
 - **Location**: where you are right now
 - **Route**: where you are heading
 - **Time**: how much time is available at each point
@@ -72,6 +74,7 @@ In day planning, your physical location — and where you are heading — is the
 This is why the **route** matters so much.
 
 The route through locations defines:
+
 - Which shops or places you can access without a detour
 - Which windows of time are available at each stop
 - Which opportunities naturally arise as you move
@@ -87,6 +90,7 @@ With location context, a plan becomes actionable.
 When context aligns with available work — the right location, the right time, the right capacity — an **opportunity** is created.
 
 Navo uses context continuously to surface these opportunities:
+
 - You are passing a pharmacy → "collect prescription" becomes viable
 - You have 20 minutes near a print shop → "print documents" can be done now
 - Your route takes you by the market → "buy vegetables" is on the way

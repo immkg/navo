@@ -22,27 +22,27 @@ It is not a to-do list. It is a day plan grounded in physical reality.
 
 ## Inputs
 
-| Input | Description |
-|-------|-------------|
-| **Active Intents** | What the user wants to achieve |
-| **Work Items** | Discovered work for each intent, with locations |
+| Input                 | Description                                        |
+| --------------------- | -------------------------------------------------- |
+| **Active Intents**    | What the user wants to achieve                     |
+| **Work Items**        | Discovered work for each intent, with locations    |
 | **Fixed Commitments** | Scheduled meetings, appointments, hard constraints |
-| **Current Location** | Where the user is starting from |
-| **Time Available** | When the day starts and ends |
-| **Route Preferences** | Preferred transport, avoided areas, etc. |
-| **Context** | Budget, energy level, priorities |
+| **Current Location**  | Where the user is starting from                    |
+| **Time Available**    | When the day starts and ends                       |
+| **Route Preferences** | Preferred transport, avoided areas, etc.           |
+| **Context**           | Budget, energy level, priorities                   |
 
 ---
 
 ## Outputs
 
-| Output | Description |
-|--------|-------------|
-| **Day Route** | An ordered sequence of locations to visit |
-| **Work at Each Stop** | What can be done at each location |
-| **Opportunities Flagged** | Work from other intents that fits the route |
-| **Time Estimates** | Approximate timing for each stop and transit |
-| **Deferred Work** | Work that does not fit today with suggested alternatives |
+| Output                    | Description                                              |
+| ------------------------- | -------------------------------------------------------- |
+| **Day Route**             | An ordered sequence of locations to visit                |
+| **Work at Each Stop**     | What can be done at each location                        |
+| **Opportunities Flagged** | Work from other intents that fits the route              |
+| **Time Estimates**        | Approximate timing for each stop and transit             |
+| **Deferred Work**         | Work that does not fit today with suggested alternatives |
 
 ---
 
@@ -51,6 +51,7 @@ It is not a to-do list. It is a day plan grounded in physical reality.
 The Planner's primary view is the map.
 
 A list of tasks without location context is incomplete. The Planner always shows:
+
 - Where each piece of work happens
 - Whether it is on the planned route or requires a detour
 - The travel cost (time, distance) of including each stop
@@ -78,6 +79,7 @@ Planning begins with the geography of the day. Work is fitted into that geograph
 ## Rules
 
 The Planner:
+
 - **Continuously adapts** — the plan is a living document, not a fixed schedule
 - **Explains recommendations** — every suggestion has a visible reason
 - **Respects user decisions** — if the user rejects a suggestion, it is remembered
@@ -100,6 +102,6 @@ The Planner is a living model of the day that adapts as the day happens.
 
 ## Goal
 
-Make it easy to answer: *given everything I want to do today and everywhere I need to be, what is the smartest way to move through my day?*
+Make it easy to answer: _given everything I want to do today and everywhere I need to be, what is the smartest way to move through my day?_
 
 Reduce the mental load of that question to almost nothing.

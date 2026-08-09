@@ -89,6 +89,7 @@ All other views are valid and useful perspectives. But they are incomplete witho
 ## Rules
 
 Every View:
+
 - Reads from the same underlying model
 - Preserves all relationships
 - Supports interaction (completing work, adjusting routes)
@@ -100,11 +101,11 @@ Every View:
 
 Views are not equal. Some are more central to the Navo experience than others:
 
-| Priority | View | Core to day planning? |
-|----------|------|-----------------------|
-| 1st | **Map** | Yes — the primary interface |
-| 2nd | **Day Planner** | Yes — the operational view |
-| 3rd | **Intent** | Yes — the goal-setting view |
-| 4th | **Work Graph** | Supporting — for complex work networks |
-| 5th | **Timeline** | Supporting — for multi-day horizons |
-| 6th | **Calendar** | Supporting — for scheduled commitments |
+| Priority | View            | Core to day planning?                  |
+| -------- | --------------- | -------------------------------------- |
+| 1st      | **Map**         | Yes — the primary interface            |
+| 2nd      | **Day Planner** | Yes — the operational view             |
+| 3rd      | **Intent**      | Yes — the goal-setting view            |
+| 4th      | **Work Graph**  | Supporting — for complex work networks |
+| 5th      | **Timeline**    | Supporting — for multi-day horizons    |
+| 6th      | **Calendar**    | Supporting — for scheduled commitments |

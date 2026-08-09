@@ -9,10 +9,22 @@ export default function AppRoutes() {
       <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
         <header className="bg-white border-b border-gray-200 py-4 px-6 mb-6">
           <div className="max-w-4xl mx-auto flex justify-between items-center">
-            <a href="/" className="text-xl font-bold tracking-tight">Navo</a>
+            <a href="/" className="text-xl font-bold tracking-tight">
+              Navo
+            </a>
             <nav className="flex gap-4">
-              <a href="/" className="text-sm font-medium text-gray-600 hover:text-gray-900">Intents</a>
-              <a href="/planner" className="text-sm font-medium text-gray-600 hover:text-gray-900">Planner</a>
+              <a
+                href="/"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+              >
+                Intents
+              </a>
+              <a
+                href="/planner"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+              >
+                Planner
+              </a>
             </nav>
           </div>
         </header>

@@ -49,6 +49,7 @@ The goal is to continuously surface the best next action given where you are, wh
 When you plan your day, your route through locations is the most important variable.
 
 As you move:
+
 - Some work becomes possible (you pass the right shop)
 - Some work becomes impossible (you miss the window)
 - New opportunities emerge (you're near somewhere relevant you hadn't considered)

@@ -13,6 +13,7 @@ An **Intent** is an outcome someone wants to achieve.
 It is formed before the how is known. It represents a desired end state, not a list of steps.
 
 **Examples:**
+
 - "Get vegetables for dinner"
 - "Plan a vacation"
 - "Prepare for the interview"
@@ -30,6 +31,7 @@ Intents carry **Context** from the moment they are formed.
 Context comes before the plan. It shapes what work is relevant, when work can happen, and how it should be done.
 
 **Examples:**
+
 - Cooking for 4 people tonight (shapes what vegetables to buy)
 - Budget of ₹500 (rules out premium shops)
 - 30 minutes free before a meeting (limits which errands are feasible)
@@ -46,6 +48,7 @@ Context is not static. It changes throughout the day. As context changes, the pl
 Work is discovered progressively. Not all of it is known when the intent is first formed.
 
 **Types of Work:**
+
 - **Task** — a clear, actionable step ("write the shopping list")
 - **Decision** — choosing between alternatives ("decide which market to go to")
 - **Errand** — going somewhere to do something ("visit the market")
@@ -64,6 +67,7 @@ A **Task** is work with a clear, specific action.
 All tasks are work. Not all work is a task.
 
 **Examples:**
+
 - "Buy milk"
 - "Call the venue"
 - "Print the boarding pass"
@@ -77,6 +81,7 @@ A **Decision** is work that requires choosing between alternatives.
 Decisions often unlock new work once made.
 
 **Examples:**
+
 - "Choose which market to visit"
 - "Decide between two routes"
 - "Pick which recipe to cook"
@@ -90,6 +95,7 @@ A **Dependency** is a relationship where one piece of work must be done before a
 Work forms a directed graph through dependencies.
 
 **Example:**
+
 - "Write the shopping list" must be done before "Buy the vegetables"
 - "Check what is already at home" must be done before "Write the shopping list"
 
@@ -102,6 +108,7 @@ A **Location** is a physical place where work can happen.
 Location is not a tag or a note. It is a structural property of work.
 
 **Properties of a location:**
+
 - Physical coordinates
 - Name and address
 - Opening hours
@@ -119,6 +126,7 @@ A **Route** is the planned sequence of locations that makes up a day.
 The route is the spine of day planning. It determines what is possible.
 
 **A route:**
+
 - Connects the locations you need to visit
 - Has a travel time and distance between each stop
 - Changes what work is accessible as you move through it
@@ -135,6 +143,7 @@ An **Opportunity** is work that becomes possible or easier because of the curren
 Opportunities are surfaced by the system. They are not manually created.
 
 **Examples:**
+
 - You are passing a pharmacy → "collect the prescription" becomes a natural stop
 - You have 20 free minutes near a print shop → "print the documents" is now feasible
 - Your route passes a farmers' market → "buy vegetables for dinner" is on the way
@@ -158,6 +167,7 @@ The map is essential to a day plan. Without it, the plan is abstract.
 The **Map** is the interface that grounds planning in physical reality.
 
 The map:
+
 - Shows where work can happen relative to where you are
 - Reveals whether work is on your route or requires a detour
 - Surfaces opportunities as location context changes
@@ -174,6 +184,7 @@ A **Plan** is a proposed path through work, time, and location.
 Plans are dynamic. They evolve continuously as work is completed, context changes, and opportunities emerge.
 
 A plan for today is built from:
+
 1. Active intents
 2. Discovered work
 3. Locations where that work can happen
@@ -200,14 +211,14 @@ A **View** is a way of presenting the same underlying model.
 
 Changing the view never changes the underlying data.
 
-| View | Question it answers |
-|------|-------------------|
-| Intent View | What am I trying to achieve? |
-| Work Graph | What needs to happen and in what order? |
-| Map View | Where does work happen and is it on my route? |
-| Day Planner | What am I doing today and when? |
-| Timeline | How does this unfold over days and weeks? |
-| Calendar | When is work scheduled? |
+| View        | Question it answers                           |
+| ----------- | --------------------------------------------- |
+| Intent View | What am I trying to achieve?                  |
+| Work Graph  | What needs to happen and in what order?       |
+| Map View    | Where does work happen and is it on my route? |
+| Day Planner | What am I doing today and when?               |
+| Timeline    | How does this unfold over days and weeks?     |
+| Calendar    | When is work scheduled?                       |
 
 ---
 
@@ -216,6 +227,7 @@ Changing the view never changes the underlying data.
 **Flow** describes how work evolves over time.
 
 Work can:
+
 - Split into multiple sub-tasks
 - Merge with other work
 - Branch based on a decision

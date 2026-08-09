@@ -85,11 +85,11 @@ People do not execute plans in the abstract. They execute them in a day, in real
 
 A day is defined by three things:
 
-| Dimension | What it captures |
-|-----------|-----------------|
-| **Time** | When things can happen |
+| Dimension    | What it captures                       |
+| ------------ | -------------------------------------- |
+| **Time**     | When things can happen                 |
 | **Location** | Where you are and where you need to be |
-| **Route** | How you move between locations |
+| **Route**    | How you move between locations         |
 
 The route is not just travel. It is the spine of the day.
 
@@ -185,13 +185,13 @@ It is a living model of how your day unfolds.
 
 The underlying model never changes. Different views simply answer different questions.
 
-| View | Answers |
-|------|---------|
-| **Intent** | What am I trying to achieve? |
-| **Work Graph** | What needs to happen and in what order? |
-| **Map** | Where can it happen and is it on my route? |
-| **Day Planner** | What should I do today and when? |
-| **Timeline** | How does it unfold over time? |
+| View            | Answers                                    |
+| --------------- | ------------------------------------------ |
+| **Intent**      | What am I trying to achieve?               |
+| **Work Graph**  | What needs to happen and in what order?    |
+| **Map**         | Where can it happen and is it on my route? |
+| **Day Planner** | What should I do today and when?           |
+| **Timeline**    | How does it unfold over time?              |
 
 Every view is a window into the same connected model.
 

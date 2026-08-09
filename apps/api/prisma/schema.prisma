@@ -22,21 +22,36 @@ model Intent {
 }
 
 model Work {
-  id          String   @id @default(uuid())
-  title       String
-  type        String   @default("task") // task, decision, etc.
-  status      String   @default("todo") // todo, in_progress, done
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(uuid())
+  title           String
+  type            String   @default("task") // task, decision, etc.
+  status          String   @default("todo") // todo, in_progress, done
+  durationMinutes Int      @default(30)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   intentId    String?
   intent      Intent?  @relation(fields: [intentId], references: [id])
 
   contexts    Context[]
+  locations   Location[]
 
   // Self-relations for dependencies (DAG)
   dependsOn   WorkDependency[] @relation("DependsOn")
   dependedBy  WorkDependency[] @relation("DependedBy")
+}
+
+model Location {
+  id          String   @id @default(uuid())
+  name        String
+  address     String?
+  latitude    Float?
+  longitude   Float?
+  placeId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workItems   Work[]
 }
 
 model WorkDependency {

@@ -69,24 +69,24 @@ Navo surfaces it.
 
 ## What Navo Is Not
 
-| Not | But |
-|-----|-----|
-| A to-do list app | A day planning system grounded in location |
-| A project manager | An intent-driven life operating system |
-| A calendar app | A route-aware opportunity engine |
-| A rigid scheduler | A continuously adapting day plan |
+| Not               | But                                        |
+| ----------------- | ------------------------------------------ |
+| A to-do list app  | A day planning system grounded in location |
+| A project manager | An intent-driven life operating system     |
+| A calendar app    | A route-aware opportunity engine           |
+| A rigid scheduler | A continuously adapting day plan           |
 
 ---
 
 ## Core Concepts
 
-| Concept | What it is |
-|---------|-----------|
-| **Intent** | An outcome you want to achieve, formed with context |
-| **Work** | Any action that moves an intent forward, discovered progressively |
-| **Context** | What is true right now — especially location, time, budget, people |
-| **Location** | Where work happens — a first-class structural property |
-| **Route** | The sequence of locations that makes up your day |
+| Concept         | What it is                                                                 |
+| --------------- | -------------------------------------------------------------------------- |
+| **Intent**      | An outcome you want to achieve, formed with context                        |
+| **Work**        | Any action that moves an intent forward, discovered progressively          |
+| **Context**     | What is true right now — especially location, time, budget, people         |
+| **Location**    | Where work happens — a first-class structural property                     |
+| **Route**       | The sequence of locations that makes up your day                           |
 | **Opportunity** | Work that becomes possible because of where you are or where you're headed |
 
 ---

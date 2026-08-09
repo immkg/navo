@@ -11,7 +11,7 @@ app.get("/health", (req, res) => {
     status: "ok",
     service: "navo-api",
     timestamp: Date.now(),
-    version: "v1"
+    version: "v1",
   });
 });
 

@@ -11,6 +11,7 @@ It is the primary execution object in Navo.
 ## Key Characteristics
 
 A Work Item:
+
 - Advances one or more Intents
 - **Has a Location** where it can be performed (the most important property for day planning)
 - May depend on other Work Items before it can begin
@@ -23,12 +24,12 @@ A Work Item:
 
 Location is not a tag or optional metadata. It is a structural property that determines whether work is plannable for a given day.
 
-| Location State | Meaning |
-|----------------|---------|
-| **Has specific location** | Can be routed — maps to a physical place |
-| **Has location type** | Any place of this type will do (any pharmacy, any supermarket) |
-| **Location-independent** | Can be done anywhere (e.g., a phone call, a document review) |
-| **Remote/virtual** | Done online, no physical location |
+| Location State            | Meaning                                                        |
+| ------------------------- | -------------------------------------------------------------- |
+| **Has specific location** | Can be routed — maps to a physical place                       |
+| **Has location type**     | Any place of this type will do (any pharmacy, any supermarket) |
+| **Location-independent**  | Can be done anywhere (e.g., a phone call, a document review)   |
+| **Remote/virtual**        | Done online, no physical location                              |
 
 Work with a specific or type-based location is what the **route** is built around.
 
@@ -36,32 +37,32 @@ Work with a specific or type-based location is what the **route** is built aroun
 
 ## Types
 
-| Type | Description | Location typical? |
-|------|-------------|-----------------|
-| **Task** | A clear, actionable step | Sometimes |
-| **Errand** | Going somewhere to do something | Always |
-| **Decision** | Choosing between alternatives | Rarely |
-| **Purchase** | Acquiring something | Always |
-| **Research** | Gathering information | Sometimes |
-| **Meeting** | Coordinating with others | Often |
-| **Preparation** | Making something ready | Rarely |
-| **Approval** | Getting sign-off | Rarely |
+| Type            | Description                     | Location typical? |
+| --------------- | ------------------------------- | ----------------- |
+| **Task**        | A clear, actionable step        | Sometimes         |
+| **Errand**      | Going somewhere to do something | Always            |
+| **Decision**    | Choosing between alternatives   | Rarely            |
+| **Purchase**    | Acquiring something             | Always            |
+| **Research**    | Gathering information           | Sometimes         |
+| **Meeting**     | Coordinating with others        | Often             |
+| **Preparation** | Making something ready          | Rarely            |
+| **Approval**    | Getting sign-off                | Rarely            |
 
 ---
 
 ## Properties
 
-| Property | Description |
-|----------|-------------|
-| **Title** | Natural language description of the work |
-| **Type** | Category of work (errand, decision, purchase, etc.) |
-| **Location** | Where it can happen (specific address, location type, or none) |
-| **Status** | Not started / In progress / Done / Deferred |
-| **Dependencies** | Work items that must be completed first |
-| **Intent(s)** | Which intents this work serves |
-| **Time estimate** | How long it is expected to take |
-| **Opening hours** | When the location is accessible (if applicable) |
-| **Notes** | Additional context |
+| Property          | Description                                                    |
+| ----------------- | -------------------------------------------------------------- |
+| **Title**         | Natural language description of the work                       |
+| **Type**          | Category of work (errand, decision, purchase, etc.)            |
+| **Location**      | Where it can happen (specific address, location type, or none) |
+| **Status**        | Not started / In progress / Done / Deferred                    |
+| **Dependencies**  | Work items that must be completed first                        |
+| **Intent(s)**     | Which intents this work serves                                 |
+| **Time estimate** | How long it is expected to take                                |
+| **Opening hours** | When the location is accessible (if applicable)                |
+| **Notes**         | Additional context                                             |
 
 ---
 

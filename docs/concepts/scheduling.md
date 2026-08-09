@@ -10,11 +10,11 @@ It is one dimension of planning — but only one.
 
 These three activities are separate in Navo:
 
-| Activity | Question |
-|----------|---------|
-| **Planning** | What needs to happen and in what order? |
-| **Scheduling** | When exactly should this happen? |
-| **Routing** | Where and how do I get there efficiently? |
+| Activity       | Question                                  |
+| -------------- | ----------------------------------------- |
+| **Planning**   | What needs to happen and in what order?   |
+| **Scheduling** | When exactly should this happen?          |
+| **Routing**    | Where and how do I get there efficiently? |
 
 Most planning tools treat these as the same thing. Navo separates them because they serve different purposes and evolve at different speeds.
 
@@ -25,11 +25,13 @@ Most planning tools treat these as the same thing. Navo separates them because t
 This is a core difference from calendar-first tools.
 
 Some work has hard timing:
+
 - A meeting at 3pm
 - A shop that closes at 6pm
 - A deadline tomorrow morning
 
 Some work is opportunistic:
+
 - "Buy vegetables while near the market"
 - "Drop off the package if passing the post office"
 - "Grab coffee if I have 10 free minutes"

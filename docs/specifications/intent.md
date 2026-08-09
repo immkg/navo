@@ -13,6 +13,7 @@ It is the highest-level object in Navo and answers:
 ## Key Characteristics
 
 An Intent:
+
 - Describes an outcome, not a set of steps
 - **Carries context from the moment it is formed** (budget, who is involved, timing constraints)
 - Groups and anchors related work as it is discovered
@@ -25,14 +26,14 @@ An Intent:
 
 Every Intent has associated context that shapes planning:
 
-| Property | Description | Example |
-|----------|-------------|---------|
-| **Title** | Natural language outcome statement | "Get vegetables for dinner" |
-| **For whom** | Who the intent serves | "Cooking for 4 people" |
-| **Budget** | Financial constraint | "₹400 max" |
-| **Timing** | When it needs to be done | "Before 7pm tonight" |
-| **Constraints** | Things that cannot change | "No onions, vegetarian" |
-| **Priority** | Relative importance today | High / Normal / Low |
+| Property        | Description                        | Example                     |
+| --------------- | ---------------------------------- | --------------------------- |
+| **Title**       | Natural language outcome statement | "Get vegetables for dinner" |
+| **For whom**    | Who the intent serves              | "Cooking for 4 people"      |
+| **Budget**      | Financial constraint               | "₹400 max"                  |
+| **Timing**      | When it needs to be done           | "Before 7pm tonight"        |
+| **Constraints** | Things that cannot change          | "No onions, vegetarian"     |
+| **Priority**    | Relative importance today          | High / Normal / Low         |
 
 ---
 
@@ -61,12 +62,12 @@ Intent
 
 ## Examples
 
-| Intent | Key Context |
-|--------|------------|
-| "Get vegetables for dinner" | 4 people, ₹400, needs to be done before 7pm |
-| "Plan a vacation" | 2 people, 7 days, budget ₹80,000, prefer beaches |
-| "Prepare for the interview" | 2 days away, focus on system design questions |
-| "Buy a birthday gift for Riya" | ₹1,500 budget, birthday is Saturday |
+| Intent                         | Key Context                                      |
+| ------------------------------ | ------------------------------------------------ |
+| "Get vegetables for dinner"    | 4 people, ₹400, needs to be done before 7pm      |
+| "Plan a vacation"              | 2 people, 7 days, budget ₹80,000, prefer beaches |
+| "Prepare for the interview"    | 2 days away, focus on system design questions    |
+| "Buy a birthday gift for Riya" | ₹1,500 budget, birthday is Saturday              |
 
 ---
 
@@ -74,9 +75,9 @@ Intent
 
 An Intent progresses through states:
 
-| Status | Meaning |
-|--------|---------|
-| **Active** | Being worked on |
-| **Paused** | On hold, no immediate work |
-| **Completed** | Desired outcome achieved |
-| **Abandoned** | No longer relevant |
+| Status        | Meaning                    |
+| ------------- | -------------------------- |
+| **Active**    | Being worked on            |
+| **Paused**    | On hold, no immediate work |
+| **Completed** | Desired outcome achieved   |
+| **Abandoned** | No longer relevant         |

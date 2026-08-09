@@ -57,7 +57,7 @@ Work is found as intent becomes clearer. Do not force users to define everything
 
 Ask these questions:
 
-1. Does this serve the core use case: *what am I doing today, where, and in what order?*
+1. Does this serve the core use case: _what am I doing today, where, and in what order?_
 2. Does it involve location or route? If so, is location treated as first-class?
 3. Does it align with at least one principle in [DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md)?
 4. Would it make Navo feel more like a to-do list or project manager? If yes, reconsider.
@@ -72,6 +72,7 @@ If any answer is unclear, **start a discussion before writing code.**
 Keep pull requests focused. One problem, solved well.
 
 Include:
+
 - A clear description of what this solves
 - Motivation — which user scenario does this improve?
 - Design decisions and trade-offs considered

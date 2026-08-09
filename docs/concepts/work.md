@@ -11,6 +11,7 @@ It is the fundamental unit of execution in Navo.
 Work is not just a task. Work is any action — physical, mental, or logistical — that brings an intent closer to completion.
 
 **Examples of work:**
+
 - Write the shopping list
 - Find a shop that sells fresh produce nearby
 - Travel to the market
@@ -45,6 +46,7 @@ Most work in daily life happens somewhere physical.
 Location is a first-class property of work — not a tag, not a note, but a structural attribute that determines when and how work can be done.
 
 **Examples:**
+
 - "Buy vegetables" → at a market or supermarket
 - "Pick up dry cleaning" → at the dry cleaner
 - "Submit documents" → at the government office (open 10am–5pm)
@@ -61,8 +63,9 @@ Work without a location is abstract. Work with a location is actionable.
 Some work can only begin after other work is completed.
 
 **Example chain:**
-1. Decide what to cook → 
-2. Write the shopping list → 
+
+1. Decide what to cook →
+2. Write the shopping list →
 3. Find a nearby shop →
 4. Travel to the shop →
 5. Buy the items →
@@ -77,14 +80,14 @@ Navo models work as a graph of relationships, not a flat list.
 
 ## Types of Work
 
-| Type | Description | Example |
-|------|-------------|---------|
-| **Task** | A clear, actionable step | "Write the shopping list" |
-| **Decision** | Choosing between alternatives | "Choose which market to visit" |
-| **Errand** | Going somewhere to do something | "Visit the market" |
-| **Research** | Gathering information | "Check what vegetables are in season" |
-| **Purchase** | Acquiring something | "Buy tomatoes and spinach" |
-| **Preparation** | Making something ready | "Chop the vegetables" |
+| Type            | Description                     | Example                               |
+| --------------- | ------------------------------- | ------------------------------------- |
+| **Task**        | A clear, actionable step        | "Write the shopping list"             |
+| **Decision**    | Choosing between alternatives   | "Choose which market to visit"        |
+| **Errand**      | Going somewhere to do something | "Visit the market"                    |
+| **Research**    | Gathering information           | "Check what vegetables are in season" |
+| **Purchase**    | Acquiring something             | "Buy tomatoes and spinach"            |
+| **Preparation** | Making something ready          | "Chop the vegetables"                 |
 
 ---
 

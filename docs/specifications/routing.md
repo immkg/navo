@@ -13,6 +13,7 @@ Unlike scheduling (which handles time) and planning (which handles order), routi
 The route through locations is the spine of the day.
 
 As someone moves along a route:
+
 - Work at nearby locations becomes accessible
 - Work at missed locations becomes inaccessible
 - New opportunities surface that were not initially planned
@@ -25,17 +26,17 @@ A plan without a route is abstract. A plan with a route is something that can ac
 
 ## What Routing Considers
 
-| Factor | Description |
-|--------|-------------|
-| **Location of work** | Where each piece of work needs to happen |
-| **Current position** | Where the person is right now |
-| **Planned stops** | Fixed commitments (office, meetings, appointments) |
-| **Travel time** | Time to move between locations |
-| **Opening hours** | When each location is accessible |
-| **Time windows** | Available time between fixed commitments |
-| **Dependencies** | Work that must happen before other work |
-| **Budget** | Whether detours are worth the time cost |
-| **Opportunities** | Work that naturally fits the route with minimal added cost |
+| Factor               | Description                                                |
+| -------------------- | ---------------------------------------------------------- |
+| **Location of work** | Where each piece of work needs to happen                   |
+| **Current position** | Where the person is right now                              |
+| **Planned stops**    | Fixed commitments (office, meetings, appointments)         |
+| **Travel time**      | Time to move between locations                             |
+| **Opening hours**    | When each location is accessible                           |
+| **Time windows**     | Available time between fixed commitments                   |
+| **Dependencies**     | Work that must happen before other work                    |
+| **Budget**           | Whether detours are worth the time cost                    |
+| **Opportunities**    | Work that naturally fits the route with minimal added cost |
 
 ---
 
@@ -68,6 +69,7 @@ A route produces:
 The route is also how Navo detects **opportunities** — work from other intents that can be combined with the planned route at minimal extra cost.
 
 **Example:**
+
 - Planned route: Home → Office → Gym → Home
 - Intent A: Buy vegetables (market is 200m off the gym route)
 - Intent B: Pick up dry cleaning (dry cleaner is on the way home from gym)
@@ -81,6 +83,7 @@ Navo surfaces these overlaps rather than treating each intent's work in isolatio
 ## Rules
 
 Routes are:
+
 - **Dynamic** — recomputed as context changes throughout the day
 - **Context-aware** — adapted to current location, time, and remaining work
 - **Explainable** — the user can understand why a particular stop is suggested

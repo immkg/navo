@@ -21,6 +21,7 @@ It is a continuous process of discovery, decision, and adaptation — not a one-
 The primary planning horizon in Navo is the day.
 
 A day plan answers:
+
 - What intents am I working on today?
 - What work do those intents require?
 - Where does that work happen?
@@ -37,6 +38,7 @@ This is fundamentally different from a to-do list. A to-do list ignores location
 The most important decision in planning a day is the **route** — the sequence of locations you will move through.
 
 The route determines everything:
+
 - Which work is accessible without a detour
 - Which shops or places can be reached within time windows
 - Which opportunities naturally arise as you move
@@ -64,11 +66,11 @@ Navo continuously reconsiders the plan in light of current reality. It does not 
 
 These are three distinct activities in Navo:
 
-| Activity | Question it answers |
-|----------|-------------------|
-| **Planning** | What needs to happen and in what order? |
-| **Scheduling** | When exactly should this happen? |
-| **Routing** | Where does it happen and how do I get there efficiently? |
+| Activity       | Question it answers                                      |
+| -------------- | -------------------------------------------------------- |
+| **Planning**   | What needs to happen and in what order?                  |
+| **Scheduling** | When exactly should this happen?                         |
+| **Routing**    | Where does it happen and how do I get there efficiently? |
 
 Most tools conflate these. Navo keeps them separate because they evolve at different speeds and serve different purposes.
 
@@ -107,4 +109,4 @@ This loop runs continuously throughout the day.
 - Planning is not a one-time decision made in the morning
 - Planning is not separate from the physical world you move through
 
-Planning in Navo is the continuous act of asking: *given where I am and what I want, what is the best thing to do next?*
+Planning in Navo is the continuous act of asking: _given where I am and what I want, what is the best thing to do next?_
