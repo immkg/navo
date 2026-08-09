@@ -48,25 +48,27 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Intents</h1>
-          <p className="text-gray-600 mt-1">What are you trying to achieve?</p>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-blue-600 text-white px-5 py-2.5 rounded-lg shadow-sm hover:bg-blue-700 font-medium transition"
-          >
-            + New Intent
-          </button>
-          <Link
-            to="/planner"
-            className="bg-gray-900 text-white px-5 py-2.5 rounded-lg shadow-sm hover:bg-gray-800 font-medium transition"
-          >
-            Go to Planner &rarr;
-          </Link>
+    <div className="mx-auto w-full max-w-5xl px-4 pb-6 pt-4 sm:px-6 sm:pb-10 sm:pt-6">
+      <div className="mb-6 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:mb-8 sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Intents</h1>
+            <p className="mt-1 text-sm text-gray-600 sm:text-base">What are you trying to achieve?</p>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-3">
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              + New Intent
+            </button>
+            <Link
+              to="/planner"
+              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-gray-800"
+            >
+              Go to Planner
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -75,14 +77,14 @@ export default function Dashboard() {
           Loading intents...
         </div>
       ) : intents.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 lg:gap-6">
           {intents.map((intent) => (
             <Link
               key={intent.id}
               to={`/intent/${intent.id}`}
-              className="block p-6 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all group"
+              className="group block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all hover:border-blue-300 hover:shadow-md sm:p-5"
             >
-              <h2 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+              <h2 className="text-lg font-semibold text-gray-900 transition-colors group-hover:text-blue-600 sm:text-xl">
                 {intent.title}
               </h2>
               {intent.description && (
@@ -101,7 +103,7 @@ export default function Dashboard() {
                     {intent.status}
                   </span>
                 </div>
-                <div className="text-sm text-gray-400 group-hover:text-blue-500 transition-colors">
+                <div className="pt-1 text-sm text-gray-400 transition-colors group-hover:text-blue-500">
                   Open &rarr;
                 </div>
               </div>
@@ -109,11 +111,11 @@ export default function Dashboard() {
           ))}
         </div>
       ) : (
-        <div className="text-center p-12 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+        <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center sm:p-12">
           <p className="text-gray-500 mb-4">You have no active intents.</p>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700 transition"
           >
             + Create your first Intent
           </button>
@@ -121,9 +123,12 @@ export default function Dashboard() {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-lg max-w-md w-full p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center sm:p-4"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
+          <div className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-lg sm:p-6">
+            <h2 className="mb-4 text-xl font-bold text-gray-900 sm:text-2xl">
               Create New Intent
             </h2>
             <form onSubmit={handleCreateIntent}>
@@ -136,7 +141,7 @@ export default function Dashboard() {
                   autoFocus
                   required
                   placeholder="e.g., Plan a vacation"
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:ring focus:ring-blue-200 outline-none"
+                  className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring focus:ring-blue-200 outline-none"
                   value={newIntentTitle}
                   onChange={(e) => setNewIntentTitle(e.target.value)}
                 />
@@ -147,23 +152,23 @@ export default function Dashboard() {
                 </label>
                 <textarea
                   placeholder="Add some details about what you want to achieve"
-                  className="w-full border border-gray-300 rounded px-3 py-2 focus:ring focus:ring-blue-200 outline-none min-h-[100px]"
+                  className="min-h-[100px] w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:ring focus:ring-blue-200 outline-none"
                   value={newIntentDescription}
                   onChange={(e) => setNewIntentDescription(e.target.value)}
                 />
               </div>
-              <div className="flex justify-end gap-3">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded transition"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting || !newIntentTitle.trim()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 disabled:opacity-50 transition"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-blue-700 disabled:opacity-50"
                 >
                   {isSubmitting ? "Creating..." : "Create Intent"}
                 </button>
