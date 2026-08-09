@@ -168,6 +168,19 @@ export default function Dashboard() {
     );
   };
 
+  const openDateInput = (inputId) => {
+    const element = document.getElementById(inputId);
+    if (!element) return;
+
+    if (typeof element.showPicker === "function") {
+      element.showPicker();
+      return;
+    }
+
+    element.focus();
+    element.click();
+  };
+
   const groupedIntents = useMemo(() => {
     const today = startOfToday();
     const next = {
@@ -246,11 +259,22 @@ export default function Dashboard() {
           ? "bg-slate-100 text-slate-700"
           : "bg-amber-100 text-amber-800";
     const dueMeta = getDueMeta(intent.dueDate);
+    const isOverdue = dueMeta.label.includes("overdue");
+    const topMetaLabel = isOverdue
+      ? dueMeta.label
+      : intent.status === "active"
+        ? dueMeta.label
+        : intent.status.replace("_", " ");
+    const topMetaStyle = isOverdue
+      ? dueMeta.tone
+      : intent.status === "active"
+        ? dueMeta.tone
+        : statusStyle;
 
     return (
       <article
         key={intent.id}
-        className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm transition-all hover:border-blue-300 sm:p-3"
+        className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm transition-all hover:border-blue-300 sm:grid-cols-[minmax(0,1fr)_auto] sm:p-3"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
@@ -259,9 +283,22 @@ export default function Dashboard() {
                 {intent.title}
               </h2>
             </Link>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${dueMeta.tone}`}>
-              {dueMeta.label}
-            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              <select
+                value={intent.priority}
+                onChange={(e) => handleUpdatePriority(intent.id, e.target.value)}
+                disabled={updatingIntentId === intent.id}
+                className={`h-6 rounded-full border-0 px-2 text-[10px] font-semibold uppercase tracking-wide outline-none disabled:opacity-60 ${priorityStyle}`}
+                title="Set priority"
+              >
+                <option value="high">high</option>
+                <option value="medium">medium</option>
+                <option value="low">low</option>
+              </select>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${topMetaStyle}`}>
+                {topMetaLabel}
+              </span>
+            </div>
           </div>
 
           {intent.description && (
@@ -270,44 +307,47 @@ export default function Dashboard() {
             </p>
           )}
 
-          <div className="mt-2 grid grid-cols-3 gap-1.5">
-            <label className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Priority</span>
-              <select
-                value={intent.priority}
-                onChange={(e) => handleUpdatePriority(intent.id, e.target.value)}
-                disabled={updatingIntentId === intent.id}
-                className={`h-7 rounded-md border border-gray-200 px-1.5 text-xs font-medium capitalize outline-none disabled:opacity-60 ${priorityStyle}`}
-                title="Set priority"
-              >
-                <option value="high">high</option>
-                <option value="medium">medium</option>
-                <option value="low">low</option>
-              </select>
-            </label>
-
+          <div className="mt-2 grid grid-cols-2 gap-1.5">
             <label className="flex min-w-0 flex-col gap-0.5">
               <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Start</span>
-              <input
-                type="date"
-                value={toDateInputValue(intent.startDate)}
-                onChange={(e) => handleUpdateStartDate(intent.id, e.target.value)}
+              <button
+                type="button"
+                onClick={() => openDateInput(`start-date-${intent.id}`)}
                 disabled={updatingIntentId === intent.id}
-                className="h-7 rounded-md border border-gray-200 bg-gray-100 px-1.5 text-xs font-medium text-gray-700 disabled:opacity-60"
-                title="Set start date"
-              />
+                className="relative h-7 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
+              >
+                <span className="flex h-full items-center">{formatDate(intent.startDate)}</span>
+                <input
+                  id={`start-date-${intent.id}`}
+                  type="date"
+                  value={toDateInputValue(intent.startDate)}
+                  onChange={(e) => handleUpdateStartDate(intent.id, e.target.value)}
+                  disabled={updatingIntentId === intent.id}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                  title="Set start date"
+                />
+              </button>
             </label>
 
             <label className="flex min-w-0 flex-col gap-0.5">
               <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Due</span>
-              <input
-                type="date"
-                value={toDateInputValue(intent.dueDate)}
-                onChange={(e) => handleUpdateDueDate(intent.id, e.target.value)}
+              <button
+                type="button"
+                onClick={() => openDateInput(`due-date-${intent.id}`)}
                 disabled={updatingIntentId === intent.id}
-                className="h-7 rounded-md border border-gray-200 bg-gray-100 px-1.5 text-xs font-medium text-gray-700 disabled:opacity-60"
-                title="Set due date"
-              />
+                className="relative h-7 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
+              >
+                <span className="flex h-full items-center">{formatDate(intent.dueDate)}</span>
+                <input
+                  id={`due-date-${intent.id}`}
+                  type="date"
+                  value={toDateInputValue(intent.dueDate)}
+                  onChange={(e) => handleUpdateDueDate(intent.id, e.target.value)}
+                  disabled={updatingIntentId === intent.id}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                  title="Set due date"
+                />
+              </button>
             </label>
           </div>
 
@@ -321,20 +361,20 @@ export default function Dashboard() {
                 style={{ width: `${completion}%` }}
               />
             </div>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusStyle}`}>
-              {intent.status.replace("_", " ")}
+            <span className="text-xs font-semibold text-gray-700">
+              {completion}%
             </span>
           </div>
         </div>
 
-        <div className="flex w-16 shrink-0 flex-col items-stretch justify-center gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5 sm:flex sm:w-16 sm:shrink-0 sm:flex-col sm:items-stretch sm:justify-center">
           <button
             type="button"
             onClick={() => handleUpdateIntentStatus(intent.id, "active")}
             disabled={updatingIntentId === intent.id || intent.status === "active"}
             aria-label="Set active"
             title="Set active"
-            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 ${
+            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 sm:h-7 ${
               intent.status === "active"
                 ? "border-blue-200 bg-blue-50 text-blue-700"
                 : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
@@ -348,7 +388,7 @@ export default function Dashboard() {
             disabled={updatingIntentId === intent.id || intent.status === "completed"}
             aria-label="Set completed"
             title="Set completed"
-            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 ${
+            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 sm:h-7 ${
               intent.status === "completed"
                 ? "border-emerald-200 bg-emerald-100 text-emerald-800"
                 : "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
@@ -362,7 +402,7 @@ export default function Dashboard() {
             disabled={updatingIntentId === intent.id || intent.status === "not_required"}
             aria-label="Set not required"
             title="Set not required"
-            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 ${
+            className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 sm:h-7 ${
               intent.status === "not_required"
                 ? "border-slate-300 bg-slate-200 text-slate-800"
                 : "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -396,25 +436,13 @@ export default function Dashboard() {
   return (
     <div className="mx-auto w-full max-w-6xl px-2.5 pb-4 pt-2 sm:px-4 sm:pb-7 sm:pt-4">
       <div className="mb-3 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm sm:mb-4 sm:p-3.5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-gray-900 sm:text-2xl">Intents</h1>
-            <p className="mt-0.5 text-[11px] text-gray-600 sm:text-sm">What are you trying to achieve?</p>
-          </div>
-          <div className="flex w-full flex-col gap-1 sm:w-auto sm:flex-row sm:gap-2">
+        <div className="flex w-full sm:justify-end">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="inline-flex min-h-10 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:text-sm"
+              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto sm:text-sm"
             >
               + New Intent
             </button>
-            <Link
-              to="/planner"
-              className="inline-flex min-h-10 items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-gray-800 sm:text-sm"
-            >
-              Go to Planner
-            </Link>
-          </div>
         </div>
       </div>
 
