@@ -10,6 +10,24 @@ The format is based on **Keep a Changelog** and follows **Semantic Versioning**.
 
 ### Added
 
+- Planner route builder with location-aware work grouping
+- Current location support and manual start-point override
+- Google Maps preview with JS loader and static fallback
+- Estimated travel and work duration calculations
+- Location support for work items in API and frontend
+- Unplaced work and route summary UI in the planner
+
+### Documentation
+
+- Clarified route-first planning and location as a core concept
+- Updated docs to reflect map-based intent/work flow and opportunity discovery
+
+---
+
+## [1.1.0] - 2026-08-09
+
+### Added
+
 - V1 MVP implementation: Intent creation, Work discovery, SQLite database via Prisma
 - React/Vite frontend with Tailwind CSS
 - Express REST API with `/api/intents` and `/api/work` routes

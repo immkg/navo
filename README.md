@@ -35,7 +35,12 @@
 ---
 
 Navo is a day planning system built around how people naturally move through the world.
+## v1.1.0 Release
 
+- Added location-aware planner routing with grouped nearby work
+- Added map preview support with Google Maps JS and static fallback
+- Added current location and manual start-point handling
+- Added travel-time estimation and unplaced-work visibility
 ---
 
 ## The Insight
