@@ -18,6 +18,12 @@ The format is based on **Keep a Changelog** and follows **Semantic Versioning**.
 - Nested/grouped location option sets — location options are currently a flat list per work item
 - Persisting the remote/mobile/laptop work-mode selector to the API — the selector exists in the work form UI but the choice isn't saved yet
 
+### Documentation
+
+- Corrected `docs/specifications/*` against the actual Prisma schema and UI: fixed the Intent status enum, removed claims about opening-hours/location-type matching and fixed-commitment scheduling that don't exist, and rewrote `planner.md`/`routing.md` to describe the real nearest-neighbor route heuristic instead of aspirational optimisation/opportunity-detection features
+- Removed duplicated release notes and narrative from `README.md` in favor of linking to `CHANGELOG.md`/`VISION.md`; trimmed repeated "vegetables for dinner" retellings in `AGENT.md`/`ARCHITECTURE.md` down to a single canonical version in `VISION.md`
+- Fixed `.github/PULL_REQUEST_TEMPLATE.md`'s checklist, which still referenced the removed Concepts docs
+
 ---
 
 ## [1.6.0] - 2026-08-09

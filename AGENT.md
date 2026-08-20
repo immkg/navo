@@ -13,29 +13,11 @@ Before reading any further, read these foundational documents in order:
 
 ## The Core Vision (Read This First)
 
-Navo is not a task manager. It is not a project management tool.
+Navo is not a task manager and not a project management tool.
 
-**Navo is a day planning system built around how people move through the physical world.**
-
-The insight at the heart of Navo:
-
-> People form **intents** (outcomes they want) before they know the plan.
-> Intents carry **context** from the start (budget, people, timing, constraints).
-> **Work** to fulfil the intent is discovered progressively, not defined upfront.
-> Work happens in **locations**.
-> Locations are connected by **routes**.
-> As someone moves along a route, **opportunities** to complete work emerge or disappear.
-> The **map** is the interface that makes this real.
+**Navo is a day planning system built around how people move through the physical world.** The core loop and the full "get vegetables for dinner" walkthrough are in [VISION.md](VISION.md) and [ARCHITECTURE.md](ARCHITECTURE.md) — read those before this section means much.
 
 **The day is the unit of execution.** Every feature must serve the question: _what am I doing today, where, and in what order?_
-
----
-
-## Mental Model in One Paragraph
-
-Someone decides to "get vegetables for dinner." At this moment, they do not have a shopping list or a chosen shop. But they know how many people they are cooking for, their budget, and what time dinner needs to be ready. As the day is planned — home → office → gym — they notice the route passes a farmers' market. The context (location, time, intent) surfaces an opportunity: stop at the market on the way. Work that was abstract becomes real and executable because of the route.
-
-**This is the experience Navo builds.**
 
 ---
 
@@ -95,16 +77,7 @@ Someone decides to "get vegetables for dinner." At this moment, they do not have
 
 ## What Navo Is Not
 
-To stay on track, it helps to know what Navo is not:
-
-| Not This          | But This                              |
-| ----------------- | ------------------------------------- |
-| A to-do list app  | A day planning system                 |
-| A project manager | An intent-driven day organiser        |
-| A calendar app    | A route-aware opportunity engine      |
-| A task tracker    | A work discovery and execution system |
-
-If a proposed feature makes Navo feel more like any of the left column, pause and reconsider.
+See the "What Navo Is Not" table in [README.md](README.md). If a proposed feature makes Navo feel more like the left column there, pause and reconsider.
 
 ---
 

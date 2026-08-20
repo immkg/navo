@@ -36,36 +36,7 @@
 
 Navo is a day planning system built around how people naturally move through the world.
 
-## v1.2.0 Release
-
-- Added location-aware planner routing with grouped nearby work
-- Added map preview support with Google Maps JS and static fallback
-- Added current location and manual start-point handling
-- Added travel-time estimation and unplaced-work visibility
-- Added selected location option support for work items
-- Improved planner UX for unplaced work and route summaries
-
-## Upcoming v1.3.0
-
-- Add remote/mobile/laptop work mode for location-independent work
-- Add nested location option groups for work that requires one or more places
-- Add Google Maps autocomplete and locate-on-map support for place selection
-
----
-
-## The Insight
-
-You start your day with an intent: **"get vegetables for dinner."**
-
-You don't yet have a shopping list. You don't know which shop. You haven't scheduled anything.
-
-But you do know context — cooking for 4, budget is ₹400, dinner needs to be ready by 7pm.
-
-As you plan your day — home to office to gym — the map shows that a fresh produce market is a 3-minute detour off your route to the office. The timing works. The window is there.
-
-**That moment — being in the right place at the right time with the right intent — is the opportunity.**
-
-Navo surfaces it.
+Full narrative and the core insight: [VISION.md](VISION.md). Release history and what's currently in progress: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -91,18 +62,7 @@ Navo surfaces it.
 | A calendar app    | A route-aware opportunity engine           |
 | A rigid scheduler | A continuously adapting day plan           |
 
----
-
-## Core Concepts
-
-| Concept         | What it is                                                                 |
-| --------------- | -------------------------------------------------------------------------- |
-| **Intent**      | An outcome you want to achieve, formed with context                        |
-| **Work**        | Any action that moves an intent forward, discovered progressively          |
-| **Context**     | What is true right now — especially location, time, budget, people         |
-| **Location**    | Where work happens — a first-class structural property                     |
-| **Route**       | The sequence of locations that makes up your day                           |
-| **Opportunity** | Work that becomes possible because of where you are or where you're headed |
+Full definitions of Intent, Work, Context, Location, Route, and Opportunity: see the Glossary in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 

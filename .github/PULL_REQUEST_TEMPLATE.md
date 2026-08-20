@@ -19,14 +19,13 @@ Closes #
 ## Documentation
 
 - [ ] README updated
-- [ ] Concepts updated
-- [ ] Specifications updated
-- [ ] Architecture updated
+- [ ] Specifications updated (docs/specifications/)
+- [ ] Architecture updated (ARCHITECTURE.md)
 - [ ] No documentation changes required
 
 ## Checklist
 
-- [ ] I have read the project's Design Principles.
+- [ ] I have read the project's Design Principles (in ARCHITECTURE.md).
 - [ ] My changes align with the project's Vision.
 - [ ] I have updated documentation where necessary.
 - [ ] I have tested my changes.
