@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import axios from "axios";
 import IntentWorkForm from "./IntentWorkForm";
 import LocationCard from "./LocationCard";
@@ -110,7 +110,7 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
               value={intentTitle}
               onChange={(e) => setIntentTitle(e.target.value)}
               disabled={updatingIntent}
-              className="mt-1 w-full rounded-2xl border border-gray-200 px-3 py-2 text-2xl font-bold text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-3xl"
+              className="mt-1 w-full min-w-0 rounded-2xl border border-gray-200 px-3 py-2 text-lg font-bold text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-2xl lg:text-3xl"
             />
           </div>
           <textarea
@@ -820,7 +820,7 @@ function WorkLocationOptionsEditor({
         <button
           type="button"
           onClick={handleAddLocationOptionGroup}
-          className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+          className="rounded-full border border-blue-200 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
         >
           {locationOptionGroups.length === 0 ? "Edit Locations" : "+ Add group"}
         </button>
@@ -931,7 +931,7 @@ function WorkLocationOptionsEditor({
                             <button
                               type="button"
                               onClick={() => previewPlaceInMap(place)}
-                              className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                              className="rounded-full border border-blue-200 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                             >
                               Preview
                             </button>
@@ -943,7 +943,7 @@ function WorkLocationOptionsEditor({
                                   place
                                 )
                               }
-                              className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
+                              className="rounded-full bg-blue-600 min-h-9 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                             >
                               Add
                             </button>
@@ -978,7 +978,7 @@ function WorkLocationOptionsEditor({
                       <button
                         type="button"
                         onClick={handleAddDroppedPinToGroup}
-                        className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
+                        className="rounded-full bg-blue-600 min-h-9 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                       >
                         Add dropped pin
                       </button>
@@ -1033,7 +1033,7 @@ function WorkLocationOptionsEditor({
                   <button
                     type="button"
                     onClick={() => setSelectedGroupIndex(index)}
-                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${selectedGroupIndex === index ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
+                    className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${selectedGroupIndex === index ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
                   >
                     {selectedGroupIndex === index ? "Selected" : "Select"}
                   </button>
@@ -1043,7 +1043,7 @@ function WorkLocationOptionsEditor({
                     type="button"
                     onClick={() => handleRemoveGroup(index)}
                     disabled={isSaving}
-                    className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                    className="rounded-full border border-red-200 bg-red-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                   >
                     Remove group
                   </button>
@@ -1067,7 +1067,7 @@ function WorkLocationOptionsEditor({
                               )
                             }
                             disabled={isSaving}
-                            className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                            className="rounded-full border border-red-200 bg-red-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                           >
                             Remove place
                           </button>
@@ -1339,6 +1339,13 @@ export default function IntentView() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+      <Link
+        to="/"
+        className="mb-3 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-gray-600 transition hover:text-gray-900"
+      >
+        ← Back to Intents
+      </Link>
+
       <IntentSummaryCard
         intent={intent}
         onPatchIntent={handlePatchIntent}
@@ -1389,7 +1396,7 @@ export default function IntentView() {
                         type="button"
                         onClick={() => startEditWork(work)}
                         disabled={updatingWorkId === work.id}
-                        className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+                        className="rounded-full border border-gray-300 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
                       >
                         Edit
                       </button>
@@ -1401,7 +1408,7 @@ export default function IntentView() {
                       <button
                         type="button"
                         onClick={() => startAddLocationOption(work)}
-                        className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                        className="rounded-full border border-blue-200 bg-blue-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                       >
                         Edit locations
                       </button>
@@ -1579,7 +1586,7 @@ export default function IntentView() {
                                 onClick={() =>
                                   handleSelectLocationOption(work.id, option.id)
                                 }
-                                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${isSelected ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
+                                className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${isSelected ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
                               >
                                 {isSelected ? "Selected" : "Select option"}
                               </button>
@@ -1613,7 +1620,7 @@ export default function IntentView() {
           <IntentWorkForm intentId={id} onWorkCreated={handleWorkCreated} />
         </section>
 
-        <aside className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+        <aside className="order-first rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 lg:order-none">
           <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Places</h2>
@@ -1623,7 +1630,7 @@ export default function IntentView() {
             </div>
             <button
               onClick={() => (window.location.href = "/planner")}
-              className="rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 sm:w-auto"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 sm:w-auto"
             >
               Plan this Intent
             </button>
