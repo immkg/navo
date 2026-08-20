@@ -43,15 +43,15 @@ The day is the unit of execution. As you move along a planned route (home → of
 
 ## Core Building Blocks
 
-| Block | Answers | Examples |
-|---|---|---|
-| **Intent** | Why does this work exist? | Get vegetables for dinner, plan a vacation, prepare for an interview |
-| **Work** | What needs to happen? | Task, decision, research, purchase, errand, preparation |
-| **Context** | What is true right now? | Who's involved, budget, time constraints, location, energy, other constraints |
-| **Location** | Where can this work happen? | A physical place with coordinates, opening hours, distance, route membership |
-| **Route** | What's possible as I move through the day? | The planned sequence of locations; dynamic, adapts as the day evolves |
-| **Opportunity** | What can I pick up while I'm here? | Work that becomes possible or easier because of current location/time |
-| **Plan** | What's the best path forward right now? | A proposed, continuously evolving path built from intents, work, locations, and route |
+| Block           | Answers                                    | Examples                                                                              |
+| --------------- | ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| **Intent**      | Why does this work exist?                  | Get vegetables for dinner, plan a vacation, prepare for an interview                  |
+| **Work**        | What needs to happen?                      | Task, decision, research, purchase, errand, preparation                               |
+| **Context**     | What is true right now?                    | Who's involved, budget, time constraints, location, energy, other constraints         |
+| **Location**    | Where can this work happen?                | A physical place with coordinates, opening hours, distance, route membership          |
+| **Route**       | What's possible as I move through the day? | The planned sequence of locations; dynamic, adapts as the day evolves                 |
+| **Opportunity** | What can I pick up while I'm here?         | Work that becomes possible or easier because of current location/time                 |
+| **Plan**        | What's the best path forward right now?    | A proposed, continuously evolving path built from intents, work, locations, and route |
 
 Work has relationships — one piece may depend on another, completing one may unlock several more. Location is a first-class citizen, not a tag: multiple pieces of work may share a location, and a single trip can fulfil multiple intents. Opportunities are surfaced automatically by Navo, never created manually.
 
@@ -87,14 +87,14 @@ Everything is connected. Location and route are structural, not metadata.
 
 The underlying model never changes. Different views simply answer different questions about the same connected data — no view owns the data, and nothing is duplicated between them.
 
-| View | Answers |
-|---|---|
-| Intent View | What am I trying to achieve? |
-| Work Graph | What needs to happen and in what order? |
-| Map View | Where does it happen, and is it on my route? |
-| Day Planner | What should I do today and when? |
-| Timeline | How does this unfold over time? |
-| Calendar | When is work scheduled? |
+| View        | Answers                                      |
+| ----------- | -------------------------------------------- |
+| Intent View | What am I trying to achieve?                 |
+| Work Graph  | What needs to happen and in what order?      |
+| Map View    | Where does it happen, and is it on my route? |
+| Day Planner | What should I do today and when?             |
+| Timeline    | How does this unfold over time?              |
+| Calendar    | When is work scheduled?                      |
 
 ## Guiding Rule
 
@@ -137,7 +137,7 @@ Common language used throughout Navo. Every feature, discussion, API, and data m
 - **Day Plan** — The complete picture of a single day: intents being pursued, work to do, locations to visit, and the route connecting them. Answers "what am I doing today, where, and in what order?"
 - **Map** — The interface that grounds planning in physical reality: shows where work can happen relative to your position, reveals detours, surfaces opportunities, makes cost visible.
 - **Plan** — A proposed, ever-evolving path through work, time, and location — built from active intents, discovered work, locations, route, and feasible time windows.
-- **Schedule** — Places work into specific time slots. Scheduling answers *when*; planning answers *how and in what order*; routing answers *where and whether it's feasible today*.
+- **Schedule** — Places work into specific time slots. Scheduling answers _when_; planning answers _how and in what order_; routing answers _where and whether it's feasible today_.
 - **View** — A way of presenting the same underlying model (see [One Model, Many Views](#one-model-many-views)); changing the view never changes the underlying data.
 - **Flow** — How work evolves over time: splitting, merging, branching, pausing, resuming, generating new work. Not linear.
 - **Collaboration** — The participation of multiple people in the same intent or work, potentially at different stages; part of the model, not an add-on.

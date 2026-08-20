@@ -5,7 +5,9 @@ export default function LocationCard({ location, actions }) {
       {location.address && (
         <div className="text-sm text-gray-500">{location.address}</div>
       )}
-      {actions ? <div className="mt-3 flex flex-wrap gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
+      ) : null}
     </div>
   );
 }

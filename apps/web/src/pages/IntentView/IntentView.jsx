@@ -11,15 +11,23 @@ import {
   searchPlaces,
 } from "../../utils/googleMaps";
 
-const DURATION_OPTIONS = [5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240];
+const DURATION_OPTIONS = [
+  5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
+];
 
 function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
   const [intentTitle, setIntentTitle] = useState(intent.title || "");
-  const [intentDescription, setIntentDescription] = useState(intent.description || "");
-  const [intentPriority, setIntentPriority] = useState(intent.priority || "medium");
+  const [intentDescription, setIntentDescription] = useState(
+    intent.description || ""
+  );
+  const [intentPriority, setIntentPriority] = useState(
+    intent.priority || "medium"
+  );
   const [intentStatus, setIntentStatus] = useState(intent.status || "active");
   const [intentStartDate, setIntentStartDate] = useState(
-    intent.startDate ? new Date(intent.startDate).toISOString().slice(0, 10) : ""
+    intent.startDate
+      ? new Date(intent.startDate).toISOString().slice(0, 10)
+      : ""
   );
   const [intentDueDate, setIntentDueDate] = useState(
     intent.dueDate ? new Date(intent.dueDate).toISOString().slice(0, 10) : ""
@@ -71,7 +79,9 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
     await onPatchIntent({ status });
   };
 
-  const hasTextChanges = intentTitle.trim() !== (intent.title || "") || intentDescription.trim() !== (intent.description || "");
+  const hasTextChanges =
+    intentTitle.trim() !== (intent.title || "") ||
+    intentDescription.trim() !== (intent.description || "");
 
   const handleUpdateIntentText = async () => {
     const nextTitle = intentTitle.trim();
@@ -93,7 +103,9 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.85fr)]">
         <div className="space-y-4">
           <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Intent</div>
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Intent
+            </div>
             <input
               value={intentTitle}
               onChange={(e) => setIntentTitle(e.target.value)}
@@ -109,23 +121,25 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
             placeholder="Add a short description"
             className="w-full rounded-2xl border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
           />
-            {hasTextChanges && (
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleUpdateIntentText}
-                  disabled={updatingIntent || !intentTitle.trim()}
-                  className="inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Update
-                </button>
-              </div>
-            )}
+          {hasTextChanges && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleUpdateIntentText}
+                disabled={updatingIntent || !intentTitle.trim()}
+                className="inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Update
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           <label className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Priority</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Priority
+            </span>
             <select
               value={intentPriority}
               onChange={(e) => handleUpdatePriority(e.target.value)}
@@ -139,7 +153,9 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
           </label>
 
           <label className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Status</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Status
+            </span>
             <select
               value={intentStatus}
               onChange={(e) => handleUpdateStatus(e.target.value)}
@@ -154,14 +170,20 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
           </label>
 
           <label className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Start</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Start
+            </span>
             <button
               type="button"
               onClick={() => openDateInput(`intent-start-date-${intent.id}`)}
               disabled={updatingIntent}
               className="relative h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-left text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:opacity-60"
             >
-              <span className="flex h-full items-center">{intentStartDate ? formatDate(intentStartDate) : "No start date"}</span>
+              <span className="flex h-full items-center">
+                {intentStartDate
+                  ? formatDate(intentStartDate)
+                  : "No start date"}
+              </span>
               <input
                 id={`intent-start-date-${intent.id}`}
                 type="date"
@@ -175,14 +197,18 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
           </label>
 
           <label className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">Due</span>
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Due
+            </span>
             <button
               type="button"
               onClick={() => openDateInput(`intent-due-date-${intent.id}`)}
               disabled={updatingIntent}
               className="relative h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-left text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:opacity-60"
             >
-              <span className="flex h-full items-center">{intentDueDate ? formatDate(intentDueDate) : "No due date"}</span>
+              <span className="flex h-full items-center">
+                {intentDueDate ? formatDate(intentDueDate) : "No due date"}
+              </span>
               <input
                 id={`intent-due-date-${intent.id}`}
                 type="date"
@@ -216,9 +242,17 @@ function buildLocationOptionGroupsFromWork(work) {
   }));
 }
 
-function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached, onGroupRemoved, onCancel }) {
+function WorkLocationOptionsEditor({
+  work,
+  onOptionsCreated,
+  onLocationAttached,
+  onGroupRemoved,
+  onCancel,
+}) {
   const initialLocationOptionGroups = buildLocationOptionGroupsFromWork(work);
-  const [locationOptionGroups, setLocationOptionGroups] = useState(initialLocationOptionGroups);
+  const [locationOptionGroups, setLocationOptionGroups] = useState(
+    initialLocationOptionGroups
+  );
   const [selectedGroupIndex, setSelectedGroupIndex] = useState(() => {
     const selectedIndex = initialLocationOptionGroups.findIndex(
       (group) => group.id === work?.selectedLocationOptionId
@@ -245,7 +279,9 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
   const resetEditor = () => {
     const nextGroups = buildLocationOptionGroupsFromWork(work);
     setLocationOptionGroups(nextGroups);
-    const selectedIndex = nextGroups.findIndex((group) => group.id === work?.selectedLocationOptionId);
+    const selectedIndex = nextGroups.findIndex(
+      (group) => group.id === work?.selectedLocationOptionId
+    );
     setSelectedGroupIndex(selectedIndex >= 0 ? selectedIndex : 0);
     setPlaceQuery("");
     setAutocompleteResults([]);
@@ -265,7 +301,9 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
   };
 
   const removeGroupAtIndex = (groupIndex) => {
-    setLocationOptionGroups((prev) => prev.filter((_, index) => index !== groupIndex));
+    setLocationOptionGroups((prev) =>
+      prev.filter((_, index) => index !== groupIndex)
+    );
     setSelectedGroupIndex((prevSelectedIndex) => {
       if (groupIndex < prevSelectedIndex) {
         return prevSelectedIndex - 1;
@@ -290,8 +328,13 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
 
     setIsSaving(true);
     try {
-      const response = await axios.delete(`http://localhost:3001/api/work/${workId}/location-option/${group.id}`);
-      onGroupRemoved?.(group.id, response.data?.selectedLocationOptionId || null);
+      const response = await axios.delete(
+        `http://localhost:3001/api/work/${workId}/location-option/${group.id}`
+      );
+      onGroupRemoved?.(
+        group.id,
+        response.data?.selectedLocationOptionId || null
+      );
       removeGroupAtIndex(groupIndex);
     } catch (error) {
       console.error("Failed to remove location option group", error);
@@ -311,7 +354,9 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
         const next = [...prev];
         const nextGroup = next[groupIndex];
         if (!nextGroup) return prev;
-        nextGroup.locations = nextGroup.locations.filter((_, index) => index !== locationIndex);
+        nextGroup.locations = nextGroup.locations.filter(
+          (_, index) => index !== locationIndex
+        );
         return next;
       });
       return;
@@ -330,15 +375,17 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
           index === groupIndex
             ? {
                 ...item,
-                locations: (updatedOption.locations || []).map((updatedLocation) => ({
-                  id: updatedLocation.id,
-                  name: updatedLocation.name,
-                  address: updatedLocation.address,
-                  latitude: updatedLocation.latitude,
-                  longitude: updatedLocation.longitude,
-                  placeId: updatedLocation.placeId,
-                  provider: updatedLocation.provider,
-                })),
+                locations: (updatedOption.locations || []).map(
+                  (updatedLocation) => ({
+                    id: updatedLocation.id,
+                    name: updatedLocation.name,
+                    address: updatedLocation.address,
+                    latitude: updatedLocation.latitude,
+                    longitude: updatedLocation.longitude,
+                    placeId: updatedLocation.placeId,
+                    provider: updatedLocation.provider,
+                  })
+                ),
               }
             : item
         )
@@ -450,7 +497,9 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
     const group = locationOptionGroups[groupIndex];
     if (!group) return;
 
-    const isDuplicate = group.locations.some((location) => location.placeId === place.placeId);
+    const isDuplicate = group.locations.some(
+      (location) => location.placeId === place.placeId
+    );
     if (isDuplicate) {
       return;
     }
@@ -508,36 +557,39 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
     }
   };
 
-  const handleMapClickDropPin = useCallback(async (lat, lng) => {
-    const coordinateLabel = `Lat ${lat.toFixed(5)}, Lng ${lng.toFixed(5)}`;
-    let label = coordinateLabel;
-    let placeId = `pin:${lat.toFixed(6)},${lng.toFixed(6)}`;
+  const handleMapClickDropPin = useCallback(
+    async (lat, lng) => {
+      const coordinateLabel = `Lat ${lat.toFixed(5)}, Lng ${lng.toFixed(5)}`;
+      let label = coordinateLabel;
+      let placeId = `pin:${lat.toFixed(6)},${lng.toFixed(6)}`;
 
-    if (googleKey) {
-      try {
-        const reverse = await reverseGeocodeLocation(lat, lng, googleKey);
-        if (reverse?.label) {
-          label = reverse.label;
+      if (googleKey) {
+        try {
+          const reverse = await reverseGeocodeLocation(lat, lng, googleKey);
+          if (reverse?.label) {
+            label = reverse.label;
+          }
+          if (reverse?.placeId) {
+            placeId = reverse.placeId;
+          }
+        } catch {
+          // Fallback to coordinate label when reverse geocode is unavailable.
         }
-        if (reverse?.placeId) {
-          placeId = reverse.placeId;
-        }
-      } catch {
-        // Fallback to coordinate label when reverse geocode is unavailable.
       }
-    }
 
-    const dropped = {
-      name: label,
-      formattedAddress: label,
-      latitude: lat,
-      longitude: lng,
-      placeId,
-      provider: "google",
-    };
-    setDroppedPinPlace(dropped);
-    setSelectedPreviewPlace(dropped);
-  }, [googleKey]);
+      const dropped = {
+        name: label,
+        formattedAddress: label,
+        latitude: lat,
+        longitude: lng,
+        placeId,
+        provider: "google",
+      };
+      setDroppedPinPlace(dropped);
+      setSelectedPreviewPlace(dropped);
+    },
+    [googleKey]
+  );
 
   const handleAddDroppedPinToGroup = () => {
     if (!droppedPinPlace) return;
@@ -546,7 +598,13 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
 
   useEffect(() => {
     async function initializeMap() {
-      if (!googleKey || !showPlaceSearchPanel || placeResults.length === 0 || !mapContainerRef.current) return;
+      if (
+        !googleKey ||
+        !showPlaceSearchPanel ||
+        placeResults.length === 0 ||
+        !mapContainerRef.current
+      )
+        return;
 
       try {
         const maps = await loadGoogleMaps(googleKey);
@@ -585,12 +643,15 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
           if (mapClickListenerRef.current) {
             mapClickListenerRef.current.remove();
           }
-          mapClickListenerRef.current = mapInstanceRef.current.addListener("click", (event) => {
-            const lat = event?.latLng?.lat?.();
-            const lng = event?.latLng?.lng?.();
-            if (lat == null || lng == null) return;
-            handleMapClickDropPin(lat, lng);
-          });
+          mapClickListenerRef.current = mapInstanceRef.current.addListener(
+            "click",
+            (event) => {
+              const lat = event?.latLng?.lat?.();
+              const lng = event?.latLng?.lng?.();
+              if (lat == null || lng == null) return;
+              handleMapClickDropPin(lat, lng);
+            }
+          );
         } else {
           mapInstanceRef.current.setCenter({ lat: 39.5, lng: -98.35 });
           mapInstanceRef.current.setZoom(4);
@@ -611,7 +672,12 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
         mapClickListenerRef.current = null;
       }
     };
-  }, [googleKey, showPlaceSearchPanel, placeResults.length, handleMapClickDropPin]);
+  }, [
+    googleKey,
+    showPlaceSearchPanel,
+    placeResults.length,
+    handleMapClickDropPin,
+  ]);
 
   useEffect(() => {
     async function updateMarkers() {
@@ -631,13 +697,17 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
       const candidatePlaces = [...placeResults];
       if (
         selectedPreviewPlace &&
-        !candidatePlaces.some((place) => place.placeId === selectedPreviewPlace.placeId)
+        !candidatePlaces.some(
+          (place) => place.placeId === selectedPreviewPlace.placeId
+        )
       ) {
         candidatePlaces.push(selectedPreviewPlace);
       }
       if (
         droppedPinPlace &&
-        !candidatePlaces.some((place) => place.placeId === droppedPinPlace.placeId)
+        !candidatePlaces.some(
+          (place) => place.placeId === droppedPinPlace.placeId
+        )
       ) {
         candidatePlaces.push(droppedPinPlace);
       }
@@ -667,7 +737,10 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
 
       markerRefs.current = newMarkers;
 
-      if (selectedPreviewPlace?.latitude != null && selectedPreviewPlace?.longitude != null) {
+      if (
+        selectedPreviewPlace?.latitude != null &&
+        selectedPreviewPlace?.longitude != null
+      ) {
         mapInstanceRef.current.setCenter({
           lat: selectedPreviewPlace.latitude,
           lng: selectedPreviewPlace.longitude,
@@ -703,7 +776,9 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
         return;
       }
 
-      alert("Please add at least one location option group with at least one place.");
+      alert(
+        "Please add at least one location option group with at least one place."
+      );
       return;
     }
 
@@ -711,17 +786,20 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
     try {
       const createdOptions = [];
       for (const group of validGroups) {
-        const response = await axios.post(`http://localhost:3001/api/work/${workId}/location-option`, {
-          title: group.title,
-          locations: group.locations.map((location) => ({
-            name: location.name,
-            address: location.address,
-            latitude: location.latitude,
-            longitude: location.longitude,
-            placeId: location.placeId,
-            provider: location.provider,
-          })),
-        });
+        const response = await axios.post(
+          `http://localhost:3001/api/work/${workId}/location-option`,
+          {
+            title: group.title,
+            locations: group.locations.map((location) => ({
+              name: location.name,
+              address: location.address,
+              latitude: location.latitude,
+              longitude: location.longitude,
+              placeId: location.placeId,
+              provider: location.provider,
+            })),
+          }
+        );
         createdOptions.push(response.data);
       }
 
@@ -750,7 +828,8 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
 
       {locationOptionGroups.length === 0 ? (
         <div className="mt-4 rounded-3xl border border-dashed border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
-          Add a location option group first, then add one or more places inside it.
+          Add a location option group first, then add one or more places inside
+          it.
         </div>
       ) : (
         <div className="mt-4 space-y-4">
@@ -775,11 +854,15 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
             </button>
           </div>
 
-          {searchError && <div className="text-sm text-red-600">{searchError}</div>}
+          {searchError && (
+            <div className="text-sm text-red-600">{searchError}</div>
+          )}
 
           {autocompleteResults.length > 0 && (
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-              <div className="mb-2 text-sm font-semibold text-gray-900">Suggestions</div>
+              <div className="mb-2 text-sm font-semibold text-gray-900">
+                Suggestions
+              </div>
               <div className="space-y-2">
                 {autocompleteResults.map((suggestion) => (
                   <button
@@ -790,12 +873,17 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
                       setAutocompleteResults([]);
                       setIsSearchingPlaces(true);
                       try {
-                        const placeDetails = await getPlaceDetails(suggestion.placeId, googleKey);
+                        const placeDetails = await getPlaceDetails(
+                          suggestion.placeId,
+                          googleKey
+                        );
                         setPlaceResults([placeDetails]);
                         setSearchError(null);
                       } catch (error) {
                         console.error("Autocomplete selection failed", error);
-                        setSearchError(error.message || "Place details failed.");
+                        setSearchError(
+                          error.message || "Place details failed."
+                        );
                         setPlaceResults([]);
                       } finally {
                         setIsSearchingPlaces(false);
@@ -815,8 +903,12 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
               <div className="space-y-2">
                 <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
                   <div className="mb-2 flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-900">Places</div>
-                    <div className="text-xs text-gray-500">{placeResults.length} results</div>
+                    <div className="text-sm font-semibold text-gray-900">
+                      Places
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {placeResults.length} results
+                    </div>
                   </div>
                   <div className="space-y-2">
                     {placeResults.map((place, resultIndex) => (
@@ -826,9 +918,13 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                           <div className="min-w-0">
-                            <div className="truncate font-medium text-gray-900">{place.name}</div>
+                            <div className="truncate font-medium text-gray-900">
+                              {place.name}
+                            </div>
                             {place.formattedAddress && (
-                              <div className="truncate text-sm text-gray-500">{place.formattedAddress}</div>
+                              <div className="truncate text-sm text-gray-500">
+                                {place.formattedAddress}
+                              </div>
                             )}
                           </div>
                           <div className="flex flex-col gap-2 sm:flex-row">
@@ -841,7 +937,12 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleAddLocationToGroup(selectedGroupIndex, place)}
+                              onClick={() =>
+                                handleAddLocationToGroup(
+                                  selectedGroupIndex,
+                                  place
+                                )
+                              }
                               className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
                             >
                               Add
@@ -855,16 +956,24 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
               </div>
 
               <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
-                <div className="mb-2 text-sm font-semibold text-gray-900">Map preview</div>
-                <div className="mb-2 text-xs text-gray-500">Click on map to drop a pin, then add it to the active group.</div>
+                <div className="mb-2 text-sm font-semibold text-gray-900">
+                  Map preview
+                </div>
+                <div className="mb-2 text-xs text-gray-500">
+                  Click on map to drop a pin, then add it to the active group.
+                </div>
                 <div
                   ref={mapContainerRef}
                   className="h-56 rounded-3xl border border-gray-200 bg-gray-100 sm:h-64"
                 />
                 {droppedPinPlace && (
                   <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3">
-                    <div className="text-sm font-semibold text-blue-900">Dropped pin</div>
-                    <div className="text-sm text-blue-700">{droppedPinPlace.formattedAddress}</div>
+                    <div className="text-sm font-semibold text-blue-900">
+                      Dropped pin
+                    </div>
+                    <div className="text-sm text-blue-700">
+                      {droppedPinPlace.formattedAddress}
+                    </div>
                     <div className="mt-2">
                       <button
                         type="button"
@@ -901,16 +1010,23 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
                             return next;
                           });
                         }}
-                        placeholder={group.id ? "Existing group" : "Option title (optional)"}
+                        placeholder={
+                          group.id
+                            ? "Existing group"
+                            : "Option title (optional)"
+                        }
                         className="w-full max-w-[260px] rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
                       />
                       <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
-                        {group.locations.length} place{group.locations.length === 1 ? "" : "s"}
+                        {group.locations.length} place
+                        {group.locations.length === 1 ? "" : "s"}
                       </span>
                     </div>
                     {group.locations.length > 0 && (
                       <div className="mt-2 text-sm text-gray-500">
-                        {group.locations.length === 1 ? "1 place added" : `${group.locations.length} places added`}
+                        {group.locations.length === 1
+                          ? "1 place added"
+                          : `${group.locations.length} places added`}
                       </div>
                     )}
                   </div>
@@ -936,18 +1052,26 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
                   <div className="mt-3 space-y-2">
                     {group.locations.map((location, locationIndex) => (
                       <LocationCard
-                        key={location.id || `${location.placeId || location.name}-${locationIndex}`}
+                        key={
+                          location.id ||
+                          `${location.placeId || location.name}-${locationIndex}`
+                        }
                         location={location}
-                        actions={(
+                        actions={
                           <button
                             type="button"
-                            onClick={() => handleRemoveLocationFromGroup(index, locationIndex)}
+                            onClick={() =>
+                              handleRemoveLocationFromGroup(
+                                index,
+                                locationIndex
+                              )
+                            }
                             disabled={isSaving}
                             className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                           >
                             Remove place
                           </button>
-                        )}
+                        }
                       />
                     ))}
                   </div>
@@ -973,7 +1097,11 @@ function WorkLocationOptionsEditor({ work, onOptionsCreated, onLocationAttached,
               disabled={isSaving || locationOptionGroups.length === 0}
               className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
             >
-              {isSaving ? "Adding..." : hasPendingNewGroups ? "Add location option" : "Done"}
+              {isSaving
+                ? "Adding..."
+                : hasPendingNewGroups
+                  ? "Add location option"
+                  : "Done"}
             </button>
           </div>
         </div>
@@ -998,7 +1126,9 @@ export default function IntentView() {
   useEffect(() => {
     async function fetchIntent() {
       try {
-        const response = await axios.get(`http://localhost:3001/api/intents/${id}`);
+        const response = await axios.get(
+          `http://localhost:3001/api/intents/${id}`
+        );
         setIntent(response.data);
       } catch (error) {
         console.error("Failed to fetch intent", error);
@@ -1013,7 +1143,10 @@ export default function IntentView() {
     setUpdatingIntent(true);
 
     try {
-      const response = await axios.patch(`http://localhost:3001/api/intents/${id}`, patch);
+      const response = await axios.patch(
+        `http://localhost:3001/api/intents/${id}`,
+        patch
+      );
       setIntent(response.data);
       return response.data;
     } catch (error) {
@@ -1029,7 +1162,10 @@ export default function IntentView() {
     setUpdatingWorkId(workId);
 
     try {
-      const response = await axios.patch(`http://localhost:3001/api/work/${workId}`, patch);
+      const response = await axios.patch(
+        `http://localhost:3001/api/work/${workId}`,
+        patch
+      );
       const updatedWork = response.data;
 
       setIntent((prev) => ({
@@ -1056,8 +1192,13 @@ export default function IntentView() {
         item.id === workId
           ? {
               ...item,
-              locationOptions: [...(item.locationOptions || []), ...createdOptions],
-              selectedLocationOptionId: createdOptions[createdOptions.length - 1]?.id || item.selectedLocationOptionId,
+              locationOptions: [
+                ...(item.locationOptions || []),
+                ...createdOptions,
+              ],
+              selectedLocationOptionId:
+                createdOptions[createdOptions.length - 1]?.id ||
+                item.selectedLocationOptionId,
             }
           : item
       ),
@@ -1080,7 +1221,11 @@ export default function IntentView() {
     }));
   };
 
-  const handleLocationOptionRemoved = (workId, optionId, selectedLocationOptionId) => {
+  const handleLocationOptionRemoved = (
+    workId,
+    optionId,
+    selectedLocationOptionId
+  ) => {
     setIntent((prev) => ({
       ...prev,
       workItems: prev.workItems.map((item) => {
@@ -1088,7 +1233,9 @@ export default function IntentView() {
           return item;
         }
 
-        const remainingOptions = (item.locationOptions || []).filter((option) => option.id !== optionId);
+        const remainingOptions = (item.locationOptions || []).filter(
+          (option) => option.id !== optionId
+        );
         return {
           ...item,
           locationOptions: remainingOptions,
@@ -1098,7 +1245,6 @@ export default function IntentView() {
       }),
     }));
   };
-
 
   const startAddLocationOption = (work) => {
     setAddingOptionForWorkId(work.id);
@@ -1157,7 +1303,11 @@ export default function IntentView() {
     if (!work.locationOptions || work.locationOptions.length === 0) {
       return null;
     }
-    return work.locationOptions.find((option) => option.id === work.selectedLocationOptionId) || work.locationOptions[0];
+    return (
+      work.locationOptions.find(
+        (option) => option.id === work.selectedLocationOptionId
+      ) || work.locationOptions[0]
+    );
   };
 
   const handleWorkCreated = (newWork) => {
@@ -1168,22 +1318,32 @@ export default function IntentView() {
   };
 
   if (loading)
-    return <div className="p-8 text-center text-gray-500">Loading intent...</div>;
+    return (
+      <div className="p-8 text-center text-gray-500">Loading intent...</div>
+    );
 
   if (!intent)
     return <div className="p-8 text-center text-red-500">Intent not found</div>;
 
   const workCount = intent.workItems?.length || 0;
-  const completedCount = intent.workItems?.filter((work) => work.status === "done").length || 0;
+  const completedCount =
+    intent.workItems?.filter((work) => work.status === "done").length || 0;
   const placeCount = new Set(
-    intent.workItems?.flatMap((work) =>
-      work.locationOptions?.flatMap((option) => option.locations?.map((location) => location.id) || []) || []
+    intent.workItems?.flatMap(
+      (work) =>
+        work.locationOptions?.flatMap(
+          (option) => option.locations?.map((location) => location.id) || []
+        ) || []
     ) || []
   ).size;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
-      <IntentSummaryCard intent={intent} onPatchIntent={handlePatchIntent} updatingIntent={updatingIntent} />
+      <IntentSummaryCard
+        intent={intent}
+        onPatchIntent={handlePatchIntent}
+        updatingIntent={updatingIntent}
+      />
 
       <button
         onClick={() => {
@@ -1199,18 +1359,27 @@ export default function IntentView() {
         <section>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-800 sm:text-2xl">Work</h2>
-              <p className="mt-1 text-sm text-gray-500">What needs to happen?</p>
+              <h2 className="text-xl font-semibold text-gray-800 sm:text-2xl">
+                Work
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                What needs to happen?
+              </p>
             </div>
           </div>
 
           {intent.workItems && intent.workItems.length > 0 ? (
             <div className="grid gap-3 sm:gap-4">
               {intent.workItems.map((work) => (
-                <div key={work.id} className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                <div
+                  key={work.id}
+                  className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"
+                >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                     <div>
-                      <h3 className="text-base font-semibold text-gray-900 sm:text-lg">{work.title}</h3>
+                      <h3 className="text-base font-semibold text-gray-900 sm:text-lg">
+                        {work.title}
+                      </h3>
                       <div className="mt-1 text-xs text-gray-500 sm:text-sm">
                         {work.durationMinutes || 30} min • {work.status}
                       </div>
@@ -1241,37 +1410,53 @@ export default function IntentView() {
 
                   {editingWorkId === work.id && (
                     <div className="mt-4 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-                      <div className="mb-3 text-sm font-semibold text-gray-900">Edit Work</div>
+                      <div className="mb-3 text-sm font-semibold text-gray-900">
+                        Edit Work
+                      </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="space-y-2 sm:col-span-2">
-                          <span className="text-sm font-medium text-gray-700">What needs to happen?</span>
+                          <span className="text-sm font-medium text-gray-700">
+                            What needs to happen?
+                          </span>
                           <input
                             value={editingWorkTitle}
-                            onChange={(e) => setEditingWorkTitle(e.target.value)}
+                            onChange={(e) =>
+                              setEditingWorkTitle(e.target.value)
+                            }
                             className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                           />
                         </label>
 
                         <label className="space-y-2">
-                          <span className="text-sm font-medium text-gray-700">Duration</span>
+                          <span className="text-sm font-medium text-gray-700">
+                            Duration
+                          </span>
                           <select
                             value={editingWorkDuration}
-                            onChange={(e) => setEditingWorkDuration(Number(e.target.value))}
+                            onChange={(e) =>
+                              setEditingWorkDuration(Number(e.target.value))
+                            }
                             className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                           >
                             {DURATION_OPTIONS.map((minutes) => (
                               <option key={minutes} value={minutes}>
-                                {minutes < 60 ? `${minutes} min` : `${minutes / 60} hr${minutes === 60 ? "" : "s"}`}
+                                {minutes < 60
+                                  ? `${minutes} min`
+                                  : `${minutes / 60} hr${minutes === 60 ? "" : "s"}`}
                               </option>
                             ))}
                           </select>
                         </label>
 
                         <label className="space-y-2">
-                          <span className="text-sm font-medium text-gray-700">Status</span>
+                          <span className="text-sm font-medium text-gray-700">
+                            Status
+                          </span>
                           <select
                             value={editingWorkStatus}
-                            onChange={(e) => setEditingWorkStatus(e.target.value)}
+                            onChange={(e) =>
+                              setEditingWorkStatus(e.target.value)
+                            }
                             className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                           >
                             <option value="todo">Todo</option>
@@ -1281,10 +1466,14 @@ export default function IntentView() {
                         </label>
 
                         <label className="space-y-2 sm:col-span-2">
-                          <span className="text-sm font-medium text-gray-700">Notes</span>
+                          <span className="text-sm font-medium text-gray-700">
+                            Notes
+                          </span>
                           <input
                             value={editingWorkNotes}
-                            onChange={(e) => setEditingWorkNotes(e.target.value)}
+                            onChange={(e) =>
+                              setEditingWorkNotes(e.target.value)
+                            }
                             className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                             placeholder="Add context or details"
                           />
@@ -1301,10 +1490,15 @@ export default function IntentView() {
                         <button
                           type="button"
                           onClick={() => saveEditWork(work.id)}
-                          disabled={updatingWorkId === work.id || !editingWorkTitle.trim()}
+                          disabled={
+                            updatingWorkId === work.id ||
+                            !editingWorkTitle.trim()
+                          }
                           className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
                         >
-                          {updatingWorkId === work.id ? "Saving..." : "Save changes"}
+                          {updatingWorkId === work.id
+                            ? "Saving..."
+                            : "Save changes"}
                         </button>
                       </div>
                     </div>
@@ -1313,38 +1507,57 @@ export default function IntentView() {
                   {addingOptionForWorkId === work.id && (
                     <WorkLocationOptionsEditor
                       work={work}
-                      onOptionsCreated={(createdOptions) => handleLocationOptionsCreated(work.id, createdOptions)}
+                      onOptionsCreated={(createdOptions) =>
+                        handleLocationOptionsCreated(work.id, createdOptions)
+                      }
                       onLocationAttached={(optionId, updatedOption) =>
                         handleLocationAttached(work.id, optionId, updatedOption)
                       }
                       onGroupRemoved={(optionId, nextSelectedOptionId) =>
-                        handleLocationOptionRemoved(work.id, optionId, nextSelectedOptionId)
+                        handleLocationOptionRemoved(
+                          work.id,
+                          optionId,
+                          nextSelectedOptionId
+                        )
                       }
                       onCancel={cancelAddLocationOption}
                     />
                   )}
 
-                  {work.notes && <div className="mt-4 text-sm text-gray-600">{work.notes}</div>}
+                  {work.notes && (
+                    <div className="mt-4 text-sm text-gray-600">
+                      {work.notes}
+                    </div>
+                  )}
                   {work.locationOptions && work.locationOptions.length > 0 && (
                     <div className="mt-4 space-y-3">
                       <div className="rounded-3xl border border-gray-200 bg-blue-50 p-4">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                           <div>
-                            <div className="text-sm font-semibold text-blue-900">Chosen location option</div>
-                            <div className="text-sm text-blue-700">{getChosenOption(work)?.title || `Option 1`}</div>
+                            <div className="text-sm font-semibold text-blue-900">
+                              Chosen location option
+                            </div>
+                            <div className="text-sm text-blue-700">
+                              {getChosenOption(work)?.title || `Option 1`}
+                            </div>
                             {getChosenOption(work)?.locations?.length > 0 && (
                               <div className="mt-1 text-xs text-blue-700">
-                                {getChosenOption(work).locations.length} place{getChosenOption(work).locations.length === 1 ? "" : "s"}
+                                {getChosenOption(work).locations.length} place
+                                {getChosenOption(work).locations.length === 1
+                                  ? ""
+                                  : "s"}
                               </div>
                             )}
                           </div>
                           <div className="self-start rounded-full border border-blue-200 bg-white px-3 py-1 text-xs text-blue-700">
-                            {work.locationOptions.length} option{work.locationOptions.length === 1 ? "" : "s"}
+                            {work.locationOptions.length} option
+                            {work.locationOptions.length === 1 ? "" : "s"}
                           </div>
                         </div>
                       </div>
                       {work.locationOptions.map((option, index) => {
-                        const isSelected = option.id === work.selectedLocationOptionId;
+                        const isSelected =
+                          option.id === work.selectedLocationOptionId;
 
                         return (
                           <div
@@ -1353,14 +1566,19 @@ export default function IntentView() {
                           >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                               <div>
-                                <div className="text-sm font-semibold text-gray-900">{option.title || `Option ${index + 1}`}</div>
+                                <div className="text-sm font-semibold text-gray-900">
+                                  {option.title || `Option ${index + 1}`}
+                                </div>
                                 <div className="text-sm text-gray-500">
-                                  {option.locations.length} place{option.locations.length === 1 ? "" : "s"}
+                                  {option.locations.length} place
+                                  {option.locations.length === 1 ? "" : "s"}
                                 </div>
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleSelectLocationOption(work.id, option.id)}
+                                onClick={() =>
+                                  handleSelectLocationOption(work.id, option.id)
+                                }
                                 className={`rounded-full px-3 py-1 text-xs font-semibold transition ${isSelected ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
                               >
                                 {isSelected ? "Selected" : "Select option"}
@@ -1368,7 +1586,10 @@ export default function IntentView() {
                             </div>
                             <div className="mt-3 space-y-2">
                               {option.locations.map((location) => (
-                                <LocationCard key={location.id} location={location} />
+                                <LocationCard
+                                  key={location.id}
+                                  location={location}
+                                />
                               ))}
                             </div>
                           </div>
@@ -1382,7 +1603,10 @@ export default function IntentView() {
           ) : (
             <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center sm:p-12">
               <p className="text-gray-500 mb-4">No work has been added yet.</p>
-              <p className="text-sm text-gray-400">Add something that needs to happen and optionally describe where it can be done.</p>
+              <p className="text-sm text-gray-400">
+                Add something that needs to happen and optionally describe where
+                it can be done.
+              </p>
             </div>
           )}
 
@@ -1393,10 +1617,12 @@ export default function IntentView() {
           <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">Places</h2>
-              <p className="mt-1 text-sm text-gray-500">Derived from your work options.</p>
+              <p className="mt-1 text-sm text-gray-500">
+                Derived from your work options.
+              </p>
             </div>
             <button
-              onClick={() => window.location.href = "/planner"}
+              onClick={() => (window.location.href = "/planner")}
               className="rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 sm:w-auto"
             >
               Plan this Intent
@@ -1406,13 +1632,21 @@ export default function IntentView() {
           <div className="grid gap-3 sm:gap-4">
             <div className="rounded-3xl border border-gray-200 p-4">
               <div className="text-sm text-gray-500">Work</div>
-              <div className="mt-2 text-2xl font-semibold text-gray-900">{workCount}</div>
-              <div className="text-sm text-gray-500">{completedCount} complete</div>
+              <div className="mt-2 text-2xl font-semibold text-gray-900">
+                {workCount}
+              </div>
+              <div className="text-sm text-gray-500">
+                {completedCount} complete
+              </div>
             </div>
             <div className="rounded-3xl border border-gray-200 p-4">
               <div className="text-sm text-gray-500">Places</div>
-              <div className="mt-2 text-2xl font-semibold text-gray-900">{placeCount}</div>
-              <div className="text-sm text-gray-500">Derived automatically from work options.</div>
+              <div className="mt-2 text-2xl font-semibold text-gray-900">
+                {placeCount}
+              </div>
+              <div className="text-sm text-gray-500">
+                Derived automatically from work options.
+              </div>
             </div>
           </div>
         </aside>

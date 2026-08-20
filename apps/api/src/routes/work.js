@@ -26,7 +26,8 @@ router.get("/", async (req, res) => {
 // Create a new piece of work
 router.post("/", async (req, res) => {
   try {
-    const { title, type, intentId, durationMinutes, notes, locationOptions } = req.body;
+    const { title, type, intentId, durationMinutes, notes, locationOptions } =
+      req.body;
 
     if (!title) {
       return res.status(400).json({ error: "Title is required" });
@@ -69,7 +70,9 @@ router.post("/", async (req, res) => {
         locations: {
           ...(!connect.length ? {} : { connect }),
           ...(!connectOrCreate.length ? {} : { connectOrCreate }),
-          ...(!locationData.create.length ? {} : { create: locationData.create }),
+          ...(!locationData.create.length
+            ? {}
+            : { create: locationData.create }),
         },
       };
     };
@@ -82,7 +85,9 @@ router.post("/", async (req, res) => {
       notes,
       intentId: intentId || null,
       locationOptions:
-        locationOptions && Array.isArray(locationOptions) && locationOptions.length > 0
+        locationOptions &&
+        Array.isArray(locationOptions) &&
+        locationOptions.length > 0
           ? {
               create: locationOptions.map(createLocationOption),
             }
@@ -109,7 +114,14 @@ router.post("/", async (req, res) => {
 router.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, type, status, durationMinutes, notes, selectedLocationOptionId } = req.body;
+    const {
+      title,
+      type,
+      status,
+      durationMinutes,
+      notes,
+      selectedLocationOptionId,
+    } = req.body;
 
     const updatedWork = await prisma.work.update({
       where: { id },
@@ -218,7 +230,9 @@ router.post("/:id/location-option", async (req, res) => {
     const { title, locations } = req.body;
 
     if (!locations || !Array.isArray(locations) || locations.length === 0) {
-      return res.status(400).json({ error: "At least one location is required" });
+      return res
+        .status(400)
+        .json({ error: "At least one location is required" });
     }
 
     const createdOption = await prisma.locationOption.create({
@@ -253,8 +267,15 @@ router.post("/:id/location-option", async (req, res) => {
 router.post("/:id/location-option/:optionId/location", async (req, res) => {
   try {
     const { optionId } = req.params;
-    const { locationId, name, address, latitude, longitude, placeId, provider } =
-      req.body;
+    const {
+      locationId,
+      name,
+      address,
+      latitude,
+      longitude,
+      placeId,
+      provider,
+    } = req.body;
 
     if (!locationId && !name) {
       return res.status(400).json({ error: "locationId or name is required" });
@@ -293,41 +314,46 @@ router.post("/:id/location-option/:optionId/location", async (req, res) => {
 });
 
 // Remove a location from an existing location option
-router.delete("/:id/location-option/:optionId/location/:locationId", async (req, res) => {
-  try {
-    const { id, optionId, locationId } = req.params;
+router.delete(
+  "/:id/location-option/:optionId/location/:locationId",
+  async (req, res) => {
+    try {
+      const { id, optionId, locationId } = req.params;
 
-    const option = await prisma.locationOption.findFirst({
-      where: {
-        id: optionId,
-        workId: id,
-        locations: {
-          some: { id: locationId },
+      const option = await prisma.locationOption.findFirst({
+        where: {
+          id: optionId,
+          workId: id,
+          locations: {
+            some: { id: locationId },
+          },
         },
-      },
-      select: { id: true },
-    });
+        select: { id: true },
+      });
 
-    if (!option) {
-      return res.status(404).json({ error: "Location option or location not found" });
+      if (!option) {
+        return res
+          .status(404)
+          .json({ error: "Location option or location not found" });
+      }
+
+      const updatedOption = await prisma.locationOption.update({
+        where: { id: optionId },
+        data: {
+          locations: {
+            disconnect: { id: locationId },
+          },
+        },
+        include: { locations: true },
+      });
+
+      res.json(updatedOption);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: "Failed to remove location from option" });
     }
-
-    const updatedOption = await prisma.locationOption.update({
-      where: { id: optionId },
-      data: {
-        locations: {
-          disconnect: { id: locationId },
-        },
-      },
-      include: { locations: true },
-    });
-
-    res.json(updatedOption);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Failed to remove location from option" });
   }
-});
+);
 
 // Remove an existing location option from a work item
 router.delete("/:id/location-option/:optionId", async (req, res) => {

@@ -9,17 +9,23 @@ import {
 } from "../../utils/googleMaps";
 import LocationCard from "./LocationCard";
 
-const DURATION_OPTIONS = [5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240];
+const DURATION_OPTIONS = [
+  5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
+];
 
 export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const [newWorkTitle, setNewWorkTitle] = useState("");
   const [newWorkDuration, setNewWorkDuration] = useState(15);
   const [newWorkNotes, setNewWorkNotes] = useState("");
   const [newWorkMode, setNewWorkMode] = useState("remote");
-  const [newWorkLocationOptionGroups, setNewWorkLocationOptionGroups] = useState([]);
-  const [newWorkSelectedOptionGroupIndex, setNewWorkSelectedOptionGroupIndex] = useState(0);
+  const [newWorkLocationOptionGroups, setNewWorkLocationOptionGroups] =
+    useState([]);
+  const [newWorkSelectedOptionGroupIndex, setNewWorkSelectedOptionGroupIndex] =
+    useState(0);
   const [newWorkPlaceQuery, setNewWorkPlaceQuery] = useState("");
-  const [newWorkAutocompleteResults, setNewWorkAutocompleteResults] = useState([]);
+  const [newWorkAutocompleteResults, setNewWorkAutocompleteResults] = useState(
+    []
+  );
   const [newWorkPlaceResults, setNewWorkPlaceResults] = useState([]);
   const [selectedPreviewPlace, setSelectedPreviewPlace] = useState(null);
   const [droppedPinPlace, setDroppedPinPlace] = useState(null);
@@ -87,7 +93,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
 
       if (newWorkMode === "place") {
         if (newWorkLocationOptionGroups.length === 0) {
-          alert("Please add at least one location option group for place-based work.");
+          alert(
+            "Please add at least one location option group for place-based work."
+          );
           return;
         }
 
@@ -108,7 +116,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
           .filter((option) => option.locations.length > 0);
 
         if (payload.locationOptions.length === 0) {
-          alert("Please add at least one place to your location option groups.");
+          alert(
+            "Please add at least one place to your location option groups."
+          );
           return;
         }
       }
@@ -119,8 +129,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
       onWorkCreated({
         ...newWork,
         selectedLocationOptionId:
-          newWork.selectedLocationOptionId ||
-          newWork.locationOptions?.[0]?.id,
+          newWork.selectedLocationOptionId || newWork.locationOptions?.[0]?.id,
       });
       resetForm();
     } catch (error) {
@@ -141,7 +150,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   };
 
   const handleRemoveLocationOptionGroup = (groupIndex) => {
-    setNewWorkLocationOptionGroups((prev) => prev.filter((_, index) => index !== groupIndex));
+    setNewWorkLocationOptionGroups((prev) =>
+      prev.filter((_, index) => index !== groupIndex)
+    );
     setNewWorkSelectedOptionGroupIndex((prevSelectedIndex) => {
       if (groupIndex < prevSelectedIndex) {
         return prevSelectedIndex - 1;
@@ -158,7 +169,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
       const next = [...prev];
       const group = next[groupIndex];
       if (!group) return prev;
-      group.locations = group.locations.filter((_, index) => index !== locationIndex);
+      group.locations = group.locations.filter(
+        (_, index) => index !== locationIndex
+      );
       return next;
     });
   };
@@ -242,45 +255,57 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     }
   };
 
-  const handleMapClickDropPin = useCallback(async (lat, lng) => {
-    const coordinateLabel = `Lat ${lat.toFixed(5)}, Lng ${lng.toFixed(5)}`;
-    let label = coordinateLabel;
-    let placeId = `pin:${lat.toFixed(6)},${lng.toFixed(6)}`;
+  const handleMapClickDropPin = useCallback(
+    async (lat, lng) => {
+      const coordinateLabel = `Lat ${lat.toFixed(5)}, Lng ${lng.toFixed(5)}`;
+      let label = coordinateLabel;
+      let placeId = `pin:${lat.toFixed(6)},${lng.toFixed(6)}`;
 
-    if (googleKey) {
-      try {
-        const reverse = await reverseGeocodeLocation(lat, lng, googleKey);
-        if (reverse?.label) {
-          label = reverse.label;
+      if (googleKey) {
+        try {
+          const reverse = await reverseGeocodeLocation(lat, lng, googleKey);
+          if (reverse?.label) {
+            label = reverse.label;
+          }
+          if (reverse?.placeId) {
+            placeId = reverse.placeId;
+          }
+        } catch {
+          // Fallback to coordinate label when reverse geocode is unavailable.
         }
-        if (reverse?.placeId) {
-          placeId = reverse.placeId;
-        }
-      } catch {
-        // Fallback to coordinate label when reverse geocode is unavailable.
       }
-    }
 
-    const dropped = {
-      name: label,
-      formattedAddress: label,
-      latitude: lat,
-      longitude: lng,
-      placeId,
-      provider: "google",
-    };
-    setDroppedPinPlace(dropped);
-    setSelectedPreviewPlace(dropped);
-  }, [googleKey]);
+      const dropped = {
+        name: label,
+        formattedAddress: label,
+        latitude: lat,
+        longitude: lng,
+        placeId,
+        provider: "google",
+      };
+      setDroppedPinPlace(dropped);
+      setSelectedPreviewPlace(dropped);
+    },
+    [googleKey]
+  );
 
   const handleAddDroppedPinToGroup = () => {
     if (!droppedPinPlace) return;
-    handleAddLocationResultToGroup(newWorkSelectedOptionGroupIndex, droppedPinPlace);
+    handleAddLocationResultToGroup(
+      newWorkSelectedOptionGroupIndex,
+      droppedPinPlace
+    );
   };
 
   useEffect(() => {
     async function initializeMap() {
-      if (!googleKey || !showPlaceSearchPanel || newWorkPlaceResults.length === 0 || !mapContainerRef.current) return;
+      if (
+        !googleKey ||
+        !showPlaceSearchPanel ||
+        newWorkPlaceResults.length === 0 ||
+        !mapContainerRef.current
+      )
+        return;
 
       try {
         const maps = await loadGoogleMaps(googleKey);
@@ -319,12 +344,15 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
           if (mapClickListenerRef.current) {
             mapClickListenerRef.current.remove();
           }
-          mapClickListenerRef.current = mapInstanceRef.current.addListener("click", (event) => {
-            const lat = event?.latLng?.lat?.();
-            const lng = event?.latLng?.lng?.();
-            if (lat == null || lng == null) return;
-            handleMapClickDropPin(lat, lng);
-          });
+          mapClickListenerRef.current = mapInstanceRef.current.addListener(
+            "click",
+            (event) => {
+              const lat = event?.latLng?.lat?.();
+              const lng = event?.latLng?.lng?.();
+              if (lat == null || lng == null) return;
+              handleMapClickDropPin(lat, lng);
+            }
+          );
         } else {
           mapInstanceRef.current.setCenter({ lat: 39.5, lng: -98.35 });
           mapInstanceRef.current.setZoom(4);
@@ -344,7 +372,12 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         mapClickListenerRef.current = null;
       }
     };
-  }, [googleKey, showPlaceSearchPanel, newWorkPlaceResults.length, handleMapClickDropPin]);
+  }, [
+    googleKey,
+    showPlaceSearchPanel,
+    newWorkPlaceResults.length,
+    handleMapClickDropPin,
+  ]);
 
   useEffect(() => {
     async function updateMarkers() {
@@ -364,13 +397,17 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
       const candidatePlaces = [...newWorkPlaceResults];
       if (
         selectedPreviewPlace &&
-        !candidatePlaces.some((place) => place.placeId === selectedPreviewPlace.placeId)
+        !candidatePlaces.some(
+          (place) => place.placeId === selectedPreviewPlace.placeId
+        )
       ) {
         candidatePlaces.push(selectedPreviewPlace);
       }
       if (
         droppedPinPlace &&
-        !candidatePlaces.some((place) => place.placeId === droppedPinPlace.placeId)
+        !candidatePlaces.some(
+          (place) => place.placeId === droppedPinPlace.placeId
+        )
       ) {
         candidatePlaces.push(droppedPinPlace);
       }
@@ -400,7 +437,10 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
 
       markerRefs.current = newMarkers;
 
-      if (selectedPreviewPlace?.latitude != null && selectedPreviewPlace?.longitude != null) {
+      if (
+        selectedPreviewPlace?.latitude != null &&
+        selectedPreviewPlace?.longitude != null
+      ) {
         mapInstanceRef.current.setCenter({
           lat: selectedPreviewPlace.latitude,
           lng: selectedPreviewPlace.longitude,
@@ -421,8 +461,13 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   }, [newWorkPlaceResults, selectedPreviewPlace, droppedPinPlace, mapReady]);
 
   return (
-    <div id="new-work-form" className="mt-10 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-      <h2 className="mb-4 text-lg font-semibold text-gray-900 sm:text-xl">Add Work</h2>
+    <div
+      id="new-work-form"
+      className="mt-10 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6"
+    >
+      <h2 className="mb-4 text-lg font-semibold text-gray-900 sm:text-xl">
+        Add Work
+      </h2>
       <form onSubmit={handleCreateWork} className="space-y-4 sm:space-y-5">
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -461,7 +506,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
             >
               {DURATION_OPTIONS.map((minutes) => (
                 <option key={minutes} value={minutes}>
-                  {minutes < 60 ? `${minutes} min` : `${minutes / 60} hr${minutes === 60 ? "" : "s"}`}
+                  {minutes < 60
+                    ? `${minutes} min`
+                    : `${minutes / 60} hr${minutes === 60 ? "" : "s"}`}
                 </option>
               ))}
             </select>
@@ -481,8 +528,12 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <div>
-                <div className="font-semibold text-gray-900">Remote (mobile / laptop)</div>
-                <div className="text-sm text-gray-500">No physical location required.</div>
+                <div className="font-semibold text-gray-900">
+                  Remote (mobile / laptop)
+                </div>
+                <div className="text-sm text-gray-500">
+                  No physical location required.
+                </div>
               </div>
             </label>
             <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-gray-200 bg-white p-4">
@@ -495,8 +546,12 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                 className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
               <div>
-                <div className="font-semibold text-gray-900">Requires one or more places</div>
-                <div className="text-sm text-gray-500">Add location option groups for route-aware work.</div>
+                <div className="font-semibold text-gray-900">
+                  Requires one or more places
+                </div>
+                <div className="text-sm text-gray-500">
+                  Add location option groups for route-aware work.
+                </div>
               </div>
             </label>
           </div>
@@ -510,7 +565,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                 onClick={handleAddLocationOptionGroup}
                 className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
               >
-                {newWorkLocationOptionGroups.length === 0 ? "Edit Locations" : "+ Add Group"}
+                {newWorkLocationOptionGroups.length === 0
+                  ? "Edit Locations"
+                  : "+ Add Group"}
               </button>
             </div>
 
@@ -537,12 +594,16 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                   </button>
                 </div>
                 {newWorkPlaceSearchError && (
-                  <div className="mt-3 text-sm text-red-600">{newWorkPlaceSearchError}</div>
+                  <div className="mt-3 text-sm text-red-600">
+                    {newWorkPlaceSearchError}
+                  </div>
                 )}
 
                 {newWorkAutocompleteResults.length > 0 && (
                   <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                    <div className="mb-2 text-sm font-semibold text-gray-900">Suggestions</div>
+                    <div className="mb-2 text-sm font-semibold text-gray-900">
+                      Suggestions
+                    </div>
                     <div className="space-y-2">
                       {newWorkAutocompleteResults.map((suggestion) => (
                         <button
@@ -553,12 +614,20 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                             setNewWorkAutocompleteResults([]);
                             setIsSearchingPlaces(true);
                             try {
-                              const placeDetails = await getPlaceDetails(suggestion.placeId, googleKey);
+                              const placeDetails = await getPlaceDetails(
+                                suggestion.placeId,
+                                googleKey
+                              );
                               setNewWorkPlaceResults([placeDetails]);
                               setNewWorkPlaceSearchError(null);
                             } catch (error) {
-                              console.error("Autocomplete selection failed", error);
-                              setNewWorkPlaceSearchError(error.message || "Place details failed.");
+                              console.error(
+                                "Autocomplete selection failed",
+                                error
+                              );
+                              setNewWorkPlaceSearchError(
+                                error.message || "Place details failed."
+                              );
                               setNewWorkPlaceResults([]);
                             } finally {
                               setIsSearchingPlaces(false);
@@ -578,8 +647,12 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                     <div className="space-y-2">
                       <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
                         <div className="mb-2 flex items-center justify-between">
-                          <div className="text-sm font-semibold text-gray-900">Places</div>
-                          <div className="text-xs text-gray-500">{newWorkPlaceResults.length} results</div>
+                          <div className="text-sm font-semibold text-gray-900">
+                            Places
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {newWorkPlaceResults.length} results
+                          </div>
                         </div>
                         <div className="space-y-2">
                           {newWorkPlaceResults.map((place, resultIndex) => (
@@ -589,9 +662,13 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                             >
                               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                 <div className="min-w-0">
-                                  <div className="truncate font-medium text-gray-900">{place.name}</div>
+                                  <div className="truncate font-medium text-gray-900">
+                                    {place.name}
+                                  </div>
                                   {place.formattedAddress && (
-                                    <div className="truncate text-sm text-gray-500">{place.formattedAddress}</div>
+                                    <div className="truncate text-sm text-gray-500">
+                                      {place.formattedAddress}
+                                    </div>
                                   )}
                                 </div>
                                 <div className="flex flex-col gap-2 sm:flex-row">
@@ -604,7 +681,12 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleAddLocationResultToGroup(newWorkSelectedOptionGroupIndex, place)}
+                                    onClick={() =>
+                                      handleAddLocationResultToGroup(
+                                        newWorkSelectedOptionGroupIndex,
+                                        place
+                                      )
+                                    }
                                     className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
                                   >
                                     Add
@@ -617,16 +699,25 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                       </div>
                     </div>
                     <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
-                      <div className="mb-2 text-sm font-semibold text-gray-900">Map preview</div>
-                      <div className="mb-2 text-xs text-gray-500">Click on map to drop a pin, then add it to the active group.</div>
+                      <div className="mb-2 text-sm font-semibold text-gray-900">
+                        Map preview
+                      </div>
+                      <div className="mb-2 text-xs text-gray-500">
+                        Click on map to drop a pin, then add it to the active
+                        group.
+                      </div>
                       <div
                         ref={mapContainerRef}
                         className="h-56 rounded-3xl border border-gray-200 bg-gray-100 sm:h-64"
                       />
                       {droppedPinPlace && (
                         <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3">
-                          <div className="text-sm font-semibold text-blue-900">Dropped pin</div>
-                          <div className="text-sm text-blue-700">{droppedPinPlace.formattedAddress}</div>
+                          <div className="text-sm font-semibold text-blue-900">
+                            Dropped pin
+                          </div>
+                          <div className="text-sm text-blue-700">
+                            {droppedPinPlace.formattedAddress}
+                          </div>
                           <div className="mt-2">
                             <button
                               type="button"
@@ -644,7 +735,8 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
 
                 {newWorkLocationOptionGroups.length === 0 ? (
                   <div className="rounded-3xl border border-dashed border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
-                    Add a location option group first, then add one or more places inside it.
+                    Add a location option group first, then add one or more
+                    places inside it.
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -670,7 +762,8 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                                 className="w-full max-w-[260px] rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
                               />
                               <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
-                                {group.locations.length} place{group.locations.length === 1 ? "" : "s"}
+                                {group.locations.length} place
+                                {group.locations.length === 1 ? "" : "s"}
                               </span>
                             </div>
                             {group.locations.length > 0 && (
@@ -683,16 +776,22 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                           </div>
                           <button
                             type="button"
-                            onClick={() => setNewWorkSelectedOptionGroupIndex(index)}
+                            onClick={() =>
+                              setNewWorkSelectedOptionGroupIndex(index)
+                            }
                             className={`rounded-full px-3 py-1 text-xs font-semibold transition ${newWorkSelectedOptionGroupIndex === index ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
                           >
-                            {newWorkSelectedOptionGroupIndex === index ? "Selected" : "Select"}
+                            {newWorkSelectedOptionGroupIndex === index
+                              ? "Selected"
+                              : "Select"}
                           </button>
                         </div>
                         <div className="mt-3">
                           <button
                             type="button"
-                            onClick={() => handleRemoveLocationOptionGroup(index)}
+                            onClick={() =>
+                              handleRemoveLocationOptionGroup(index)
+                            }
                             className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                           >
                             Remove group
@@ -704,15 +803,20 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                               <LocationCard
                                 key={`${location.placeId || location.name}-${locationIndex}`}
                                 location={location}
-                                actions={(
+                                actions={
                                   <button
                                     type="button"
-                                    onClick={() => handleRemoveLocationFromGroup(index, locationIndex)}
+                                    onClick={() =>
+                                      handleRemoveLocationFromGroup(
+                                        index,
+                                        locationIndex
+                                      )
+                                    }
                                     className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                                   >
                                     Remove place
                                   </button>
-                                )}
+                                }
                               />
                             ))}
                           </div>

@@ -47,7 +47,10 @@ function getDueMeta(dueDate) {
     return { label: "Due today", tone: "bg-amber-100 text-amber-800" };
   }
 
-  return { label: `${diffDays}d left`, tone: "bg-emerald-100 text-emerald-700" };
+  return {
+    label: `${diffDays}d left`,
+    tone: "bg-emerald-100 text-emerald-700",
+  };
 }
 
 function normalizeIntent(intent) {
@@ -129,7 +132,9 @@ export default function Dashboard() {
       await axios.patch(`http://localhost:3001/api/intents/${intentId}`, patch);
       setIntents((previous) =>
         previous.map((intent) =>
-          intent.id === intentId ? normalizeIntent({ ...intent, ...patch }) : intent
+          intent.id === intentId
+            ? normalizeIntent({ ...intent, ...patch })
+            : intent
         )
       );
     } catch (error) {
@@ -141,7 +146,11 @@ export default function Dashboard() {
   };
 
   const handleUpdateIntentStatus = async (intentId, status) => {
-    await handlePatchIntent(intentId, { status }, "Unable to update status right now.");
+    await handlePatchIntent(
+      intentId,
+      { status },
+      "Unable to update status right now."
+    );
   };
 
   const handleUpdatePriority = async (intentId, priority) => {
@@ -213,15 +222,23 @@ export default function Dashboard() {
     });
 
     const byDueDateAsc = (a, b) => {
-      const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
-      const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Number.MAX_SAFE_INTEGER;
+      const aDue = a.dueDate
+        ? new Date(a.dueDate).getTime()
+        : Number.MAX_SAFE_INTEGER;
+      const bDue = b.dueDate
+        ? new Date(b.dueDate).getTime()
+        : Number.MAX_SAFE_INTEGER;
       if (aDue !== bDue) return aDue - bDue;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     };
 
     const byStartDateAsc = (a, b) => {
-      const aStart = a.startDate ? new Date(a.startDate).getTime() : Number.MAX_SAFE_INTEGER;
-      const bStart = b.startDate ? new Date(b.startDate).getTime() : Number.MAX_SAFE_INTEGER;
+      const aStart = a.startDate
+        ? new Date(a.startDate).getTime()
+        : Number.MAX_SAFE_INTEGER;
+      const bStart = b.startDate
+        ? new Date(b.startDate).getTime()
+        : Number.MAX_SAFE_INTEGER;
       if (aStart !== bStart) return aStart - bStart;
       return byDueDateAsc(a, b);
     };
@@ -236,7 +253,10 @@ export default function Dashboard() {
     next.overdue.sort(byDueDateAsc);
     next.upcoming.sort(byStartDateAsc);
     next.active.sort(byPriorityThenDue);
-    next.closed.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+    next.closed.sort(
+      (a, b) =>
+        new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
 
     return next;
   }, [intents]);
@@ -245,7 +265,8 @@ export default function Dashboard() {
     const workCount = intent.workCount;
     const doneCount = intent.completedWorkCount;
     const placeCount = intent.placeCount;
-    const completion = workCount > 0 ? Math.round((doneCount / workCount) * 100) : 0;
+    const completion =
+      workCount > 0 ? Math.round((doneCount / workCount) * 100) : 0;
     const statusStyle =
       intent.status === "completed"
         ? "bg-emerald-100 text-emerald-800"
@@ -255,17 +276,47 @@ export default function Dashboard() {
     const actionConfigs =
       intent.status === "active"
         ? [
-            { label: "Complete", value: "completed", style: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" },
-            { label: "Not Required", value: "not_required", style: "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200" },
+            {
+              label: "Complete",
+              value: "completed",
+              style:
+                "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+            },
+            {
+              label: "Not Required",
+              value: "not_required",
+              style:
+                "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200",
+            },
           ]
         : intent.status === "completed"
           ? [
-              { label: "Active", value: "active", style: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" },
-              { label: "Not Required", value: "not_required", style: "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200" },
+              {
+                label: "Active",
+                value: "active",
+                style:
+                  "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100",
+              },
+              {
+                label: "Not Required",
+                value: "not_required",
+                style:
+                  "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200",
+              },
             ]
           : [
-              { label: "Active", value: "active", style: "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100" },
-              { label: "Complete", value: "completed", style: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100" },
+              {
+                label: "Active",
+                value: "active",
+                style:
+                  "border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100",
+              },
+              {
+                label: "Complete",
+                value: "completed",
+                style:
+                  "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+              },
             ];
     const priorityStyle =
       intent.priority === "high"
@@ -301,7 +352,9 @@ export default function Dashboard() {
             <div className="flex shrink-0 items-center gap-1">
               <select
                 value={intent.priority}
-                onChange={(e) => handleUpdatePriority(intent.id, e.target.value)}
+                onChange={(e) =>
+                  handleUpdatePriority(intent.id, e.target.value)
+                }
                 disabled={updatingIntentId === intent.id}
                 className={`h-6 rounded-full border-0 px-2 text-[10px] font-semibold uppercase tracking-wide outline-none disabled:opacity-60 ${priorityStyle}`}
                 title="Set priority"
@@ -310,7 +363,9 @@ export default function Dashboard() {
                 <option value="medium">medium</option>
                 <option value="low">low</option>
               </select>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${topMetaStyle}`}>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${topMetaStyle}`}
+              >
                 {topMetaLabel}
               </span>
             </div>
@@ -324,19 +379,25 @@ export default function Dashboard() {
 
           <div className="mt-2 grid grid-cols-2 gap-1.5">
             <label className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Start</span>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                Start
+              </span>
               <button
                 type="button"
                 onClick={() => openDateInput(`start-date-${intent.id}`)}
                 disabled={updatingIntentId === intent.id}
                 className="relative h-7 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
               >
-                <span className="flex h-full items-center">{formatDate(intent.startDate)}</span>
+                <span className="flex h-full items-center">
+                  {formatDate(intent.startDate)}
+                </span>
                 <input
                   id={`start-date-${intent.id}`}
                   type="date"
                   value={toDateInputValue(intent.startDate)}
-                  onChange={(e) => handleUpdateStartDate(intent.id, e.target.value)}
+                  onChange={(e) =>
+                    handleUpdateStartDate(intent.id, e.target.value)
+                  }
                   disabled={updatingIntentId === intent.id}
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                   title="Set start date"
@@ -345,19 +406,25 @@ export default function Dashboard() {
             </label>
 
             <label className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">Due</span>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
+                Due
+              </span>
               <button
                 type="button"
                 onClick={() => openDateInput(`due-date-${intent.id}`)}
                 disabled={updatingIntentId === intent.id}
                 className="relative h-7 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
               >
-                <span className="flex h-full items-center">{formatDate(intent.dueDate)}</span>
+                <span className="flex h-full items-center">
+                  {formatDate(intent.dueDate)}
+                </span>
                 <input
                   id={`due-date-${intent.id}`}
                   type="date"
                   value={toDateInputValue(intent.dueDate)}
-                  onChange={(e) => handleUpdateDueDate(intent.id, e.target.value)}
+                  onChange={(e) =>
+                    handleUpdateDueDate(intent.id, e.target.value)
+                  }
                   disabled={updatingIntentId === intent.id}
                   className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
                   title="Set due date"
@@ -388,7 +455,9 @@ export default function Dashboard() {
               key={action.value}
               type="button"
               onClick={() => handleUpdateIntentStatus(intent.id, action.value)}
-              disabled={updatingIntentId === intent.id || intent.status === action.value}
+              disabled={
+                updatingIntentId === intent.id || intent.status === action.value
+              }
               aria-label={`Set ${action.label.toLowerCase()}`}
               title={`Set ${action.label.toLowerCase()}`}
               className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 sm:h-7 ${action.style}`}
@@ -405,17 +474,19 @@ export default function Dashboard() {
     if (sectionIntents.length === 0) return null;
 
     return (
-    <section className="mb-3 sm:mb-4">
-      <div className="mb-1.5 flex items-center justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-700 sm:text-sm">{title}</h2>
-        <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600 sm:text-xs">
-          {sectionIntents.length}
-        </span>
-      </div>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5 lg:grid-cols-3 lg:gap-3">
-        {sectionIntents.map(renderIntentCard)}
-      </div>
-    </section>
+      <section className="mb-3 sm:mb-4">
+        <div className="mb-1.5 flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-700 sm:text-sm">
+            {title}
+          </h2>
+          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600 sm:text-xs">
+            {sectionIntents.length}
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5 lg:grid-cols-3 lg:gap-3">
+          {sectionIntents.map(renderIntentCard)}
+        </div>
+      </section>
     );
   };
 
@@ -423,12 +494,12 @@ export default function Dashboard() {
     <div className="mx-auto w-full max-w-6xl px-2.5 pb-4 pt-2 sm:px-4 sm:pb-7 sm:pt-4">
       <div className="mb-3 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm sm:mb-4 sm:p-3.5">
         <div className="flex w-full sm:justify-end">
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto sm:text-sm"
-            >
-              + New Intent
-            </button>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto sm:text-sm"
+          >
+            + New Intent
+          </button>
         </div>
       </div>
 
