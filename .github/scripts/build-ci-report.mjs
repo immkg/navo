@@ -65,10 +65,30 @@ function parseWebOutput(text) {
   );
   const duration = text.match(/^\s*Duration\s+([\d.]+\S*)/m);
 
+  // Preferred: the v8 text reporter's "All files" table row
+  // (File | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s)
+  const allFilesRow = text.match(
+    /^All files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|/m
+  );
+  // Fallback: the "Coverage summary" block some environments print instead
   const stmts = text.match(/Statements\s*:\s*([\d.]+)%/);
   const branches = text.match(/Branches\s*:\s*([\d.]+)%/);
   const funcs = text.match(/Functions\s*:\s*([\d.]+)%/);
   const lines = text.match(/Lines\s*:\s*([\d.]+)%/);
+
+  const coverage = allFilesRow
+    ? {
+        lines: allFilesRow[4],
+        branches: allFilesRow[2],
+        funcs: allFilesRow[3],
+      }
+    : stmts || lines
+      ? {
+          lines: lines?.[1] ?? stmts?.[1],
+          branches: branches?.[1],
+          funcs: funcs?.[1],
+        }
+      : null;
 
   return {
     testFiles: testFiles
@@ -86,14 +106,7 @@ function parseWebOutput(text) {
         }
       : null,
     duration: duration?.[1],
-    coverage:
-      stmts || lines
-        ? {
-            lines: lines?.[1] ?? stmts?.[1],
-            branches: branches?.[1],
-            funcs: funcs?.[1],
-          }
-        : null,
+    coverage,
   };
 }
 
