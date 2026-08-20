@@ -10,6 +10,7 @@ import {
   reverseGeocodeLocation,
   searchPlaces,
 } from "../../utils/googleMaps";
+import { useNotifications } from "../../hooks/useNotifications";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
@@ -249,6 +250,7 @@ function WorkLocationOptionsEditor({
   onGroupRemoved,
   onCancel,
 }) {
+  const { notify } = useNotifications();
   const initialLocationOptionGroups = buildLocationOptionGroupsFromWork(work);
   const [locationOptionGroups, setLocationOptionGroups] = useState(
     initialLocationOptionGroups
@@ -268,6 +270,9 @@ function WorkLocationOptionsEditor({
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [showManualPlaceForm, setShowManualPlaceForm] = useState(false);
+  const [manualPlaceName, setManualPlaceName] = useState("");
+  const [manualPlaceAddress, setManualPlaceAddress] = useState("");
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRefs = useRef([]);
@@ -289,6 +294,9 @@ function WorkLocationOptionsEditor({
     setSelectedPreviewPlace(null);
     setDroppedPinPlace(null);
     setSearchError(null);
+    setShowManualPlaceForm(false);
+    setManualPlaceName("");
+    setManualPlaceAddress("");
   };
 
   const handleAddLocationOptionGroup = () => {
@@ -338,7 +346,7 @@ function WorkLocationOptionsEditor({
       removeGroupAtIndex(groupIndex);
     } catch (error) {
       console.error("Failed to remove location option group", error);
-      alert("Failed to remove location option group");
+      notify("Failed to remove location option group");
     } finally {
       setIsSaving(false);
     }
@@ -393,7 +401,7 @@ function WorkLocationOptionsEditor({
       onLocationAttached?.(group.id, updatedOption);
     } catch (error) {
       console.error("Failed to remove location from group", error);
-      alert("Failed to remove location from group");
+      notify("Failed to remove location from group");
     } finally {
       setIsSaving(false);
     }
@@ -518,7 +526,7 @@ function WorkLocationOptionsEditor({
       attachLocationToExistingGroup(groupIndex, nextLocation)
         .catch((error) => {
           console.error("Failed to add location to existing group", error);
-          alert("Failed to add location to group");
+          notify("Failed to add location to group");
         })
         .finally(() => {
           setIsSaving(false);
@@ -537,6 +545,23 @@ function WorkLocationOptionsEditor({
     setPlaceResults([]);
     setPlaceQuery("");
     setAutocompleteResults([]);
+  };
+
+  const handleAddManualPlace = (event) => {
+    event.preventDefault();
+    if (!manualPlaceName.trim()) return;
+
+    handleAddLocationToGroup(selectedGroupIndex, {
+      name: manualPlaceName.trim(),
+      formattedAddress: manualPlaceAddress.trim() || undefined,
+      latitude: null,
+      longitude: null,
+      placeId: `manual:${crypto.randomUUID?.() ?? Date.now()}`,
+      provider: "manual",
+    });
+    setManualPlaceName("");
+    setManualPlaceAddress("");
+    setShowManualPlaceForm(false);
   };
 
   const hasPendingNewGroups = locationOptionGroups.some((group) => !group.id);
@@ -776,7 +801,7 @@ function WorkLocationOptionsEditor({
         return;
       }
 
-      alert(
+      notify(
         "Please add at least one location option group with at least one place."
       );
       return;
@@ -808,7 +833,7 @@ function WorkLocationOptionsEditor({
       onCancel?.();
     } catch (error) {
       console.error("Failed to add location option", error);
-      alert("Failed to add location option");
+      notify("Failed to add location option");
     } finally {
       setIsSaving(false);
     }
@@ -857,6 +882,67 @@ function WorkLocationOptionsEditor({
           {searchError && (
             <div className="text-sm text-red-600">{searchError}</div>
           )}
+
+          <div>
+            {!showManualPlaceForm ? (
+              <button
+                type="button"
+                onClick={() => setShowManualPlaceForm(true)}
+                className="min-h-9 text-xs font-semibold text-blue-700 hover:underline"
+              >
+                Can&apos;t find it? Add a place manually
+              </button>
+            ) : (
+              <form
+                onSubmit={handleAddManualPlace}
+                className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-3"
+              >
+                <label className="block space-y-1">
+                  <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Location name
+                  </span>
+                  <input
+                    value={manualPlaceName}
+                    onChange={(e) => setManualPlaceName(e.target.value)}
+                    required
+                    autoFocus
+                    placeholder="e.g., Downtown Farmers Market"
+                    className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    Address (optional)
+                  </span>
+                  <input
+                    value={manualPlaceAddress}
+                    onChange={(e) => setManualPlaceAddress(e.target.value)}
+                    className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </label>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowManualPlaceForm(false);
+                      setManualPlaceName("");
+                      setManualPlaceAddress("");
+                    }}
+                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!manualPlaceName.trim()}
+                    className="inline-flex min-h-10 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    Add place
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
 
           {autocompleteResults.length > 0 && (
             <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
@@ -1111,6 +1197,7 @@ function WorkLocationOptionsEditor({
 }
 
 export default function IntentView() {
+  const { notify } = useNotifications();
   const { id } = useParams();
   const [intent, setIntent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1151,7 +1238,7 @@ export default function IntentView() {
       return response.data;
     } catch (error) {
       console.error("Failed to update intent", error);
-      alert("Unable to update intent right now.");
+      notify("Unable to update intent right now.");
       throw error;
     } finally {
       setUpdatingIntent(false);
@@ -1178,7 +1265,7 @@ export default function IntentView() {
       return updatedWork;
     } catch (error) {
       console.error("Failed to update work", error);
-      alert("Unable to update work right now.");
+      notify("Unable to update work right now.");
       throw error;
     } finally {
       setUpdatingWorkId(null);
@@ -1269,7 +1356,7 @@ export default function IntentView() {
   const saveEditWork = async (workId) => {
     const nextTitle = editingWorkTitle.trim();
     if (!nextTitle) {
-      alert("Work title is required.");
+      notify("Work title is required.");
       return;
     }
 
@@ -1295,7 +1382,7 @@ export default function IntentView() {
       return updated;
     } catch (error) {
       console.error("Failed to select location option", error);
-      alert("Failed to choose location option");
+      notify("Failed to choose location option");
     }
   };
 

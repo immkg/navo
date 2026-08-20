@@ -1,12 +1,20 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
+import { useNotifications } from "../../hooks/useNotifications";
 
 const PRIORITY_ORDER = {
   high: 0,
   medium: 1,
   low: 2,
 };
+
+const BULK_STATUS_OPTIONS = [
+  { value: "active", label: "Active" },
+  { value: "completed", label: "Completed" },
+  { value: "not_required", label: "Not Required" },
+  { value: "archived", label: "Archived" },
+];
 
 function startOfToday() {
   const value = new Date();
@@ -72,6 +80,7 @@ function toDateInputValue(dateValue) {
 }
 
 export default function Dashboard() {
+  const { notify, confirm } = useNotifications();
   const [intents, setIntents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -97,6 +106,31 @@ export default function Dashboard() {
   const [newIntentDueDate, setNewIntentDueDate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [updatingIntentId, setUpdatingIntentId] = useState("");
+  const [addAnotherIntent, setAddAnotherIntent] = useState(false);
+  const [keepPreviousDetails, setKeepPreviousDetails] = useState(false);
+  const titleInputRef = useRef(null);
+
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [isBulkWorking, setIsBulkWorking] = useState(false);
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setNewIntentTitle("");
+    setNewIntentDescription("");
+    setNewIntentPriority("medium");
+    setNewIntentStartDate("");
+    setNewIntentDueDate("");
+    setAddAnotherIntent(false);
+    setKeepPreviousDetails(false);
+  };
+
+  const handleToggleAddAnother = (checked) => {
+    setAddAnotherIntent(checked);
+    if (!checked) {
+      setKeepPreviousDetails(false);
+    }
+  };
 
   const handleCreateIntent = async (e) => {
     e.preventDefault();
@@ -111,16 +145,24 @@ export default function Dashboard() {
         startDate: newIntentStartDate || null,
         dueDate: newIntentDueDate || null,
       });
-      setIntents([normalizeIntent(res.data), ...intents]);
-      setIsModalOpen(false);
+      setIntents((previous) => [normalizeIntent(res.data), ...previous]);
+
       setNewIntentTitle("");
       setNewIntentDescription("");
-      setNewIntentPriority("medium");
-      setNewIntentStartDate("");
-      setNewIntentDueDate("");
+
+      if (addAnotherIntent) {
+        if (!keepPreviousDetails) {
+          setNewIntentPriority("medium");
+          setNewIntentStartDate("");
+          setNewIntentDueDate("");
+        }
+        titleInputRef.current?.focus();
+      } else {
+        closeModal();
+      }
     } catch (error) {
       console.error("Failed to create intent", error);
-      alert("Failed to create intent. Make sure the API is running.");
+      notify("Failed to create intent. Make sure the API is running.");
     } finally {
       setIsSubmitting(false);
     }
@@ -139,7 +181,7 @@ export default function Dashboard() {
       );
     } catch (error) {
       console.error("Failed to patch intent", error);
-      alert(failureMessage);
+      notify(failureMessage);
     } finally {
       setUpdatingIntentId("");
     }
@@ -188,6 +230,103 @@ export default function Dashboard() {
 
     element.focus();
     element.click();
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode((prev) => !prev);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelected = (intentId) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(intentId)) {
+        next.delete(intentId);
+      } else {
+        next.add(intentId);
+      }
+      return next;
+    });
+  };
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(intents.map((intent) => intent.id)));
+  };
+
+  const handleClearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkStatusChange = async (status) => {
+    if (!status || selectedIds.size === 0) return;
+
+    setIsBulkWorking(true);
+    const ids = Array.from(selectedIds);
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          axios.patch(`http://localhost:3001/api/intents/${id}`, { status })
+        )
+      );
+
+      const succeededIds = ids.filter(
+        (_, index) => results[index].status === "fulfilled"
+      );
+      const failedCount = ids.length - succeededIds.length;
+
+      setIntents((previous) =>
+        previous.map((intent) =>
+          succeededIds.includes(intent.id)
+            ? normalizeIntent({ ...intent, status })
+            : intent
+        )
+      );
+      setSelectedIds(new Set());
+
+      if (failedCount > 0) {
+        notify(
+          `Updated ${succeededIds.length} intent(s), but ${failedCount} failed. Please try again.`
+        );
+      }
+    } finally {
+      setIsBulkWorking(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+
+    const confirmed = await confirm(
+      `Delete ${selectedIds.size} intent(s)? This also deletes all of their work items and removes them from the planner. This can't be undone.`,
+      { title: "Delete intents?", confirmLabel: "Delete", danger: true }
+    );
+    if (!confirmed) return;
+
+    setIsBulkWorking(true);
+    const ids = Array.from(selectedIds);
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) => axios.delete(`http://localhost:3001/api/intents/${id}`))
+      );
+
+      const succeededIds = ids.filter(
+        (_, index) => results[index].status === "fulfilled"
+      );
+      const failedCount = ids.length - succeededIds.length;
+
+      setIntents((previous) =>
+        previous.filter((intent) => !succeededIds.includes(intent.id))
+      );
+      setSelectedIds(new Set());
+
+      if (failedCount > 0) {
+        notify(
+          `Deleted ${succeededIds.length} intent(s), but ${failedCount} failed. Please try again.`
+        );
+      }
+    } finally {
+      setIsBulkWorking(false);
+    }
   };
 
   const groupedIntents = useMemo(() => {
@@ -336,124 +475,136 @@ export default function Dashboard() {
       : intent.status === "active"
         ? dueMeta.tone
         : statusStyle;
+    const isSelected = selectedIds.has(intent.id);
 
     return (
       <article
         key={intent.id}
-        className="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 bg-white p-2.5 shadow-sm transition-all hover:border-blue-300 sm:grid-cols-[minmax(0,1fr)_auto] sm:p-3"
+        className={`flex flex-col gap-3 rounded-2xl border bg-white p-4 shadow-sm transition-all hover:shadow-md sm:p-5 ${
+          isSelected
+            ? "border-blue-400 ring-2 ring-blue-100"
+            : "border-gray-200 hover:border-blue-300"
+        }`}
       >
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <Link to={`/intent/${intent.id}`} className="group min-w-0">
-              <h2 className="line-clamp-1 text-sm font-semibold text-gray-900 transition-colors group-hover:text-blue-600 sm:text-base">
-                {intent.title}
-              </h2>
-            </Link>
-            <div className="flex shrink-0 items-center gap-1">
-              <select
-                value={intent.priority}
-                onChange={(e) =>
-                  handleUpdatePriority(intent.id, e.target.value)
-                }
-                disabled={updatingIntentId === intent.id}
-                className={`h-8 rounded-full border-0 px-2 text-[10px] font-semibold uppercase tracking-wide outline-none disabled:opacity-60 ${priorityStyle}`}
-                title="Set priority"
-              >
-                <option value="high">high</option>
-                <option value="medium">medium</option>
-                <option value="low">low</option>
-              </select>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${topMetaStyle}`}
-              >
-                {topMetaLabel}
-              </span>
-            </div>
-          </div>
-
-          {intent.description && (
-            <p className="mt-0.5 line-clamp-1 text-xs text-gray-500">
-              {intent.description}
-            </p>
+        <div className="flex items-start gap-3">
+          {selectionMode && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => toggleSelected(intent.id)}
+              aria-label={`Select ${intent.title}`}
+              className="mt-1.5 h-5 w-5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
           )}
 
-          <div className="mt-2 grid grid-cols-2 gap-1.5">
-            <label className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                Start
-              </span>
-              <button
-                type="button"
-                onClick={() => openDateInput(`start-date-${intent.id}`)}
-                disabled={updatingIntentId === intent.id}
-                className="relative h-9 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
-              >
-                <span className="flex h-full items-center">
-                  {formatDate(intent.startDate)}
-                </span>
-                <input
-                  id={`start-date-${intent.id}`}
-                  type="date"
-                  value={toDateInputValue(intent.startDate)}
-                  onChange={(e) =>
-                    handleUpdateStartDate(intent.id, e.target.value)
-                  }
-                  disabled={updatingIntentId === intent.id}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                  title="Set start date"
-                />
-              </button>
-            </label>
+          <Link
+            to={`/intent/${intent.id}`}
+            className="group -mx-1.5 -my-1 block min-w-0 flex-1 rounded-lg px-1.5 py-1 transition hover:bg-blue-50"
+          >
+            <h2 className="line-clamp-2 text-lg font-semibold text-gray-900 transition-colors group-hover:text-blue-600 sm:text-xl">
+              {intent.title}
+            </h2>
+            {intent.description && (
+              <p className="mt-1 line-clamp-1 text-sm text-gray-500">
+                {intent.description}
+              </p>
+            )}
+          </Link>
 
-            <label className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-[10px] font-medium uppercase tracking-wide text-gray-500">
-                Due
-              </span>
-              <button
-                type="button"
-                onClick={() => openDateInput(`due-date-${intent.id}`)}
-                disabled={updatingIntentId === intent.id}
-                className="relative h-9 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
-              >
-                <span className="flex h-full items-center">
-                  {formatDate(intent.dueDate)}
-                </span>
-                <input
-                  id={`due-date-${intent.id}`}
-                  type="date"
-                  value={toDateInputValue(intent.dueDate)}
-                  onChange={(e) =>
-                    handleUpdateDueDate(intent.id, e.target.value)
-                  }
-                  disabled={updatingIntentId === intent.id}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                  title="Set due date"
-                />
-              </button>
-            </label>
-          </div>
-
-          <div className="mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-            <span
-              className="whitespace-nowrap text-xs text-gray-600"
-              title={`${doneCount} of ${workCount} work items complete, ${placeCount} place${placeCount === 1 ? "" : "s"}`}
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <select
+              value={intent.priority}
+              onChange={(e) => handleUpdatePriority(intent.id, e.target.value)}
+              disabled={updatingIntentId === intent.id}
+              className={`h-8 rounded-full border-0 px-3 text-xs font-semibold uppercase tracking-wide outline-none disabled:opacity-60 ${priorityStyle}`}
+              title="Set priority"
             >
-              {doneCount}/{workCount} work · {placeCount} place
-              {placeCount === 1 ? "" : "s"}
-            </span>
-            <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full bg-blue-500 transition-all"
-                style={{ width: `${completion}%` }}
-              />
-            </div>
-            <span className="text-xs font-semibold text-gray-700">
-              {completion}%
+              <option value="high">high</option>
+              <option value="medium">medium</option>
+              <option value="low">low</option>
+            </select>
+            <span
+              className={`whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${topMetaStyle}`}
+            >
+              {topMetaLabel}
             </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:w-16 sm:shrink-0 sm:flex-col sm:items-stretch sm:justify-center">
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex min-w-0 flex-col gap-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+              Start
+            </span>
+            <button
+              type="button"
+              onClick={() => openDateInput(`start-date-${intent.id}`)}
+              disabled={updatingIntentId === intent.id}
+              className="relative h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:opacity-60"
+            >
+              <span className="flex h-full items-center">
+                {formatDate(intent.startDate)}
+              </span>
+              <input
+                id={`start-date-${intent.id}`}
+                type="date"
+                value={toDateInputValue(intent.startDate)}
+                onChange={(e) =>
+                  handleUpdateStartDate(intent.id, e.target.value)
+                }
+                disabled={updatingIntentId === intent.id}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                title="Set start date"
+              />
+            </button>
+          </label>
+
+          <label className="flex min-w-0 flex-col gap-1">
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+              Due
+            </span>
+            <button
+              type="button"
+              onClick={() => openDateInput(`due-date-${intent.id}`)}
+              disabled={updatingIntentId === intent.id}
+              className="relative h-10 w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:opacity-60"
+            >
+              <span className="flex h-full items-center">
+                {formatDate(intent.dueDate)}
+              </span>
+              <input
+                id={`due-date-${intent.id}`}
+                type="date"
+                value={toDateInputValue(intent.dueDate)}
+                onChange={(e) => handleUpdateDueDate(intent.id, e.target.value)}
+                disabled={updatingIntentId === intent.id}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                title="Set due date"
+              />
+            </button>
+          </label>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span
+            className="whitespace-nowrap text-sm text-gray-600"
+            title={`${doneCount} of ${workCount} work items complete, ${placeCount} place${placeCount === 1 ? "" : "s"}`}
+          >
+            {doneCount}/{workCount} work · {placeCount} place
+            {placeCount === 1 ? "" : "s"}
+          </span>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-100">
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all"
+              style={{ width: `${completion}%` }}
+            />
+          </div>
+          <span className="whitespace-nowrap text-sm font-semibold text-gray-700">
+            {completion}%
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
           {actionConfigs.map((action) => (
             <button
               key={action.value}
@@ -462,9 +613,7 @@ export default function Dashboard() {
               disabled={
                 updatingIntentId === intent.id || intent.status === action.value
               }
-              aria-label={`Set ${action.label.toLowerCase()}`}
-              title={`Set ${action.label.toLowerCase()}`}
-              className={`inline-flex h-9 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 ${action.style}`}
+              className={`inline-flex h-9 flex-1 items-center justify-center rounded-lg border px-3 text-sm font-semibold transition disabled:opacity-50 ${action.style}`}
             >
               {action.label}
             </button>
@@ -478,8 +627,8 @@ export default function Dashboard() {
     if (sectionIntents.length === 0) return null;
 
     return (
-      <section className="mb-3 sm:mb-4">
-        <div className="mb-1.5 flex items-center justify-between">
+      <section className="mb-4 sm:mb-6">
+        <div className="mb-2 flex items-center justify-between">
           <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-700 sm:text-sm">
             {title}
           </h2>
@@ -487,7 +636,7 @@ export default function Dashboard() {
             {sectionIntents.length}
           </span>
         </div>
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5 lg:grid-cols-3 lg:gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
           {sectionIntents.map(renderIntentCard)}
         </div>
       </section>
@@ -496,16 +645,84 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-2.5 pb-4 pt-2 sm:px-4 sm:pb-7 sm:pt-4">
-      <div className="mb-3 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm sm:mb-4 sm:p-3.5">
-        <div className="flex w-full sm:justify-end">
+      <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-2.5 shadow-sm sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:p-3.5">
+        <h1 className="hidden text-lg font-bold text-gray-900 sm:block">
+          Intents
+        </h1>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:w-auto">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:w-auto sm:text-sm"
+            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 sm:text-sm"
           >
             + New Intent
           </button>
+          {intents.length > 0 && (
+            <button
+              onClick={toggleSelectionMode}
+              className={`inline-flex min-h-10 items-center justify-center rounded-lg border px-4 py-2 text-xs font-semibold shadow-sm transition sm:text-sm ${
+                selectionMode
+                  ? "border-gray-300 bg-gray-100 text-gray-800 hover:bg-gray-200"
+                  : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              {selectionMode ? "Cancel Selecting" : "Select"}
+            </button>
+          )}
         </div>
       </div>
+
+      {selectionMode && (
+        <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-blue-900">
+            <span>{selectedIds.size} selected</span>
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              disabled={selectedIds.size === intents.length}
+              className="min-h-9 rounded-full border border-blue-300 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:opacity-50"
+            >
+              Select all ({intents.length})
+            </button>
+            {selectedIds.size > 0 && (
+              <button
+                type="button"
+                onClick={handleClearSelection}
+                className="min-h-9 rounded-full border border-blue-300 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value=""
+              disabled={selectedIds.size === 0 || isBulkWorking}
+              onChange={(e) => handleBulkStatusChange(e.target.value)}
+              className="min-h-9 rounded-full border border-blue-300 bg-white px-3 text-xs font-semibold text-blue-700 outline-none disabled:opacity-50"
+            >
+              <option value="" disabled>
+                Set status…
+              </option>
+              {BULK_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={selectedIds.size === 0 || isBulkWorking}
+              className="inline-flex min-h-9 items-center justify-center rounded-full bg-red-600 px-4 text-xs font-semibold text-white transition hover:bg-red-700 disabled:opacity-50"
+            >
+              {isBulkWorking
+                ? "Working…"
+                : `Delete${selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-center py-12 text-gray-500">
@@ -545,6 +762,7 @@ export default function Dashboard() {
                   What is your intent?
                 </label>
                 <input
+                  ref={titleInputRef}
                   type="text"
                   autoFocus
                   required
@@ -603,10 +821,34 @@ export default function Dashboard() {
                   onChange={(e) => setNewIntentDescription(e.target.value)}
                 />
               </div>
+              <div className="mb-4 space-y-2">
+                <label className="flex min-h-9 items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={addAnotherIntent}
+                    onChange={(e) => handleToggleAddAnother(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  Add another after this one (keep the form open)
+                </label>
+                <label
+                  className={`flex min-h-9 items-center gap-2 text-sm ${addAnotherIntent ? "text-gray-700" : "text-gray-400"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={keepPreviousDetails}
+                    disabled={!addAnotherIntent}
+                    onChange={(e) => setKeepPreviousDetails(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
+                  />
+                  Keep the same priority, start, and due date for the next one
+                </label>
+              </div>
+
               <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={closeModal}
                   className="inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-medium text-gray-600 transition hover:bg-gray-100"
                 >
                   Cancel
@@ -616,7 +858,11 @@ export default function Dashboard() {
                   disabled={isSubmitting || !newIntentTitle.trim()}
                   className="inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow transition hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {isSubmitting ? "Creating..." : "Create Intent"}
+                  {isSubmitting
+                    ? "Creating..."
+                    : addAnotherIntent
+                      ? "Create & Add Another"
+                      : "Create Intent"}
                 </button>
               </div>
             </form>

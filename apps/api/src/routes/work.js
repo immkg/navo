@@ -1,5 +1,6 @@
 const express = require("express");
 const prisma = require("../db/client");
+const { deleteWorkItems } = require("../services/workService");
 
 const router = express.Router();
 
@@ -404,7 +405,7 @@ router.delete("/:id/location-option/:optionId", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    await prisma.work.delete({ where: { id } });
+    await deleteWorkItems(prisma, [id]);
     res.status(204).send();
   } catch (error) {
     console.error(error);

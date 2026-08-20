@@ -8,12 +8,14 @@ import {
   reverseGeocodeLocation,
 } from "../../utils/googleMaps";
 import LocationCard from "./LocationCard";
+import { useNotifications } from "../../hooks/useNotifications";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
 ];
 
 export default function IntentWorkForm({ intentId, onWorkCreated }) {
+  const { notify } = useNotifications();
   const [newWorkTitle, setNewWorkTitle] = useState("");
   const [newWorkDuration, setNewWorkDuration] = useState(15);
   const [newWorkNotes, setNewWorkNotes] = useState("");
@@ -33,6 +35,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mapReady, setMapReady] = useState(false);
+  const [showManualPlaceForm, setShowManualPlaceForm] = useState(false);
+  const [manualPlaceName, setManualPlaceName] = useState("");
+  const [manualPlaceAddress, setManualPlaceAddress] = useState("");
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRefs = useRef([]);
@@ -55,6 +60,9 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     setSelectedPreviewPlace(null);
     setDroppedPinPlace(null);
     setNewWorkPlaceSearchError(null);
+    setShowManualPlaceForm(false);
+    setManualPlaceName("");
+    setManualPlaceAddress("");
   };
 
   const handleAutocomplete = async (query) => {
@@ -93,7 +101,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
 
       if (newWorkMode === "place") {
         if (newWorkLocationOptionGroups.length === 0) {
-          alert(
+          notify(
             "Please add at least one location option group for place-based work."
           );
           return;
@@ -116,7 +124,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
           .filter((option) => option.locations.length > 0);
 
         if (payload.locationOptions.length === 0) {
-          alert(
+          notify(
             "Please add at least one place to your location option groups."
           );
           return;
@@ -134,7 +142,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
       resetForm();
     } catch (error) {
       console.error("Failed to create work", error);
-      alert("Failed to create work");
+      notify("Failed to create work");
     } finally {
       setIsSubmitting(false);
     }
@@ -229,7 +237,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
           latitude: place.latitude,
           longitude: place.longitude,
           placeId: place.placeId,
-          provider: "google",
+          provider: place.provider || "google",
         },
       ];
       return next;
@@ -237,6 +245,23 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
     setNewWorkPlaceResults([]);
     setNewWorkPlaceQuery("");
     setNewWorkAutocompleteResults([]);
+  };
+
+  const handleAddManualPlace = (event) => {
+    event.preventDefault();
+    if (!manualPlaceName.trim()) return;
+
+    handleAddLocationResultToGroup(newWorkSelectedOptionGroupIndex, {
+      name: manualPlaceName.trim(),
+      formattedAddress: manualPlaceAddress.trim() || undefined,
+      latitude: null,
+      longitude: null,
+      placeId: `manual:${crypto.randomUUID?.() ?? Date.now()}`,
+      provider: "manual",
+    });
+    setManualPlaceName("");
+    setManualPlaceAddress("");
+    setShowManualPlaceForm(false);
   };
 
   const previewPlaceInMap = (place) => {
@@ -598,6 +623,69 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                     {newWorkPlaceSearchError}
                   </div>
                 )}
+
+                <div className="mt-3">
+                  {!showManualPlaceForm ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowManualPlaceForm(true)}
+                      className="min-h-9 text-xs font-semibold text-blue-700 hover:underline"
+                    >
+                      Can&apos;t find it? Add a place manually
+                    </button>
+                  ) : (
+                    <form
+                      onSubmit={handleAddManualPlace}
+                      className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-3"
+                    >
+                      <label className="block space-y-1">
+                        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                          Location name
+                        </span>
+                        <input
+                          value={manualPlaceName}
+                          onChange={(e) => setManualPlaceName(e.target.value)}
+                          required
+                          autoFocus
+                          placeholder="e.g., Downtown Farmers Market"
+                          className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                          Address (optional)
+                        </span>
+                        <input
+                          value={manualPlaceAddress}
+                          onChange={(e) =>
+                            setManualPlaceAddress(e.target.value)
+                          }
+                          className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                        />
+                      </label>
+                      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowManualPlaceForm(false);
+                            setManualPlaceName("");
+                            setManualPlaceAddress("");
+                          }}
+                          className="inline-flex min-h-10 items-center justify-center rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-400"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!manualPlaceName.trim()}
+                          className="inline-flex min-h-10 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          Add place
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
 
                 {newWorkAutocompleteResults.length > 0 && (
                   <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-3">

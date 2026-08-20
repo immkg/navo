@@ -4,6 +4,7 @@ import {
   loadGoogleMaps,
   buildGoogleMapsDirectionsUrl,
 } from "../../utils/googleMaps";
+import { useNotifications } from "../../hooks/useNotifications";
 
 const DEFAULT_TRAVEL_MIN_PER_KM = 8;
 
@@ -120,6 +121,7 @@ function getChosenOption(work) {
 }
 
 export default function PlannerView() {
+  const { notify } = useNotifications();
   const [workItems, setWorkItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -174,7 +176,7 @@ export default function PlannerView() {
   const submitAddLocationForm = async (event, work) => {
     event.preventDefault();
     if (!addLocationName.trim()) {
-      alert("Location name is required.");
+      notify("Location name is required.");
       return;
     }
 
@@ -209,7 +211,7 @@ export default function PlannerView() {
       closeAddLocationForm();
     } catch (error) {
       console.error("Failed to add location option", error);
-      alert("Failed to add location option");
+      notify("Failed to add location option");
     } finally {
       setIsSavingLocation(false);
     }
@@ -236,7 +238,7 @@ export default function PlannerView() {
       );
     } catch (error) {
       console.error("Failed to select location option", error);
-      alert("Failed to choose location option");
+      notify("Failed to choose location option");
     }
   };
 
@@ -452,7 +454,7 @@ export default function PlannerView() {
     const latitude = Number(manualLat);
     const longitude = Number(manualLng);
     if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-      alert("Please enter valid numbers for latitude and longitude.");
+      notify("Please enter valid numbers for latitude and longitude.");
       return;
     }
     setCurrentLocation({ label: "Manual start", latitude, longitude });
