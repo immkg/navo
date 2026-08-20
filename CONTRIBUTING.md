@@ -11,10 +11,7 @@ Navo is a day planning system built around how people naturally move through the
 Before contributing, read these documents in order:
 
 1. [VISION.md](VISION.md) — Understand why Navo exists
-2. [MENTAL_MODEL.md](MENTAL_MODEL.md) — Understand how the system thinks
-3. [DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md) — The rules that guide every decision
-4. [ARCHITECTURE.md](ARCHITECTURE.md) — The structural model
-5. [GLOSSARY.md](GLOSSARY.md) — The shared language
+2. [ARCHITECTURE.md](ARCHITECTURE.md) — How the system thinks, the structural model, the design principles, and the shared glossary
 
 These documents define the philosophy and terminology. **Any contribution that conflicts with them will need to be rethought, not just rebased.**
 
@@ -59,9 +56,9 @@ Ask these questions:
 
 1. Does this serve the core use case: _what am I doing today, where, and in what order?_
 2. Does it involve location or route? If so, is location treated as first-class?
-3. Does it align with at least one principle in [DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md)?
+3. Does it align with at least one Design Principle in [ARCHITECTURE.md](ARCHITECTURE.md)?
 4. Would it make Navo feel more like a to-do list or project manager? If yes, reconsider.
-5. Does it use the language defined in [GLOSSARY.md](GLOSSARY.md)?
+5. Does it use the language defined in the Glossary section of [ARCHITECTURE.md](ARCHITECTURE.md)?
 
 If any answer is unclear, **start a discussion before writing code.**
 
@@ -86,7 +83,7 @@ Include:
 - Prefer readability over cleverness
 - Write self-explanatory code
 - Keep functions and components focused on one thing
-- Use the terminology from [GLOSSARY.md](GLOSSARY.md) in variable names, comments, and UI copy
+- Use the terminology from the Glossary section of [ARCHITECTURE.md](ARCHITECTURE.md) in variable names, comments, and UI copy
 - Location must always be a typed entity, never a raw string
 
 ---

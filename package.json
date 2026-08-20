@@ -1,7 +1,7 @@
 {
   "name": "navo",
   "version": "1.0.0",
-  "description": "<p align=\"center\">   <img src=\"docs/navo-hero.png\" alt=\"Navo Hero\" width=\"100%\" /> </p>",
+  "description": "Navo is a day planning system grounded in how people naturally move through the physical world.",
   "main": "index.js",
   "directories": {
     "doc": "docs"

@@ -6,6 +6,20 @@ The format is based on **Keep a Changelog** and follows **Semantic Versioning**.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Place autocomplete for location selection in the work form, backed by Google Maps
+- Location option management for work items (add, edit, remove location choices)
+
+### Not started
+
+- Nested/grouped location option sets — location options are currently a flat list per work item
+- Persisting the remote/mobile/laptop work-mode selector to the API — the selector exists in the work form UI but the choice isn't saved yet
+
+---
+
 ## [1.6.0] - 2026-08-09
 
 ### Changed
@@ -44,19 +58,7 @@ The format is based on **Keep a Changelog** and follows **Semantic Versioning**.
 
 - Clarified route-first planning and location as a core concept
 - Updated docs to reflect map-based intent/work flow and opportunity discovery
----
 
-## [Unreleased]
-
-### Added
-
-- Planned remote/mobile/laptop work mode with location-independent work handling
-- Planned location-required work with nested location option groups
-- Planned map-backed place selection using Google Maps autocomplete
-
-### Documentation
-
-- Planned docs updates for remote work semantics and location option group UX
 ---
 
 ## [1.1.0] - 2026-08-09

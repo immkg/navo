@@ -109,10 +109,7 @@ Navo surfaces it.
 ### Foundation
 
 - [Vision](VISION.md) — Why Navo exists and the core insight
-- [Mental Model](MENTAL_MODEL.md) — How the system thinks
-- [Design Principles](DESIGN_PRINCIPLES.md) — The rules that guide every decision
-- [Architecture](ARCHITECTURE.md) — The structural model
-- [Glossary](GLOSSARY.md) — The shared language
+- [Architecture](ARCHITECTURE.md) — How the system thinks, the structural model, the design principles, and the shared glossary
 
 ### Concepts
 
