@@ -1,5 +1,6 @@
 const express = require("express");
 const prisma = require("../db/client");
+const { deleteWorkItems } = require("../services/workService");
 
 const router = express.Router();
 const VALID_STATUSES = new Set([
@@ -214,6 +215,43 @@ router.patch("/:id", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to update intent" });
+  }
+});
+
+// Delete an intent, along with all of its work items (and their location
+// options). This also removes those work items from the planner, since the
+// planner reads work items live from the database.
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const notFound = await prisma.$transaction(async (tx) => {
+      const existingIntent = await tx.intent.findUnique({ where: { id } });
+      if (!existingIntent) {
+        return true;
+      }
+
+      const workItems = await tx.work.findMany({
+        where: { intentId: id },
+        select: { id: true },
+      });
+
+      await deleteWorkItems(
+        tx,
+        workItems.map((work) => work.id)
+      );
+      await tx.intent.delete({ where: { id } });
+      return false;
+    });
+
+    if (notFound) {
+      return res.status(404).json({ error: "Intent not found" });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete intent" });
   }
 });
 
