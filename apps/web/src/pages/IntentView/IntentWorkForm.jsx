@@ -563,7 +563,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
               <button
                 type="button"
                 onClick={handleAddLocationOptionGroup}
-                className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                className="rounded-full border border-blue-200 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
               >
                 {newWorkLocationOptionGroups.length === 0
                   ? "Edit Locations"
@@ -675,7 +675,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                                   <button
                                     type="button"
                                     onClick={() => previewPlaceInMap(place)}
-                                    className="rounded-full border border-blue-200 bg-white px-3 py-1 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                                    className="rounded-full border border-blue-200 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
                                   >
                                     Preview
                                   </button>
@@ -687,7 +687,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                                         place
                                       )
                                     }
-                                    className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
+                                    className="rounded-full bg-blue-600 min-h-9 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                                   >
                                     Add
                                   </button>
@@ -722,7 +722,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                             <button
                               type="button"
                               onClick={handleAddDroppedPinToGroup}
-                              className="rounded-full bg-blue-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-blue-700"
+                              className="rounded-full bg-blue-600 min-h-9 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                             >
                               Add dropped pin
                             </button>
@@ -779,7 +779,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                             onClick={() =>
                               setNewWorkSelectedOptionGroupIndex(index)
                             }
-                            className={`rounded-full px-3 py-1 text-xs font-semibold transition ${newWorkSelectedOptionGroupIndex === index ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
+                            className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${newWorkSelectedOptionGroupIndex === index ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
                           >
                             {newWorkSelectedOptionGroupIndex === index
                               ? "Selected"
@@ -792,7 +792,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                             onClick={() =>
                               handleRemoveLocationOptionGroup(index)
                             }
-                            className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                            className="rounded-full border border-red-200 bg-red-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                           >
                             Remove group
                           </button>
@@ -812,7 +812,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                                         locationIndex
                                       )
                                     }
-                                    className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                                    className="rounded-full border border-red-200 bg-red-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                                   >
                                     Remove place
                                   </button>

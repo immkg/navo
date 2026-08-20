@@ -356,7 +356,7 @@ export default function Dashboard() {
                   handleUpdatePriority(intent.id, e.target.value)
                 }
                 disabled={updatingIntentId === intent.id}
-                className={`h-6 rounded-full border-0 px-2 text-[10px] font-semibold uppercase tracking-wide outline-none disabled:opacity-60 ${priorityStyle}`}
+                className={`h-8 rounded-full border-0 px-2 text-[10px] font-semibold uppercase tracking-wide outline-none disabled:opacity-60 ${priorityStyle}`}
                 title="Set priority"
               >
                 <option value="high">high</option>
@@ -386,7 +386,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => openDateInput(`start-date-${intent.id}`)}
                 disabled={updatingIntentId === intent.id}
-                className="relative h-7 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
+                className="relative h-9 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
               >
                 <span className="flex h-full items-center">
                   {formatDate(intent.startDate)}
@@ -413,7 +413,7 @@ export default function Dashboard() {
                 type="button"
                 onClick={() => openDateInput(`due-date-${intent.id}`)}
                 disabled={updatingIntentId === intent.id}
-                className="relative h-7 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
+                className="relative h-9 w-full rounded-md border border-gray-200 bg-gray-100 px-1.5 text-left text-xs font-medium text-gray-700 disabled:opacity-60"
               >
                 <span className="flex h-full items-center">
                   {formatDate(intent.dueDate)}
@@ -434,8 +434,12 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-2 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-            <span className="text-xs text-gray-600">
-              {doneCount}/{workCount}w · {placeCount}p
+            <span
+              className="whitespace-nowrap text-xs text-gray-600"
+              title={`${doneCount} of ${workCount} work items complete, ${placeCount} place${placeCount === 1 ? "" : "s"}`}
+            >
+              {doneCount}/{workCount} work · {placeCount} place
+              {placeCount === 1 ? "" : "s"}
             </span>
             <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
               <div
@@ -460,7 +464,7 @@ export default function Dashboard() {
               }
               aria-label={`Set ${action.label.toLowerCase()}`}
               title={`Set ${action.label.toLowerCase()}`}
-              className={`inline-flex h-7 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 sm:h-7 ${action.style}`}
+              className={`inline-flex h-9 w-full items-center justify-center rounded-md border px-1 text-[10px] font-semibold uppercase tracking-wide transition disabled:opacity-50 ${action.style}`}
             >
               {action.label}
             </button>

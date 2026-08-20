@@ -130,6 +130,14 @@ export default function PlannerView() {
   );
   const [mapError, setMapError] = useState(null);
   const mapRef = useRef(null);
+  const [manualStartOpen, setManualStartOpen] = useState(false);
+  const [manualLat, setManualLat] = useState("");
+  const [manualLng, setManualLng] = useState("");
+  const [addLocationFormWorkId, setAddLocationFormWorkId] = useState(null);
+  const [addLocationTitle, setAddLocationTitle] = useState("");
+  const [addLocationName, setAddLocationName] = useState("");
+  const [addLocationAddress, setAddLocationAddress] = useState("");
+  const [isSavingLocation, setIsSavingLocation] = useState(false);
 
   useEffect(() => {
     async function fetchWork() {
@@ -145,32 +153,41 @@ export default function PlannerView() {
     fetchWork();
   }, []);
 
-  const handleAddLocation = async (work) => {
-    const optionTitle = window.prompt(
-      "Location option title (optional)",
+  const openAddLocationForm = (work) => {
+    setAddLocationFormWorkId(work.id);
+    setAddLocationTitle(
       work.locationOptions?.length
         ? `Option ${work.locationOptions.length + 1}`
         : "Option 1"
     );
-    if (optionTitle === null) return;
+    setAddLocationName("");
+    setAddLocationAddress("");
+  };
 
-    const locationName = window.prompt("Location name");
-    if (!locationName?.trim()) {
+  const closeAddLocationForm = () => {
+    setAddLocationFormWorkId(null);
+    setAddLocationTitle("");
+    setAddLocationName("");
+    setAddLocationAddress("");
+  };
+
+  const submitAddLocationForm = async (event, work) => {
+    event.preventDefault();
+    if (!addLocationName.trim()) {
       alert("Location name is required.");
       return;
     }
 
-    const locationAddress = window.prompt("Location address (optional)");
-
+    setIsSavingLocation(true);
     try {
       const response = await axios.post(
         `http://localhost:3001/api/work/${work.id}/location-option`,
         {
-          title: optionTitle.trim() || undefined,
+          title: addLocationTitle.trim() || undefined,
           locations: [
             {
-              name: locationName.trim(),
-              address: locationAddress?.trim() || undefined,
+              name: addLocationName.trim(),
+              address: addLocationAddress.trim() || undefined,
             },
           ],
         }
@@ -189,9 +206,12 @@ export default function PlannerView() {
             : item
         )
       );
+      closeAddLocationForm();
     } catch (error) {
       console.error("Failed to add location option", error);
       alert("Failed to add location option");
+    } finally {
+      setIsSavingLocation(false);
     }
   };
 
@@ -415,36 +435,45 @@ export default function PlannerView() {
     [currentLocation, orderedStops]
   );
 
-  const handleManualStart = () => {
-    const input = window.prompt(
-      "Enter starting coordinates as latitude,longitude"
+  const openManualStart = () => {
+    setManualLat(
+      currentLocation?.latitude != null ? String(currentLocation.latitude) : ""
     );
-    if (!input) return;
-    const [latitude, longitude] = input
-      .split(",")
-      .map((value) => Number(value.trim()));
+    setManualLng(
+      currentLocation?.longitude != null
+        ? String(currentLocation.longitude)
+        : ""
+    );
+    setManualStartOpen(true);
+  };
+
+  const submitManualStart = (event) => {
+    event.preventDefault();
+    const latitude = Number(manualLat);
+    const longitude = Number(manualLng);
     if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
-      alert(
-        "Invalid coordinates. Please enter latitude and longitude separated by a comma."
-      );
+      alert("Please enter valid numbers for latitude and longitude.");
       return;
     }
     setCurrentLocation({ label: "Manual start", latitude, longitude });
     setLocationStatus("manual");
+    setManualStartOpen(false);
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="mb-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <div className="mx-auto max-w-6xl px-3 py-4 sm:p-6">
+      <div className="mb-4 sm:mb-8">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Daily Planner</h1>
-            <p className="text-gray-600 mt-2">
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+              Daily Planner
+            </h1>
+            <p className="mt-1 text-sm text-gray-600 sm:mt-2 sm:text-base">
               See nearby work, chosen locations, and a practical route for
               today.
             </p>
           </div>
-          <div className="space-y-2 text-right">
+          <div className="space-y-1 sm:space-y-2 sm:text-right">
             <div className="text-sm text-gray-500">
               {orderedStops.length} stop{orderedStops.length === 1 ? "" : "s"} •{" "}
               {totalMinutes} min estimated
@@ -456,19 +485,19 @@ export default function PlannerView() {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1.65fr_1fr]">
-        <section className="space-y-6">
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1.65fr_1fr] lg:gap-8">
+        <section className="space-y-4 sm:space-y-6">
+          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
                   Starting point
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="mt-1 text-sm text-gray-500">
                   Use your device location or enter a manual start coordinate.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                 <button
                   type="button"
                   onClick={() => {
@@ -484,20 +513,75 @@ export default function PlannerView() {
                       () => setLocationStatus("denied")
                     );
                   }}
-                  className="rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 transition"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
                 >
                   Use current location
                 </button>
                 <button
                   type="button"
-                  onClick={handleManualStart}
-                  className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:border-gray-400 transition"
+                  onClick={openManualStart}
+                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
                 >
                   Set start point
                 </button>
               </div>
             </div>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between bg-gray-50 rounded-3xl p-4">
+
+            {manualStartOpen && (
+              <form
+                onSubmit={submitManualStart}
+                className="mt-4 space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4"
+              >
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Latitude
+                    </span>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      autoFocus
+                      value={manualLat}
+                      onChange={(e) => setManualLat(e.target.value)}
+                      placeholder="e.g., 37.7749"
+                      className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Longitude
+                    </span>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      value={manualLng}
+                      onChange={(e) => setManualLng(e.target.value)}
+                      placeholder="e.g., -122.4194"
+                      className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                    />
+                  </label>
+                </div>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setManualStartOpen(false)}
+                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="inline-flex min-h-11 items-center justify-center rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                  >
+                    Save start point
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <div className="mt-4 flex flex-col gap-3 rounded-3xl bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm text-gray-500">Location status</p>
                 <p className="text-base font-medium text-gray-900 capitalize">
@@ -514,13 +598,13 @@ export default function PlannerView() {
             </div>
           </div>
 
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center justify-between gap-4">
+          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
                   Route preview
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="mt-1 text-sm text-gray-500">
                   Nearby locations are grouped and ordered based on distance
                   from your start point.
                 </p>
@@ -529,7 +613,7 @@ export default function PlannerView() {
                 href={mapLink}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
               >
                 Open in Maps
               </a>
@@ -580,13 +664,13 @@ export default function PlannerView() {
             )}
           </div>
 
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
                   Planned route
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="mt-1 text-sm text-gray-500">
                   Estimated travel + stop time for this route.
                 </p>
               </div>
@@ -654,35 +738,33 @@ export default function PlannerView() {
                                 {work.type} · {work.durationMinutes || 30} min
                               </div>
                               {work.locationOptions?.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const optionTitles = work.locationOptions
-                                      .map(
-                                        (option, index) =>
-                                          `${index + 1}. ${option.title || `Option ${index + 1}`}`
-                                      )
-                                      .join("\n");
-                                    const selection = window.prompt(
-                                      `Switch selected option for ${work.title}:\n${optionTitles}`
-                                    );
-                                    const selectedIndex = Number(selection) - 1;
-                                    if (
-                                      Number.isInteger(selectedIndex) &&
-                                      selectedIndex >= 0 &&
-                                      selectedIndex <
-                                        work.locationOptions.length
-                                    ) {
+                                <label className="inline-flex items-center gap-2">
+                                  <span className="sr-only">
+                                    Switch selected option for {work.title}
+                                  </span>
+                                  <select
+                                    value={work.selectedLocationOptionId || ""}
+                                    onChange={(e) =>
                                       handleSelectLocationOption(
                                         work.id,
-                                        work.locationOptions[selectedIndex].id
-                                      );
+                                        e.target.value
+                                      )
                                     }
-                                  }}
-                                  className="text-xs rounded-full border border-blue-200 bg-white px-3 py-1 font-semibold text-blue-700 hover:bg-blue-50 transition"
-                                >
-                                  Switch option
-                                </button>
+                                    className="min-h-9 rounded-full border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                                  >
+                                    {work.locationOptions.map(
+                                      (option, optionIndex) => (
+                                        <option
+                                          key={option.id}
+                                          value={option.id}
+                                        >
+                                          {option.title ||
+                                            `Option ${optionIndex + 1}`}
+                                        </option>
+                                      )
+                                    )}
+                                  </select>
+                                </label>
                               )}
                             </div>
                           </div>
@@ -696,42 +778,13 @@ export default function PlannerView() {
           </div>
         </section>
 
-        <aside className="space-y-6">
-          <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-gray-900">Nearby work</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Work grouped by the most relevant location.
-            </p>
-            <div className="mt-6 space-y-4">
-              {orderedStops.length === 0 ? (
-                <div className="rounded-3xl bg-gray-50 p-4 text-gray-500">
-                  No nearby work with location data yet.
-                </div>
-              ) : (
-                orderedStops.map((stop) => (
-                  <div
-                    key={stop.location.id}
-                    className="rounded-3xl bg-gray-50 p-4"
-                  >
-                    <div className="font-medium text-gray-900">
-                      {stop.location.name}
-                    </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {stop.works.length} work item
-                      {stop.works.length === 1 ? "" : "s"}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
+        <aside className="space-y-4 sm:space-y-6">
           {unplacedWork.length > 0 && (
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-              <h2 className="text-xl font-semibold text-gray-900">
+            <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+              <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
                 Unplaced work
               </h2>
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="mt-1 text-sm text-gray-500">
                 These items still need a location to be part of the route.
               </p>
               <div className="mt-4 space-y-3">
@@ -741,14 +794,14 @@ export default function PlannerView() {
                   return (
                     <div
                       key={work.id}
-                      className="rounded-3xl bg-yellow-50 p-4 border border-yellow-100"
+                      className="rounded-3xl border border-yellow-100 bg-yellow-50 p-4"
                     >
-                      <div className="flex items-start justify-between gap-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div>
                           <div className="font-medium text-yellow-900">
                             {work.title}
                           </div>
-                          <div className="text-gray-600 text-sm mt-1">
+                          <div className="mt-1 text-sm text-gray-600">
                             {work.type} · {work.durationMinutes || 30} min
                           </div>
                           {chosenOption && (
@@ -765,52 +818,138 @@ export default function PlannerView() {
                             </div>
                           )}
                         </div>
-                        <div className="flex flex-col gap-2">
+                        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-col">
                           <button
                             type="button"
-                            onClick={() => handleAddLocation(work)}
-                            className="rounded-full bg-yellow-900 px-3 py-1 text-xs font-semibold text-white hover:bg-yellow-800 transition"
+                            onClick={() => openAddLocationForm(work)}
+                            className="inline-flex min-h-9 items-center justify-center rounded-full bg-yellow-900 px-3 text-xs font-semibold text-white transition hover:bg-yellow-800"
                           >
                             + Add location
                           </button>
                           {hasOptions && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const optionTitles = work.locationOptions
-                                  .map(
-                                    (option, index) =>
-                                      `${index + 1}. ${option.title || `Option ${index + 1}`}`
-                                  )
-                                  .join("\n");
-                                const selection = window.prompt(
-                                  `Select option to use:\n${optionTitles}`
-                                );
-                                const selectedIndex = Number(selection) - 1;
-                                if (
-                                  Number.isInteger(selectedIndex) &&
-                                  selectedIndex >= 0 &&
-                                  selectedIndex < work.locationOptions.length
-                                ) {
-                                  handleSelectLocationOption(
-                                    work.id,
-                                    work.locationOptions[selectedIndex].id
-                                  );
-                                }
-                              }}
-                              className="rounded-full border border-yellow-900 bg-white px-3 py-1 text-xs font-semibold text-yellow-900 hover:bg-yellow-100 transition"
+                            <select
+                              value={work.selectedLocationOptionId || ""}
+                              onChange={(e) =>
+                                handleSelectLocationOption(
+                                  work.id,
+                                  e.target.value
+                                )
+                              }
+                              aria-label={`Choose location option for ${work.title}`}
+                              className="min-h-9 rounded-full border border-yellow-900 bg-white px-3 text-xs font-semibold text-yellow-900 transition hover:bg-yellow-100"
                             >
-                              Choose option
-                            </button>
+                              {work.locationOptions.map(
+                                (option, optionIndex) => (
+                                  <option key={option.id} value={option.id}>
+                                    {option.title ||
+                                      `Option ${optionIndex + 1}`}
+                                  </option>
+                                )
+                              )}
+                            </select>
                           )}
                         </div>
                       </div>
+
+                      {addLocationFormWorkId === work.id && (
+                        <form
+                          onSubmit={(e) => submitAddLocationForm(e, work)}
+                          className="mt-3 space-y-3 rounded-2xl border border-yellow-200 bg-white p-3"
+                        >
+                          <label className="block space-y-1">
+                            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                              Option title (optional)
+                            </span>
+                            <input
+                              value={addLocationTitle}
+                              onChange={(e) =>
+                                setAddLocationTitle(e.target.value)
+                              }
+                              className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                            />
+                          </label>
+                          <label className="block space-y-1">
+                            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                              Location name
+                            </span>
+                            <input
+                              value={addLocationName}
+                              onChange={(e) =>
+                                setAddLocationName(e.target.value)
+                              }
+                              required
+                              autoFocus
+                              placeholder="e.g., Downtown Farmers Market"
+                              className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                            />
+                          </label>
+                          <label className="block space-y-1">
+                            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                              Address (optional)
+                            </span>
+                            <input
+                              value={addLocationAddress}
+                              onChange={(e) =>
+                                setAddLocationAddress(e.target.value)
+                              }
+                              className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                            />
+                          </label>
+                          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                            <button
+                              type="button"
+                              onClick={closeAddLocationForm}
+                              className="inline-flex min-h-10 items-center justify-center rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-400"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={isSavingLocation}
+                              className="inline-flex min-h-10 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
+                            >
+                              {isSavingLocation ? "Saving..." : "Save location"}
+                            </button>
+                          </div>
+                        </form>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
           )}
+
+          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
+              Nearby work
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Work grouped by the most relevant location.
+            </p>
+            <div className="mt-4 space-y-3 sm:mt-6 sm:space-y-4">
+              {orderedStops.length === 0 ? (
+                <div className="rounded-3xl bg-gray-50 p-4 text-gray-500">
+                  No nearby work with location data yet.
+                </div>
+              ) : (
+                orderedStops.map((stop) => (
+                  <div
+                    key={stop.location.id}
+                    className="rounded-3xl bg-gray-50 p-4"
+                  >
+                    <div className="font-medium text-gray-900">
+                      {stop.location.name}
+                    </div>
+                    <div className="mt-1 text-sm text-gray-500">
+                      {stop.works.length} work item
+                      {stop.works.length === 1 ? "" : "s"}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </aside>
       </div>
     </div>
