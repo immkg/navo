@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -28,45 +30,59 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma client
+        run: npm exec --workspace=api -- prisma generate
+
       - name: Run lint checks
+        id: lint
+        continue-on-error: true
         run: npm run lint
 
       - name: Check formatting
+        id: format
+        continue-on-error: true
         run: npm run format:check
 
-      - name: Run tests
+      - name: Run API tests with coverage
+        id: api_tests
+        continue-on-error: true
         env:
           NO_COLOR: "1"
           FORCE_COLOR: "0"
-        shell: bash
         run: |
           set -o pipefail
-          npm test 2>&1 | tee test-output.txt
+          npm run test:coverage --workspace=api 2>&1 | tee api-test-output.txt
 
-      - name: Generate coverage
-        run: npm run coverage
+      - name: Run Web tests with coverage
+        id: web_tests
+        continue-on-error: true
+        env:
+          NO_COLOR: "1"
+          FORCE_COLOR: "0"
+        run: |
+          set -o pipefail
+          npm run test:coverage --workspace=web 2>&1 | tee web-test-output.txt
 
       - name: Upload coverage to Codecov
+        if: always()
+        continue-on-error: true
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
-      - name: Create PR comment
+      - name: Build CI report
         if: always() && github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          {
-            echo "# ✅ CI Report"
-            echo
-            echo "All automated checks completed successfully."
-            echo
-            echo "## Test Output"
-            echo
-            echo '```text'
-            cat test-output.txt
-            echo '```'
-          } > pr-comment.md
+        env:
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          FORMAT_OUTCOME: ${{ steps.format.outcome }}
+          API_TESTS_OUTCOME: ${{ steps.api_tests.outcome }}
+          WEB_TESTS_OUTCOME: ${{ steps.web_tests.outcome }}
+          API_TEST_OUTPUT_FILE: api-test-output.txt
+          WEB_TEST_OUTPUT_FILE: web-test-output.txt
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node .github/scripts/build-ci-report.mjs
 
       - name: Post PR comment
         if: always() && github.event_name == 'pull_request'
@@ -74,3 +90,15 @@ jobs:
         with:
           header: ci-report
           path: pr-comment.md
+
+      - name: Fail if any check failed
+        if: always()
+        run: |
+          echo "lint=${{ steps.lint.outcome }} format=${{ steps.format.outcome }} api_tests=${{ steps.api_tests.outcome }} web_tests=${{ steps.web_tests.outcome }}"
+          if [ "${{ steps.lint.outcome }}" != "success" ] || \
+             [ "${{ steps.format.outcome }}" != "success" ] || \
+             [ "${{ steps.api_tests.outcome }}" != "success" ] || \
+             [ "${{ steps.web_tests.outcome }}" != "success" ]; then
+            echo "One or more checks failed."
+            exit 1
+          fi

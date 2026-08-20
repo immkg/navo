@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "lint": "eslint .",
-    "test": "node --test",
-    "test:coverage": "node --test --experimental-test-coverage"
+    "test": "node --test --test-reporter=tap --test-reporter-destination=stdout",
+    "test:coverage": "node --test --experimental-test-coverage --test-reporter=tap --test-reporter-destination=stdout"
   },
   "keywords": [],
   "author": "",
