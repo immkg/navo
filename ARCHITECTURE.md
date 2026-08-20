@@ -33,13 +33,7 @@ Intent (with Context)
 
 This loop never truly ends — it's a living model of how a day unfolds, not a project management system.
 
-## How a Day Unfolds
-
-Take the intent "get vegetables for dinner." At the moment it forms, you don't know which vegetables, which shop, or when — but you already carry **context**: how many people are eating, roughly what you want to cook, your budget, where you'll be today.
-
-Work is then discovered progressively, not defined upfront: figure out what to cook → check what's at home → write a list → find an open, nearby shop → travel there → buy → return → prepare the meal. You didn't need to know the later steps when the intent first formed.
-
-The day is the unit of execution. As you move along a planned route (home → office → gym), your proximity to locations determines what becomes possible: passing a farmers' market on the way to the office makes "buy vegetables" possible; arriving at the gym without stopping makes it impossible until you're home again. The route isn't just travel — it's a sequence of **opportunities**, and the map is the interface that makes this physical reality visible and actionable.
+For the full narrative walkthrough of how this loop plays out in a day ("get vegetables for dinner"), see [VISION.md](VISION.md#what-this-looks-like).
 
 ## Core Building Blocks
 
@@ -48,7 +42,7 @@ The day is the unit of execution. As you move along a planned route (home → of
 | **Intent**      | Why does this work exist?                  | Get vegetables for dinner, plan a vacation, prepare for an interview                  |
 | **Work**        | What needs to happen?                      | Task, decision, research, purchase, errand, preparation                               |
 | **Context**     | What is true right now?                    | Who's involved, budget, time constraints, location, energy, other constraints         |
-| **Location**    | Where can this work happen?                | A physical place with coordinates, opening hours, distance, route membership          |
+| **Location**    | Where can this work happen?                | A physical place with coordinates, address, distance, route membership                |
 | **Route**       | What's possible as I move through the day? | The planned sequence of locations; dynamic, adapts as the day evolves                 |
 | **Opportunity** | What can I pick up while I'm here?         | Work that becomes possible or easier because of current location/time                 |
 | **Plan**        | What's the best path forward right now?    | A proposed, continuously evolving path built from intents, work, locations, and route |
@@ -131,7 +125,7 @@ Common language used throughout Navo. Every feature, discussion, API, and data m
 - **Task** — Work with a clear, specific action (e.g. "buy milk"). All tasks are work; not all work is a task.
 - **Decision** — Work that requires choosing between alternatives, often unlocking new work once made.
 - **Dependency** — A relationship where one piece of work must be done before another can begin; work forms a directed graph through these.
-- **Location** — A physical place where work can happen. A structural property of work, not a tag — has coordinates, name/address, opening hours, and type.
+- **Location** — A physical place where work can happen. A structural property of work, not a tag — has coordinates, name/address, and a provider place ID.
 - **Route** — The planned, dynamic sequence of locations that makes up a day. Determines what's possible and surfaces opportunities as you move through it.
 - **Opportunity** — Work that becomes possible or easier because of current context, especially location and time. Surfaced by the system, not manually created, and disappears if the context that created it changes.
 - **Day Plan** — The complete picture of a single day: intents being pursued, work to do, locations to visit, and the route connecting them. Answers "what am I doing today, where, and in what order?"

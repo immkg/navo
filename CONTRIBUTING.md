@@ -19,22 +19,7 @@ These documents define the philosophy and terminology. **Any contribution that c
 
 ## The Non-Negotiables
 
-Before implementing anything, internalise these:
-
-**Location is structural, not optional.**
-Work happens somewhere. Location is a first-class property of work items, not a tag.
-
-**The map is the foundation.**
-Navo is a physically-grounded planning system. Features that ignore location and movement are incomplete.
-
-**The route enables and disables work.**
-As someone moves through their day, proximity to locations determines what work is possible. This is the core mechanic.
-
-**Intent carries context from the start.**
-When someone forms an intent, they already know budget, who it is for, and timing. Capture that. Do not ask for it later.
-
-**Progressive discovery over upfront definition.**
-Work is found as intent becomes clearer. Do not force users to define everything before they start.
+Before implementing anything, internalise the Design Principles in [ARCHITECTURE.md](ARCHITECTURE.md) — especially that location/route are structural (not optional), the map is the foundation, and intent carries context from the start rather than being asked for later.
 
 ---
 

@@ -1,111 +1,57 @@
 # Work Item Specification
 
+See [ARCHITECTURE.md](../../ARCHITECTURE.md) for the concept and glossary entry. This document specifies the actual data shape.
+
 ## Purpose
 
-A Work Item represents one unit of meaningful work — any action that moves an Intent forward.
-
-It is the primary execution object in Navo.
-
----
+A Work Item represents one unit of meaningful work — any action that moves an Intent forward. It is the primary execution object in Navo.
 
 ## Key Characteristics
 
 A Work Item:
 
-- Advances one or more Intents
-- **Has a Location** where it can be performed (the most important property for day planning)
-- May depend on other Work Items before it can begin
-- May generate new Work Items when completed
-- May belong to multiple Intents simultaneously
+- Belongs to at most one Intent
+- May have one or more Location Options, each a group of one or more places
+- May depend on other Work Items before it can begin (`WorkDependency`)
+- Has a free-text `type` (e.g. `task`, `decision`) — not an enforced enum
 
----
+## Location
 
-## Location: The Critical Property
+A Work Item's location is expressed through **Location Options**: each option groups one or more specific `Location` records (address, coordinates, place ID). A Work Item can have:
 
-Location is not a tag or optional metadata. It is a structural property that determines whether work is plannable for a given day.
+- **One or more Location Options** — the Planner uses whichever option is selected (`selectedLocationOptionId`, defaulting to the first) to place it on the route.
+- **No Location Options** — the item is location-independent or not yet planned. It shows up as "unplaced work" in the Planner rather than on the route.
 
-| Location State            | Meaning                                                        |
-| ------------------------- | -------------------------------------------------------------- |
-| **Has specific location** | Can be routed — maps to a physical place                       |
-| **Has location type**     | Any place of this type will do (any pharmacy, any supermarket) |
-| **Location-independent**  | Can be done anywhere (e.g., a phone call, a document review)   |
-| **Remote/virtual**        | Done online, no physical location                              |
+There is no location-type matching (e.g. "any pharmacy") or opening-hours field in the schema today — only specific places.
 
-Work with a specific or type-based location is what the **route** is built around.
-
-## Remote vs Place-driven Work
-
-Navo distinguishes between remote/virtual work and work that requires one or more physical places.
-
-- **Remote/virtual work** can be performed anywhere with a device. It is location-independent and does not generate a route stop.
-- **Place-driven work** requires one or more physical locations. It may define one or more location option groups, each containing one or more places.
-
-When creating place-driven work, users can choose a location option group and then select a place using map-backed place discovery.
-
----
-
-## Types
-
-| Type            | Description                     | Location typical? |
-| --------------- | ------------------------------- | ----------------- |
-| **Task**        | A clear, actionable step        | Sometimes         |
-| **Errand**      | Going somewhere to do something | Always            |
-| **Decision**    | Choosing between alternatives   | Rarely            |
-| **Purchase**    | Acquiring something             | Always            |
-| **Research**    | Gathering information           | Sometimes         |
-| **Meeting**     | Coordinating with others        | Often             |
-| **Preparation** | Making something ready          | Rarely            |
-| **Approval**    | Getting sign-off                | Rarely            |
-
----
+The work form also lets a user mark work as "Remote (mobile / laptop)," but this choice is UI-only right now: it is not yet persisted to the API. See [CHANGELOG.md](../../CHANGELOG.md) for current status.
 
 ## Properties
 
-| Property          | Description                                                    |
-| ----------------- | -------------------------------------------------------------- |
-| **Title**         | Natural language description of the work                       |
-| **Type**          | Category of work (errand, decision, purchase, etc.)            |
-| **Location**      | Where it can happen (specific address, location type, or none) |
-| **Status**        | Not started / In progress / Done / Deferred                    |
-| **Dependencies**  | Work items that must be completed first                        |
-| **Intent(s)**     | Which intents this work serves                                 |
-| **Time estimate** | How long it is expected to take                                |
-| **Opening hours** | When the location is accessible (if applicable)                |
-| **Notes**         | Additional context                                             |
-
----
+| Property                   | Description                                  |
+| -------------------------- | -------------------------------------------- |
+| `title`                    | Natural language description of the work     |
+| `type`                     | Free-text category (e.g. `task`, `decision`) |
+| `status`                   | `todo` / `in_progress` / `done`              |
+| `durationMinutes`          | Estimated time to complete (default 30)      |
+| `notes`                    | Additional free text                         |
+| `intentId`                 | The Intent this work belongs to, if any      |
+| `locationOptions`          | Groups of candidate places for this work     |
+| `selectedLocationOptionId` | Which option the Planner should use          |
 
 ## Rules
 
-- A Work Item has a unique identity.
-- A Work Item may belong to multiple Intents.
-- A Work Item may depend on other Work Items (forming a dependency graph).
-- A Work Item with a location is included in route planning.
-- A Work Item may be unscheduled — some work happens opportunistically when context allows.
-- Completing a Work Item may automatically surface new Work Items.
-
----
+- A Work Item has a unique identity and may belong to at most one Intent.
+- A Work Item may depend on other Work Items, forming a dependency graph (`WorkDependency`, enforced unique per pair).
+- A Work Item with a selected Location Option is eligible for route planning (see [planner.md](planner.md)).
+- A Work Item without any location is shown separately as unplaced work.
 
 ## Relationships
 
 A Work Item may:
 
-- **depend on** — cannot start until another is done
-- **block** — prevents another from starting
-- **create** — completing it generates new work
-- **combine with** — shares a location trip with another Work Item
-- **relate to** — linked for context without strict dependency
+- **depend on** — cannot start until another Work Item is done
+- **be depended on by** — blocks another Work Item from starting
+- **belong to** one Intent
 
----
-
-## Work and the Route
-
-When the Day Planner builds a route, it organises Work Items by location.
-
-**Items at the same location are grouped into a single stop.**
-
-**Items along the planned route are surfaced as natural opportunities.**
-
-**Items that require significant detours are flagged and the user decides whether to include them.**
-
-This is how Navo turns a list of abstract tasks into a physically executable day.
+Automatic generation of new Work Items on completion, and sharing a single Work Item across multiple Intents, are part of the long-term vision (see [VISION.md](../../VISION.md)) but are not implemented — the schema ties each Work Item to a single, optional Intent.
