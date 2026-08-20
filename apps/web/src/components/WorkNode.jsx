@@ -60,7 +60,9 @@ export default function WorkNode({ work, onAddLocation }) {
                       key={location.id}
                       className="rounded-xl bg-white border border-gray-200 p-3"
                     >
-                      <div className="font-medium text-gray-900">{location.name}</div>
+                      <div className="font-medium text-gray-900">
+                        {location.name}
+                      </div>
                       {location.address && (
                         <div className="text-gray-500 text-xs">
                           {location.address}
@@ -72,7 +74,9 @@ export default function WorkNode({ work, onAddLocation }) {
               )}
             </div>
           ) : (
-            <div className="text-gray-500">No location option selected yet.</div>
+            <div className="text-gray-500">
+              No location option selected yet.
+            </div>
           )}
         </div>
       </div>

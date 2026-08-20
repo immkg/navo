@@ -6,10 +6,8 @@ Navo is a **day planning system** grounded in how people naturally move through 
 
 Before reading any further, read these foundational documents in order:
 
-1. `MENTAL_MODEL.md` — understand the vision
-2. `ARCHITECTURE.md` — understand the structure
-3. `DESIGN_PRINCIPLES.md` — understand the rules
-4. `GLOSSARY.md` — understand the language
+1. `VISION.md` — understand why Navo exists
+2. `ARCHITECTURE.md` — understand the structure, the design principles, and the shared glossary
 
 ---
 
@@ -50,7 +48,7 @@ Someone decides to "get vegetables for dinner." At this moment, they do not have
 
 ### Language Matters
 
-- Always use the terms defined in `GLOSSARY.md`.
+- Always use the terms defined in the Glossary section of `ARCHITECTURE.md`.
 - Never reduce Navo's concepts to generic software terms: no "tickets," "cards," "records," "sprints," or "projects."
 - Intent, Work, Context, Location, Route, Opportunity, Day Plan — these are the vocabulary.
 
@@ -78,7 +76,7 @@ Someone decides to "get vegetables for dinner." At this moment, they do not have
 
 ### Principles
 
-- Any feature must satisfy at least one of the principles in `DESIGN_PRINCIPLES.md`.
+- Any feature must satisfy at least one of the Design Principles in `ARCHITECTURE.md`.
 - If a proposed feature cannot be justified by a design principle, question whether it belongs.
 
 ### One System, Many Views

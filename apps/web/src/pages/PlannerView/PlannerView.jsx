@@ -181,7 +181,10 @@ export default function PlannerView() {
           item.id === work.id
             ? {
                 ...item,
-                locationOptions: [...(item.locationOptions || []), response.data],
+                locationOptions: [
+                  ...(item.locationOptions || []),
+                  response.data,
+                ],
               }
             : item
         )
@@ -194,14 +197,20 @@ export default function PlannerView() {
 
   const handleSelectLocationOption = async (workId, optionId) => {
     try {
-      const response = await axios.patch(`http://localhost:3001/api/work/${workId}`, {
-        selectedLocationOptionId: optionId,
-      });
+      const response = await axios.patch(
+        `http://localhost:3001/api/work/${workId}`,
+        {
+          selectedLocationOptionId: optionId,
+        }
+      );
       const updated = response.data;
       setWorkItems((prev) =>
         prev.map((item) =>
           item.id === workId
-            ? { ...item, selectedLocationOptionId: updated.selectedLocationOptionId }
+            ? {
+                ...item,
+                selectedLocationOptionId: updated.selectedLocationOptionId,
+              }
             : item
         )
       );
@@ -649,8 +658,9 @@ export default function PlannerView() {
                                   type="button"
                                   onClick={() => {
                                     const optionTitles = work.locationOptions
-                                      .map((option, index) =>
-                                        `${index + 1}. ${option.title || `Option ${index + 1}`}`
+                                      .map(
+                                        (option, index) =>
+                                          `${index + 1}. ${option.title || `Option ${index + 1}`}`
                                       )
                                       .join("\n");
                                     const selection = window.prompt(
@@ -660,7 +670,8 @@ export default function PlannerView() {
                                     if (
                                       Number.isInteger(selectedIndex) &&
                                       selectedIndex >= 0 &&
-                                      selectedIndex < work.locationOptions.length
+                                      selectedIndex <
+                                        work.locationOptions.length
                                     ) {
                                       handleSelectLocationOption(
                                         work.id,
@@ -734,18 +745,23 @@ export default function PlannerView() {
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div>
-                          <div className="font-medium text-yellow-900">{work.title}</div>
+                          <div className="font-medium text-yellow-900">
+                            {work.title}
+                          </div>
                           <div className="text-gray-600 text-sm mt-1">
                             {work.type} · {work.durationMinutes || 30} min
                           </div>
                           {chosenOption && (
                             <div className="mt-2 text-xs text-yellow-900">
-                              Selected: {chosenOption.title || `Option ${work.locationOptions.indexOf(chosenOption) + 1}`}
+                              Selected:{" "}
+                              {chosenOption.title ||
+                                `Option ${work.locationOptions.indexOf(chosenOption) + 1}`}
                             </div>
                           )}
                           {hasOptions && (
                             <div className="mt-2 text-xs text-yellow-900">
-                              {work.locationOptions.length} saved option{work.locationOptions.length === 1 ? "" : "s"}
+                              {work.locationOptions.length} saved option
+                              {work.locationOptions.length === 1 ? "" : "s"}
                             </div>
                           )}
                         </div>
@@ -762,8 +778,9 @@ export default function PlannerView() {
                               type="button"
                               onClick={() => {
                                 const optionTitles = work.locationOptions
-                                  .map((option, index) =>
-                                    `${index + 1}. ${option.title || `Option ${index + 1}`}`
+                                  .map(
+                                    (option, index) =>
+                                      `${index + 1}. ${option.title || `Option ${index + 1}`}`
                                   )
                                   .join("\n");
                                 const selection = window.prompt(

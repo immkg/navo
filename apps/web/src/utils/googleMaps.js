@@ -27,7 +27,10 @@ export function loadGoogleMaps(apiKey) {
         if (maps.importLibrary) {
           const mapsLib = await maps.importLibrary("maps");
           await maps.importLibrary("places");
-          if (typeof mapsLib?.Map === "function" || typeof maps.Map === "function") {
+          if (
+            typeof mapsLib?.Map === "function" ||
+            typeof maps.Map === "function"
+          ) {
             return maps;
           }
         }
@@ -133,16 +136,19 @@ export function reverseGeocodeLocation(latitude, longitude, apiKey) {
   return loadGoogleMaps(apiKey).then((maps) => {
     const geocoder = new maps.Geocoder();
     return new Promise((resolve, reject) => {
-      geocoder.geocode({ location: { lat: latitude, lng: longitude } }, (results, status) => {
-        if (status === "OK" && results && results.length > 0) {
-          resolve({
-            label: results[0].formatted_address,
-            placeId: results[0].place_id,
-          });
-        } else {
-          reject(new Error(status || "Reverse geocode failed"));
+      geocoder.geocode(
+        { location: { lat: latitude, lng: longitude } },
+        (results, status) => {
+          if (status === "OK" && results && results.length > 0) {
+            resolve({
+              label: results[0].formatted_address,
+              placeId: results[0].place_id,
+            });
+          } else {
+            reject(new Error(status || "Reverse geocode failed"));
+          }
         }
-      });
+      );
     });
   });
 }
@@ -171,7 +177,9 @@ export function searchPlaces(query, apiKey) {
       };
 
       if (maps.places.Place) {
-        const service = new maps.places.PlacesService(document.createElement("div"));
+        const service = new maps.places.PlacesService(
+          document.createElement("div")
+        );
         service.findPlaceFromQuery(
           {
             query,
@@ -180,7 +188,9 @@ export function searchPlaces(query, apiKey) {
           finish
         );
       } else {
-        const service = new maps.places.PlacesService(document.createElement("div"));
+        const service = new maps.places.PlacesService(
+          document.createElement("div")
+        );
         service.findPlaceFromQuery(
           {
             query,
@@ -263,7 +273,9 @@ export function getPlaceDetails(placeId, apiKey) {
       };
 
       if (maps.places.Place) {
-        const service = new maps.places.PlacesService(document.createElement("div"));
+        const service = new maps.places.PlacesService(
+          document.createElement("div")
+        );
         service.getDetails(
           {
             placeId,
@@ -272,7 +284,9 @@ export function getPlaceDetails(placeId, apiKey) {
           finish
         );
       } else {
-        const service = new maps.places.PlacesService(document.createElement("div"));
+        const service = new maps.places.PlacesService(
+          document.createElement("div")
+        );
         service.getDetails(
           {
             placeId,

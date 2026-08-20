@@ -2,7 +2,12 @@ const express = require("express");
 const prisma = require("../db/client");
 
 const router = express.Router();
-const VALID_STATUSES = new Set(["active", "completed", "not_required", "archived"]);
+const VALID_STATUSES = new Set([
+  "active",
+  "completed",
+  "not_required",
+  "archived",
+]);
 const VALID_PRIORITIES = new Set(["low", "medium", "high"]);
 
 function parseOptionalDate(value) {
@@ -110,7 +115,9 @@ router.post("/", async (req, res) => {
 
     const normalizedPriority = priority ?? "medium";
     if (!VALID_PRIORITIES.has(normalizedPriority)) {
-      return res.status(400).json({ error: "Priority must be low, medium, or high" });
+      return res
+        .status(400)
+        .json({ error: "Priority must be low, medium, or high" });
     }
 
     const parsedStartDate = parseOptionalDate(startDate);
@@ -122,7 +129,9 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "Invalid due date" });
     }
     if (parsedStartDate && parsedDueDate && parsedStartDate > parsedDueDate) {
-      return res.status(400).json({ error: "Start date cannot be after due date" });
+      return res
+        .status(400)
+        .json({ error: "Start date cannot be after due date" });
     }
 
     const newIntent = await prisma.intent.create({
@@ -147,17 +156,22 @@ router.post("/", async (req, res) => {
 router.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status, priority, startDate, dueDate } = req.body;
+    const { title, description, status, priority, startDate, dueDate } =
+      req.body;
 
     if (status !== undefined && !VALID_STATUSES.has(status)) {
       return res.status(400).json({ error: "Invalid status" });
     }
     if (priority !== undefined && !VALID_PRIORITIES.has(priority)) {
-      return res.status(400).json({ error: "Priority must be low, medium, or high" });
+      return res
+        .status(400)
+        .json({ error: "Priority must be low, medium, or high" });
     }
 
-    const parsedStartDate = startDate === undefined ? undefined : parseOptionalDate(startDate);
-    const parsedDueDate = dueDate === undefined ? undefined : parseOptionalDate(dueDate);
+    const parsedStartDate =
+      startDate === undefined ? undefined : parseOptionalDate(startDate);
+    const parsedDueDate =
+      dueDate === undefined ? undefined : parseOptionalDate(dueDate);
     if (startDate && !parsedStartDate) {
       return res.status(400).json({ error: "Invalid start date" });
     }
@@ -170,10 +184,16 @@ router.patch("/:id", async (req, res) => {
       return res.status(404).json({ error: "Intent not found" });
     }
 
-    const nextStartDate = parsedStartDate === undefined ? existingIntent.startDate : parsedStartDate;
-    const nextDueDate = parsedDueDate === undefined ? existingIntent.dueDate : parsedDueDate;
+    const nextStartDate =
+      parsedStartDate === undefined
+        ? existingIntent.startDate
+        : parsedStartDate;
+    const nextDueDate =
+      parsedDueDate === undefined ? existingIntent.dueDate : parsedDueDate;
     if (nextStartDate && nextDueDate && nextStartDate > nextDueDate) {
-      return res.status(400).json({ error: "Start date cannot be after due date" });
+      return res
+        .status(400)
+        .json({ error: "Start date cannot be after due date" });
     }
 
     const updatedIntent = await prisma.intent.update({
@@ -183,7 +203,9 @@ router.patch("/:id", async (req, res) => {
         ...(description !== undefined ? { description } : {}),
         ...(status !== undefined ? { status } : {}),
         ...(priority !== undefined ? { priority } : {}),
-        ...(parsedStartDate !== undefined ? { startDate: parsedStartDate } : {}),
+        ...(parsedStartDate !== undefined
+          ? { startDate: parsedStartDate }
+          : {}),
         ...(parsedDueDate !== undefined ? { dueDate: parsedDueDate } : {}),
       },
     });

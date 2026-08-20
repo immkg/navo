@@ -15,7 +15,10 @@ export default function AppRoutes() {
             <NavLink to="/" className="text-xl font-bold tracking-tight">
               Navo
             </NavLink>
-            <nav className="hidden items-center gap-2 sm:flex" aria-label="Primary">
+            <nav
+              className="hidden items-center gap-2 sm:flex"
+              aria-label="Primary"
+            >
               <NavLink
                 to="/"
                 className={({ isActive }) =>
@@ -56,7 +59,10 @@ export default function AppRoutes() {
           className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-3 py-2 backdrop-blur sm:hidden"
           style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
         >
-          <nav className="mx-auto grid max-w-md grid-cols-2 gap-2" aria-label="Bottom navigation">
+          <nav
+            className="mx-auto grid max-w-md grid-cols-2 gap-2"
+            aria-label="Bottom navigation"
+          >
             <NavLink
               to="/"
               className={({ isActive }) =>

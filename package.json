@@ -1,8 +1,7 @@
 {
   "name": "navo",
   "version": "1.0.0",
-  "description": "<p align=\"center\">   <img src=\"docs/navo-hero.png\" alt=\"Navo Hero\" width=\"100%\" /> </p>",
-  "main": "index.js",
+  "description": "Navo is a day planning system grounded in how people naturally move through the physical world.",
   "directories": {
     "doc": "docs"
   },
@@ -11,6 +10,9 @@
     "apps/*",
     "packages/*"
   ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "concurrently \"npm run dev --workspace=api\" \"npm run dev --workspace=web\"",
     "lint": "npm run lint --workspace=api && npm run lint --workspace=web",
@@ -18,8 +20,7 @@
     "format:check": "prettier --check .",
     "test": "npm run test --workspace=api && npm run test --workspace=web",
     "coverage": "npm run test:coverage --workspace=api && npm run test:coverage --workspace=web",
-    "check": "npm run lint && npm run format:check && npm run test",
-    "generate": "node tools/cli/index.js"
+    "check": "npm run lint && npm run format:check && npm run test"
   },
   "repository": {
     "type": "git",
@@ -27,19 +28,14 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "commonjs",
   "bugs": {
     "url": "https://github.com/immkg/navo/issues"
   },
   "homepage": "https://github.com/immkg/navo#readme",
   "devDependencies": {
-    "@inquirer/prompts": "^8.5.2",
-    "chalk": "^5.6.2",
     "concurrently": "^10.0.3",
-    "ejs": "^6.0.1",
-    "fs-extra": "^11.3.6",
-    "ora": "^9.4.1",
     "prettier": "^3.9.4"
   }
 }

@@ -35,6 +35,7 @@
 ---
 
 Navo is a day planning system built around how people naturally move through the world.
+
 ## v1.2.0 Release
 
 - Added location-aware planner routing with grouped nearby work
@@ -49,6 +50,7 @@ Navo is a day planning system built around how people naturally move through the
 - Add remote/mobile/laptop work mode for location-independent work
 - Add nested location option groups for work that requires one or more places
 - Add Google Maps autocomplete and locate-on-map support for place selection
+
 ---
 
 ## The Insight
@@ -109,27 +111,14 @@ Navo surfaces it.
 ### Foundation
 
 - [Vision](VISION.md) — Why Navo exists and the core insight
-- [Mental Model](MENTAL_MODEL.md) — How the system thinks
-- [Design Principles](DESIGN_PRINCIPLES.md) — The rules that guide every decision
-- [Architecture](ARCHITECTURE.md) — The structural model
-- [Glossary](GLOSSARY.md) — The shared language
-
-### Concepts
-
-- [Intent](docs/concepts/intent.md)
-- [Work](docs/concepts/work.md)
-- [Context](docs/concepts/context.md)
-- [Planning](docs/concepts/planning.md)
-- [Scheduling](docs/concepts/scheduling.md)
+- [Architecture](ARCHITECTURE.md) — How the system thinks, the structural model, the design principles, and the shared glossary
 
 ### Specifications
 
 - [Intent](docs/specifications/intent.md)
 - [Work Item](docs/specifications/work-item.md)
 - [Day Planner](docs/specifications/planner.md)
-- [Navigation](docs/specifications/navigation.md)
 - [Routing](docs/specifications/routing.md)
-- [Views](docs/specifications/view.md)
 
 ### Architecture Decisions
 
