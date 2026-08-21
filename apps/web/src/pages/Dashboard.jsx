@@ -1,17 +1,17 @@
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useNotifications } from "../../hooks/useNotifications";
-import Button from "../../components/ui/Button";
-import Badge from "../../components/ui/Badge";
-import Modal from "../../components/ui/Modal";
-import PrioritySelect from "../../modules/intents/PrioritySelect";
+import { useNotifications } from "../hooks/useNotifications";
+import Button from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
+import Modal from "../components/ui/Modal";
+import PrioritySelect from "../modules/intents/PrioritySelect";
 import {
   useBulkDeleteIntents,
   useBulkUpdateIntentStatus,
   useCreateIntent,
   useIntents,
   usePatchIntent,
-} from "../../modules/intents/hooks";
+} from "../modules/intents/hooks";
 import {
   BULK_STATUS_OPTIONS,
   PRIORITY_ORDER,
@@ -19,7 +19,7 @@ import {
   getDueMeta,
   startOfToday,
   toDateInputValue,
-} from "../../modules/intents/utils";
+} from "../modules/intents/utils";
 
 export default function Dashboard() {
   const { notify, confirm } = useNotifications();

@@ -3,15 +3,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "../../hooks/useNotifications";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
-import { useCreateWorkItem, WORK_QUERY_KEY } from "../../modules/work/hooks";
-import { intentQueryKey } from "../../modules/intents/hooks";
-import LocationOptionGroupsEditor from "../../modules/work/LocationOptionGroupsEditor";
+import { useCreateWorkItem, WORK_QUERY_KEY } from "./hooks";
+import { intentQueryKey } from "../intents/hooks";
+import LocationOptionGroupsEditor from "../location/LocationOptionGroupsEditor";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
 ];
 
-export default function IntentWorkForm({ intentId }) {
+export default function CreateWorkForm({ intentId }) {
   const { notify } = useNotifications();
   const queryClient = useQueryClient();
   const createWorkItemMutation = useCreateWorkItem();

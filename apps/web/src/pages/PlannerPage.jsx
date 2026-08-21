@@ -2,16 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   loadGoogleMaps,
   buildGoogleMapsDirectionsUrl,
-} from "../../utils/googleMaps";
-import { useNotifications } from "../../hooks/useNotifications";
-import {
-  useWorkItems,
-  useCreateLocationOption,
-  useUpdateWorkItem,
-} from "../../modules/work/hooks";
-import Card from "../../components/ui/Card";
-import Button from "../../components/ui/Button";
-import Badge from "../../components/ui/Badge";
+} from "../utils/googleMaps";
+import { useNotifications } from "../hooks/useNotifications";
+import { useWorkItems, useUpdateWorkItem } from "../modules/work/hooks";
+import { useCreateLocationOption } from "../modules/location/hooks";
+import { getChosenOption } from "../modules/location/utils";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
 
 const DEFAULT_TRAVEL_MIN_PER_KM = 8;
 
@@ -112,22 +110,7 @@ function buildStaticMapUrl(stops, startPoint, apiKey) {
   return `https://maps.googleapis.com/maps/api/staticmap?size=900x320&maptype=roadmap&key=${apiKey}&${markers.join("&")}${path ? `&path=color:0x2f6ce5|weight:4|${path}` : ""}`;
 }
 
-function getChosenOption(work) {
-  if (!work.locationOptions || work.locationOptions.length === 0) {
-    return null;
-  }
-
-  if (work.selectedLocationOptionId) {
-    const selected = work.locationOptions.find(
-      (option) => option.id === work.selectedLocationOptionId
-    );
-    if (selected) return selected;
-  }
-
-  return work.locationOptions[0];
-}
-
-export default function PlannerView() {
+export default function PlannerPage() {
   const { notify } = useNotifications();
   const { data: workItems = [], isLoading: loading } = useWorkItems();
   const [currentLocation, setCurrentLocation] = useState(null);
