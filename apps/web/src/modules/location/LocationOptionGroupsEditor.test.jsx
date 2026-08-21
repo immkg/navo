@@ -67,7 +67,8 @@ describe("LocationOptionGroupsEditor — Suggest place types", () => {
     await waitFor(() =>
       expect(aiApi.suggestPlaceTypes).toHaveBeenCalledWith(
         "Pick up prescription",
-        "ask for generic"
+        "ask for generic",
+        undefined
       )
     );
 
@@ -98,7 +99,7 @@ describe("LocationOptionGroupsEditor — results list and map tabs", () => {
     delete navigator.geolocation;
   });
 
-  it("shows distance and opening hours for each result, list tab active by default", async () => {
+  it("shows distance and rating for each result, list tab active by default", async () => {
     navigator.geolocation = {
       getCurrentPosition: (onSuccess) =>
         onSuccess({ coords: { latitude: 0, longitude: 0 } }),
@@ -110,7 +111,8 @@ describe("LocationOptionGroupsEditor — results list and map tabs", () => {
         latitude: 0,
         longitude: 1,
         placeId: "place-1",
-        openingHours: ["Monday: 9:00 AM – 5:00 PM"],
+        rating: 4.2,
+        ratingsCount: 87,
       },
     ]);
 
@@ -131,9 +133,7 @@ describe("LocationOptionGroupsEditor — results list and map tabs", () => {
     expect(screen.getByText("List (1)")).toHaveClass("bg-primary");
     expect(screen.getByText("Map")).not.toHaveClass("bg-primary");
     expect(screen.getByText(/km away|mi away/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByText("Hours"));
-    expect(screen.getByText("Monday: 9:00 AM – 5:00 PM")).toBeInTheDocument();
+    expect(screen.getByText("★ 4.2 (87)")).toBeInTheDocument();
   });
 
   it("switches to the map tab when Preview is clicked", async () => {

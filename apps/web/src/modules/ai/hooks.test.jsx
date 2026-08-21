@@ -85,6 +85,7 @@ describe("useSuggestPlaceTypes", () => {
 
     expect(aiApi.suggestPlaceTypes).toHaveBeenCalledWith(
       "Pick up prescription",
+      undefined,
       undefined
     );
     expect(resolved.suggestions).toEqual(["pharmacy"]);

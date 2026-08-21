@@ -32,6 +32,11 @@ function toLocationPayload(place) {
     longitude: place.longitude,
     placeId: place.placeId,
     provider: place.provider || "google",
+    phoneNumber: place.phoneNumber ?? null,
+    rating: place.rating ?? null,
+    ratingsCount: place.ratingsCount ?? null,
+    openingHoursText: place.openingHoursText ?? null,
+    openingPeriods: place.openingPeriods ?? null,
   };
 }
 
