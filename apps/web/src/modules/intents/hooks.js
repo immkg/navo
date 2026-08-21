@@ -88,7 +88,9 @@ export function useBulkDeleteIntents() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (ids) => {
-      const results = await Promise.allSettled(ids.map((id) => deleteIntent(id)));
+      const results = await Promise.allSettled(
+        ids.map((id) => deleteIntent(id))
+      );
       return { results, ids };
     },
     onSuccess: ({ results, ids }) => {

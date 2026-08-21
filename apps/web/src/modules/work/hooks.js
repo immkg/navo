@@ -113,7 +113,10 @@ export function useCreateLocationOption() {
           item.id === workId
             ? {
                 ...item,
-                locationOptions: [...(item.locationOptions || []), createdOption],
+                locationOptions: [
+                  ...(item.locationOptions || []),
+                  createdOption,
+                ],
               }
             : item
         )
@@ -148,7 +151,8 @@ export function useCreateLocationOption() {
 export function useDeleteLocationOption() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ workId, optionId }) => deleteLocationOption(workId, optionId),
+    mutationFn: ({ workId, optionId }) =>
+      deleteLocationOption(workId, optionId),
     onSuccess: ({ selectedLocationOptionId }, { workId, optionId }) => {
       const removeOption = (item) => ({
         ...item,
@@ -158,7 +162,9 @@ export function useDeleteLocationOption() {
         selectedLocationOptionId,
       });
       queryClient.setQueryData(WORK_QUERY_KEY, (previous) =>
-        previous?.map((item) => (item.id === workId ? removeOption(item) : item))
+        previous?.map((item) =>
+          item.id === workId ? removeOption(item) : item
+        )
       );
       queryClient
         .getQueryCache()
@@ -192,7 +198,9 @@ export function useAddLocationToOption() {
         ),
       });
       queryClient.setQueryData(WORK_QUERY_KEY, (previous) =>
-        previous?.map((item) => (item.id === workId ? replaceOption(item) : item))
+        previous?.map((item) =>
+          item.id === workId ? replaceOption(item) : item
+        )
       );
       queryClient
         .getQueryCache()
@@ -226,7 +234,9 @@ export function useRemoveLocationFromOption() {
         ),
       });
       queryClient.setQueryData(WORK_QUERY_KEY, (previous) =>
-        previous?.map((item) => (item.id === workId ? replaceOption(item) : item))
+        previous?.map((item) =>
+          item.id === workId ? replaceOption(item) : item
+        )
       );
       queryClient
         .getQueryCache()

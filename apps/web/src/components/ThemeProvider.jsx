@@ -11,10 +11,8 @@ function getStoredTheme() {
 }
 
 function prefersDark() {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia?.("(prefers-color-scheme: dark)").matches
-  );
+  if (typeof window === "undefined") return false;
+  return Boolean(window.matchMedia?.("(prefers-color-scheme: dark)")?.matches);
 }
 
 export function ThemeProvider({ children }) {

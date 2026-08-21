@@ -144,7 +144,10 @@ export default function IntentWorkForm({ intentId }) {
       // but no selected one yet, default the selection to the first option
       // here (a display-only default, never sent to the server) so it shows
       // as "Selected" immediately instead of waiting for the user to pick.
-      if (!newWork.selectedLocationOptionId && newWork.locationOptions?.length) {
+      if (
+        !newWork.selectedLocationOptionId &&
+        newWork.locationOptions?.length
+      ) {
         const defaultedWork = {
           ...newWork,
           selectedLocationOptionId: newWork.locationOptions[0].id,
