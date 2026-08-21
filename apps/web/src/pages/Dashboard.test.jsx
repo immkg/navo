@@ -127,3 +127,34 @@ describe("Dashboard — long-press to select", () => {
     expect(screen.queryByLabelText("Select Renew passport")).toBeNull();
   });
 });
+
+describe("Dashboard — search", () => {
+  it("filters intents by title and shows a clear-search empty state", async () => {
+    vi.spyOn(intentsApi, "getIntents").mockResolvedValue([
+      buildIntent({ id: "1", title: "Renew passport" }),
+      buildIntent({ id: "2", title: "Book flights" }),
+    ]);
+
+    renderWithProviders(<Dashboard />);
+
+    await screen.findByText("Renew passport");
+    expect(screen.getByText("Book flights")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("Search intents…"), {
+      target: { value: "passport" },
+    });
+
+    expect(screen.getByText("Renew passport")).toBeInTheDocument();
+    expect(screen.queryByText("Book flights")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText("Search intents…"), {
+      target: { value: "nothing matches this" },
+    });
+
+    await screen.findByText(/No intents match/);
+    fireEvent.click(screen.getByText("Clear search"));
+
+    expect(screen.getByText("Renew passport")).toBeInTheDocument();
+    expect(screen.getByText("Book flights")).toBeInTheDocument();
+  });
+});
