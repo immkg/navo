@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import IntentWorkForm from "./IntentWorkForm";
 import LocationCard from "./LocationCard";
 import {
@@ -14,17 +14,22 @@ import { useNotifications } from "../../hooks/useNotifications";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
-import { getIntent, updateIntent } from "../../api/intents";
 import {
   createLocationOption,
-  createWorkItem,
   deleteLocationOption,
-  deleteWorkItem,
   addLocationToOption,
   removeLocationFromOption,
-  updateWorkItem,
 } from "../../api/work";
-import { suggestWork } from "../../api/ai";
+import { useIntent, usePatchIntent } from "../../modules/intents/hooks";
+import { BULK_STATUS_OPTIONS, formatDate } from "../../modules/intents/utils";
+import PrioritySelect from "../../modules/intents/PrioritySelect";
+import {
+  useCreateWorkItem,
+  useDeleteWorkItem,
+  useUpdateWorkItem,
+} from "../../modules/work/hooks";
+import { WORK_STATUS_OPTIONS } from "../../modules/work/utils";
+import { useSuggestWork } from "../../modules/ai/hooks";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
@@ -47,19 +52,6 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
   const [intentDueDate, setIntentDueDate] = useState(
     intent.dueDate ? new Date(intent.dueDate).toISOString().slice(0, 10) : ""
   );
-
-  const formatDate = (dateValue) => {
-    if (!dateValue) return "-";
-
-    const date = new Date(dateValue);
-    if (Number.isNaN(date.getTime())) return "-";
-
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(date);
-  };
 
   const openDateInput = (inputId) => {
     const element = document.getElementById(inputId);
@@ -142,16 +134,12 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Priority
           </span>
-          <select
+          <PrioritySelect
             value={intentPriority}
             onChange={(e) => handleUpdatePriority(e.target.value)}
             disabled={updatingIntent}
             className={`h-9 rounded-full border-0 px-3 text-sm font-semibold outline-none transition disabled:opacity-60 ${priorityStyle}`}
-          >
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
-          </select>
+          />
         </label>
 
         <label className="inline-flex items-center gap-1.5">
@@ -164,10 +152,11 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
             disabled={updatingIntent}
             className="h-9 rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground outline-none transition focus:border-primary disabled:opacity-60"
           >
-            <option value="active">Active</option>
-            <option value="completed">Completed</option>
-            <option value="not_required">Not Required</option>
-            <option value="archived">Archived</option>
+            {BULK_STATUS_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -1185,10 +1174,7 @@ export default function IntentView() {
   const { notify, confirm } = useNotifications();
   const { id } = useParams();
   const queryClient = useQueryClient();
-  const { data: intent, isLoading: loading } = useQuery({
-    queryKey: ["intent", id],
-    queryFn: () => getIntent(id),
-  });
+  const { data: intent, isLoading: loading } = useIntent(id);
   const [editingWorkId, setEditingWorkId] = useState(null);
   const [editingWorkTitle, setEditingWorkTitle] = useState("");
   const [editingWorkNotes, setEditingWorkNotes] = useState("");
@@ -1201,16 +1187,11 @@ export default function IntentView() {
   const [isSuggestingWork, setIsSuggestingWork] = useState(false);
   const [addingSuggestionIndex, setAddingSuggestionIndex] = useState(null);
 
-  const patchIntentMutation = useMutation({
-    mutationFn: (patch) => updateIntent(id, patch),
-    onSuccess: (updatedIntent) => {
-      queryClient.setQueryData(["intent", id], updatedIntent);
-    },
-  });
+  const patchIntentMutation = usePatchIntent();
 
   const handlePatchIntent = async (patch) => {
     try {
-      return await patchIntentMutation.mutateAsync(patch);
+      return await patchIntentMutation.mutateAsync({ intentId: id, patch });
     } catch (error) {
       console.error("Failed to update intent", error);
       notify("Unable to update intent right now.");
@@ -1218,21 +1199,7 @@ export default function IntentView() {
     }
   };
 
-  const patchWorkMutation = useMutation({
-    mutationFn: ({ workId, patch }) => updateWorkItem(workId, patch),
-    onSuccess: (updatedWork, { workId }) => {
-      queryClient.setQueryData(
-        ["intent", id],
-        (prev) =>
-          prev && {
-            ...prev,
-            workItems: prev.workItems.map((item) =>
-              item.id === workId ? { ...item, ...updatedWork } : item
-            ),
-          }
-      );
-    },
-  });
+  const patchWorkMutation = useUpdateWorkItem();
 
   const handlePatchWork = async (workId, patch) => {
     setUpdatingWorkId(workId);
@@ -1384,30 +1351,7 @@ export default function IntentView() {
     );
   };
 
-  const handleWorkCreated = (newWork) => {
-    queryClient.setQueryData(
-      ["intent", id],
-      (prev) =>
-        prev && {
-          ...prev,
-          workItems: [newWork, ...(prev.workItems || [])],
-        }
-    );
-  };
-
-  const deleteWorkMutation = useMutation({
-    mutationFn: (workId) => deleteWorkItem(workId),
-    onSuccess: (_data, workId) => {
-      queryClient.setQueryData(
-        ["intent", id],
-        (prev) =>
-          prev && {
-            ...prev,
-            workItems: prev.workItems.filter((item) => item.id !== workId),
-          }
-      );
-    },
-  });
+  const deleteWorkMutation = useDeleteWorkItem();
 
   const handleDeleteWork = async (work) => {
     const confirmed = await confirm(
@@ -1431,14 +1375,12 @@ export default function IntentView() {
     }
   };
 
-  const suggestWorkMutation = useMutation({
-    mutationFn: () => suggestWork(id),
-  });
+  const suggestWorkMutation = useSuggestWork();
 
   const handleSuggestWork = async () => {
     setIsSuggestingWork(true);
     try {
-      const data = await suggestWorkMutation.mutateAsync();
+      const data = await suggestWorkMutation.mutateAsync(id);
       const suggestions = data?.suggestions || [];
       setAiSuggestions(suggestions);
       if (suggestions.length === 0) {
@@ -1460,9 +1402,7 @@ export default function IntentView() {
     setAiSuggestions((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const createWorkMutation = useMutation({
-    mutationFn: (payload) => createWorkItem(payload),
-  });
+  const createWorkMutation = useCreateWorkItem();
 
   const addSuggestionAsWork = async (index) => {
     const suggestion = aiSuggestions[index];
@@ -1470,13 +1410,12 @@ export default function IntentView() {
 
     setAddingSuggestionIndex(index);
     try {
-      const newWork = await createWorkMutation.mutateAsync({
+      await createWorkMutation.mutateAsync({
         title: suggestion.title,
         notes: suggestion.notes || undefined,
         durationMinutes: suggestion.durationMinutes || 30,
         intentId: id,
       });
-      handleWorkCreated(newWork);
       dismissSuggestion(index);
     } catch (error) {
       console.error("Failed to add suggested work", error);
@@ -1719,9 +1658,11 @@ export default function IntentView() {
                             }
                             className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
                           >
-                            <option value="todo">Todo</option>
-                            <option value="in_progress">In progress</option>
-                            <option value="done">Done</option>
+                            {WORK_STATUS_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
                           </select>
                         </label>
 
@@ -1872,7 +1813,7 @@ export default function IntentView() {
             </div>
           )}
 
-          <IntentWorkForm intentId={id} onWorkCreated={handleWorkCreated} />
+          <IntentWorkForm intentId={id} />
         </section>
 
         <Card
