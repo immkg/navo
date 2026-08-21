@@ -5,6 +5,7 @@ import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import PrioritySelect from "../modules/intents/PrioritySelect";
+import AddIntentPanel from "../modules/intents/AddIntentPanel";
 import {
   useBulkDeleteIntents,
   useBulkUpdateIntentStatus,
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [isBulkWorking, setIsBulkWorking] = useState(false);
+  const longPressRef = useRef({});
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -65,6 +67,11 @@ export default function Dashboard() {
     if (!checked) {
       setKeepPreviousDetails(false);
     }
+  };
+
+  const handleOpenDetails = (prefilledTitle) => {
+    setNewIntentTitle(prefilledTitle || "");
+    setIsModalOpen(true);
   };
 
   const handleDraftWithAi = async () => {
@@ -193,6 +200,59 @@ export default function Dashboard() {
       }
       return next;
     });
+  };
+
+  const LONG_PRESS_MS = 500;
+  const LONG_PRESS_MOVE_TOLERANCE = 10;
+
+  const handleCardPointerDown = (intentId) => (event) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    // Interactive controls (priority select, date pickers, status buttons,
+    // the selection checkbox) should react immediately — only the card body
+    // and its title link participate in the long-press-to-select gesture.
+    if (event.target.closest("button, select, input, label")) return;
+
+    const state = {
+      triggered: false,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    state.timer = setTimeout(() => {
+      state.triggered = true;
+      navigator.vibrate?.(15);
+      setSelectionMode((prev) => (prev ? prev : true));
+      toggleSelected(intentId);
+    }, LONG_PRESS_MS);
+    longPressRef.current[intentId] = state;
+  };
+
+  const clearLongPress = (intentId) => {
+    const state = longPressRef.current[intentId];
+    if (state?.timer) clearTimeout(state.timer);
+  };
+
+  const handleCardPointerMove = (intentId) => (event) => {
+    const state = longPressRef.current[intentId];
+    if (!state || state.triggered) return;
+    if (
+      Math.abs(event.clientX - state.startX) > LONG_PRESS_MOVE_TOLERANCE ||
+      Math.abs(event.clientY - state.startY) > LONG_PRESS_MOVE_TOLERANCE
+    ) {
+      clearLongPress(intentId);
+    }
+  };
+
+  const handleCardPointerEnd = (intentId) => () => {
+    clearLongPress(intentId);
+  };
+
+  const handleCardClickCapture = (intentId) => (event) => {
+    const state = longPressRef.current[intentId];
+    if (state?.triggered) {
+      event.preventDefault();
+      event.stopPropagation();
+      state.triggered = false;
+    }
   };
 
   const handleSelectAll = () => {
@@ -415,7 +475,15 @@ export default function Dashboard() {
     return (
       <article
         key={intent.id}
-        className={`flex flex-col gap-3 rounded-2xl border bg-surface p-4 shadow-sm transition-all hover:shadow-md sm:p-5 ${
+        onPointerDown={handleCardPointerDown(intent.id)}
+        onPointerMove={handleCardPointerMove(intent.id)}
+        onPointerUp={handleCardPointerEnd(intent.id)}
+        onPointerCancel={handleCardPointerEnd(intent.id)}
+        onPointerLeave={handleCardPointerEnd(intent.id)}
+        onClickCapture={handleCardClickCapture(intent.id)}
+        onContextMenu={(event) => event.preventDefault()}
+        style={{ WebkitTouchCallout: "none" }}
+        className={`flex flex-col gap-3 rounded-2xl border bg-surface p-4 shadow-sm transition-all select-none hover:shadow-md sm:p-5 ${
           isSelected
             ? "border-primary ring-2 ring-primary/20"
             : "border-border hover:border-primary/50"
@@ -576,35 +644,18 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto w-full max-w-6xl px-2.5 pb-4 pt-2 sm:px-4 sm:pb-7 sm:pt-4">
-      <div className="mb-3 flex flex-col gap-2 rounded-2xl border border-border bg-surface p-2.5 shadow-sm sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:p-3.5">
-        <h1 className="hidden text-lg font-bold text-foreground sm:block">
-          Intents
-        </h1>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:w-auto">
-          <Button
-            variant="primary"
-            pill={false}
-            className="min-h-10"
-            onClick={() => setIsModalOpen(true)}
-          >
-            + New Intent
-          </Button>
-          {intents.length > 0 && (
-            <Button
-              variant="secondary"
-              pill={false}
-              className={`min-h-10 ${selectionMode ? "bg-surface-alt" : ""}`}
-              onClick={toggleSelectionMode}
-            >
-              {selectionMode ? "Cancel Selecting" : "Select"}
-            </Button>
-          )}
-        </div>
-      </div>
+      <AddIntentPanel onOpenDetails={handleOpenDetails} />
 
       {selectionMode && (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="flex flex-wrap items-center gap-3 text-sm font-medium text-primary">
+            <button
+              type="button"
+              onClick={toggleSelectionMode}
+              className="min-h-9 rounded-full border border-primary/30 bg-surface px-3 text-xs font-semibold text-primary transition hover:bg-primary/20"
+            >
+              Done
+            </button>
             <span>{selectedIds.size} selected</span>
             <button
               type="button"
