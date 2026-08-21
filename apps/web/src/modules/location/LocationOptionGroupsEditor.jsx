@@ -10,6 +10,7 @@ import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
 import LocationCard from "./LocationCard";
+import { useCurrentLocation } from "./hooks";
 
 // Presentational + Google Places search UI shared by IntentPage's
 // WorkLocationOptionsEditor (persists each change immediately via the API)
@@ -47,6 +48,14 @@ export default function LocationOptionGroupsEditor({
   const mapClickListenerRef = useRef(null);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const showPlaceSearchPanel = groups.length > 0;
+  const currentLocation = useCurrentLocation();
+  const nearLocation =
+    currentLocation.status === "success"
+      ? {
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+        }
+      : null;
 
   const handleAutocomplete = async (query) => {
     setSearchError(null);
@@ -59,7 +68,11 @@ export default function LocationOptionGroupsEditor({
     }
 
     try {
-      const results = await autocompletePlaces(query.trim(), googleKey);
+      const results = await autocompletePlaces(
+        query.trim(),
+        googleKey,
+        nearLocation
+      );
       setAutocompleteResults(results);
     } catch (error) {
       console.error("Autocomplete failed", error);
@@ -85,7 +98,11 @@ export default function LocationOptionGroupsEditor({
     setDroppedPinPlace(null);
 
     try {
-      const results = await searchPlaces(placeQuery.trim(), googleKey);
+      const results = await searchPlaces(
+        placeQuery.trim(),
+        googleKey,
+        nearLocation
+      );
       setPlaceResults(results);
       if (results.length > 0) {
         setSelectedPreviewPlace(results[0]);
@@ -401,6 +418,12 @@ export default function LocationOptionGroupsEditor({
               {isSearchingPlaces ? "Searching…" : "Search"}
             </Button>
           </div>
+
+          {nearLocation && (
+            <div className="text-xs text-muted-foreground">
+              📍 Showing results near your current location first
+            </div>
+          )}
 
           {searchError && (
             <div className="text-sm text-danger">{searchError}</div>

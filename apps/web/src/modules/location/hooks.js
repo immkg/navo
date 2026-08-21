@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   addLocationToOption,
@@ -8,6 +9,39 @@ import {
 import { WORK_QUERY_KEY } from "../work/hooks";
 
 const INTENT_QUERIES_FILTER = { queryKey: ["intent"] };
+
+// One-shot read of the browser's geolocation, used to bias place search
+// toward nearby results instead of searching the whole world. Status is
+// "unsupported" (no geolocation API), "pending", "success", or "denied".
+export function useCurrentLocation() {
+  const [state, setState] = useState({
+    status:
+      typeof navigator !== "undefined" && navigator.geolocation
+        ? "pending"
+        : "unsupported",
+    latitude: null,
+    longitude: null,
+  });
+
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setState({
+          status: "success",
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      () => {
+        setState((previous) => ({ ...previous, status: "denied" }));
+      }
+    );
+  }, []);
+
+  return state;
+}
 
 // A location option (and the locations inside it) always belongs to a work
 // item, so these mutations still call through the /api/work/:id/location-
