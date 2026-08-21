@@ -51,6 +51,9 @@ test("POST /api/ai/suggest-work returns sanitized suggestions on success", async
   const intent = await prisma.intent.create({
     data: { title: "Plan a trip", description: "A week in Japan" },
   });
+  await prisma.work.create({
+    data: { title: "Book hotel", intentId: intent.id },
+  });
 
   const restoreFetch = mockFetchOnce(async () => ({
     ok: true,
@@ -65,6 +68,11 @@ test("POST /api/ai/suggest-work returns sanitized suggestions on success", async
                   notes: "Compare prices",
                   durationMinutes: 45,
                   needsLocation: false,
+                },
+                {
+                  title: "Pack bags",
+                  notes: "   ",
+                  durationMinutes: -5,
                 },
                 { title: "  " }, // blank title, should be filtered out
               ],
@@ -81,10 +89,14 @@ test("POST /api/ai/suggest-work returns sanitized suggestions on success", async
       .send({ intentId: intent.id });
 
     assert.equal(response.statusCode, 200);
-    assert.equal(response.body.suggestions.length, 1);
+    assert.equal(response.body.suggestions.length, 2);
     assert.equal(response.body.suggestions[0].title, "Book flights");
     assert.equal(response.body.suggestions[0].durationMinutes, 45);
     assert.equal(response.body.suggestions[0].needsLocation, false);
+    assert.equal(response.body.suggestions[1].title, "Pack bags");
+    assert.equal(response.body.suggestions[1].notes, null);
+    assert.equal(response.body.suggestions[1].durationMinutes, 30);
+    assert.equal(response.body.suggestions[1].needsLocation, false);
   } finally {
     restoreFetch();
   }
@@ -147,6 +159,14 @@ test("POST /api/ai/draft-intent requires a title", async () => {
   assert.equal(response.statusCode, 400);
 });
 
+test("POST /api/ai/draft-intent rejects a whitespace-only title", async () => {
+  const response = await request(app)
+    .post("/api/ai/draft-intent")
+    .send({ title: "   " });
+
+  assert.equal(response.statusCode, 400);
+});
+
 test("POST /api/ai/draft-intent returns a sanitized draft on success", async () => {
   const restoreFetch = mockFetchOnce(async () => ({
     ok: true,
@@ -182,7 +202,7 @@ test("POST /api/ai/draft-intent returns a sanitized draft on success", async () 
   }
 });
 
-test("POST /api/ai/draft-intent falls back to medium priority and null due date for bad values", async () => {
+test("POST /api/ai/draft-intent falls back to medium priority, null description, and null due date for bad values", async () => {
   const restoreFetch = mockFetchOnce(async () => ({
     ok: true,
     json: async () => ({
@@ -190,7 +210,7 @@ test("POST /api/ai/draft-intent falls back to medium priority and null due date 
         {
           message: {
             content: JSON.stringify({
-              description: "A description.",
+              description: "   ",
               priority: "urgent",
               dueDate: "not-a-date",
             }),
@@ -203,9 +223,10 @@ test("POST /api/ai/draft-intent falls back to medium priority and null due date 
   try {
     const response = await request(app)
       .post("/api/ai/draft-intent")
-      .send({ title: "Do something" });
+      .send({ title: "Do something", description: "existing description" });
 
     assert.equal(response.statusCode, 200);
+    assert.equal(response.body.description, null);
     assert.equal(response.body.priority, "medium");
     assert.equal(response.body.dueDate, null);
   } finally {
@@ -229,6 +250,34 @@ test("POST /api/ai/suggest-place-types requires a title", async () => {
     .send({});
 
   assert.equal(response.statusCode, 400);
+});
+
+test("POST /api/ai/suggest-place-types rejects a whitespace-only title", async () => {
+  const response = await request(app)
+    .post("/api/ai/suggest-place-types")
+    .send({ title: "   " });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("POST /api/ai/suggest-place-types includes notes in the prompt when given", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: true,
+    json: async () => ({
+      choices: [{ message: { content: JSON.stringify({ suggestions: [] }) } }],
+    }),
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/suggest-place-types")
+      .send({ title: "Pick up prescription", notes: "Ask for generic" });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body.suggestions, []);
+  } finally {
+    restoreFetch();
+  }
 });
 
 test("POST /api/ai/suggest-place-types returns sanitized suggestions on success", async () => {
@@ -283,6 +332,40 @@ test("POST /api/ai/optimize-route requires every stop to have an id", async () =
     .send({ stops: [{ title: "Stop without id" }] });
 
   assert.equal(response.statusCode, 400);
+});
+
+test("POST /api/ai/optimize-route rejects a null entry in stops", async () => {
+  const response = await request(app)
+    .post("/api/ai/optimize-route")
+    .send({ stops: [null] });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("POST /api/ai/optimize-route falls back to the original order and null reasoning when the model omits both", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: true,
+    json: async () => ({
+      choices: [{ message: { content: JSON.stringify({}) } }],
+    }),
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/optimize-route")
+      .send({
+        stops: [
+          { id: "w1", title: "Stop 1" },
+          { id: "w2", title: "Stop 2" },
+        ],
+      });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body.order, ["w1", "w2"]);
+    assert.equal(response.body.reasoning, null);
+  } finally {
+    restoreFetch();
+  }
 });
 
 test("POST /api/ai/optimize-route returns the model's order when it's valid", async () => {
