@@ -3,6 +3,11 @@ const prisma = require("../db/client");
 const { deleteWorkItems } = require("../services/workService");
 
 const router = express.Router();
+const VALID_STATUSES = new Set(["todo", "in_progress", "done"]);
+
+function isRecordNotFoundError(error) {
+  return error?.code === "P2025";
+}
 
 // Get all work items
 router.get("/", async (req, res) => {
@@ -21,6 +26,32 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch work items" });
+  }
+});
+
+// Get a single work item
+router.get("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const workItem = await prisma.work.findUnique({
+      where: { id },
+      include: {
+        intent: true,
+        contexts: true,
+        locationOptions: {
+          include: { locations: true },
+        },
+      },
+    });
+
+    if (!workItem) {
+      return res.status(404).json({ error: "Work item not found" });
+    }
+
+    res.json(workItem);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch work item" });
   }
 });
 
@@ -124,6 +155,17 @@ router.patch("/:id", async (req, res) => {
       selectedLocationOptionId,
     } = req.body;
 
+    if (status !== undefined && !VALID_STATUSES.has(status)) {
+      return res
+        .status(400)
+        .json({ error: "Status must be todo, in_progress, or done" });
+    }
+
+    const existingWork = await prisma.work.findUnique({ where: { id } });
+    if (!existingWork) {
+      return res.status(404).json({ error: "Work item not found" });
+    }
+
     const updatedWork = await prisma.work.update({
       where: { id },
       data: {
@@ -165,6 +207,9 @@ router.post("/:id/link", async (req, res) => {
 
     res.json(updatedWork);
   } catch (error) {
+    if (isRecordNotFoundError(error)) {
+      return res.status(404).json({ error: "Work item not found" });
+    }
     console.error(error);
     res.status(500).json({ error: "Failed to link work item" });
   }
@@ -189,6 +234,11 @@ router.post("/:id/dependency", async (req, res) => {
 
     res.status(201).json(dependency);
   } catch (error) {
+    if (isRecordNotFoundError(error)) {
+      return res
+        .status(404)
+        .json({ error: "Work item or dependency target not found" });
+    }
     console.error(error);
     res.status(500).json({ error: "Failed to add dependency" });
   }
@@ -219,6 +269,9 @@ router.post("/:id/context", async (req, res) => {
 
     res.json(updatedWork);
   } catch (error) {
+    if (isRecordNotFoundError(error)) {
+      return res.status(404).json({ error: "Work item not found" });
+    }
     console.error(error);
     res.status(500).json({ error: "Failed to add context" });
   }
@@ -259,6 +312,9 @@ router.post("/:id/location-option", async (req, res) => {
 
     res.status(201).json(createdOption);
   } catch (error) {
+    if (isRecordNotFoundError(error)) {
+      return res.status(404).json({ error: "Work item not found" });
+    }
     console.error(error);
     res.status(500).json({ error: "Failed to create location option" });
   }
@@ -309,6 +365,9 @@ router.post("/:id/location-option/:optionId/location", async (req, res) => {
 
     res.json(updatedOption);
   } catch (error) {
+    if (isRecordNotFoundError(error)) {
+      return res.status(404).json({ error: "Location option not found" });
+    }
     console.error(error);
     res.status(500).json({ error: "Failed to attach location to option" });
   }
@@ -405,6 +464,12 @@ router.delete("/:id/location-option/:optionId", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+
+    const existingWork = await prisma.work.findUnique({ where: { id } });
+    if (!existingWork) {
+      return res.status(404).json({ error: "Work item not found" });
+    }
+
     await deleteWorkItems(prisma, [id]);
     res.status(204).send();
   } catch (error) {
