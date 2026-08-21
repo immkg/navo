@@ -170,15 +170,23 @@ const SUGGEST_PLACE_TYPES_SYSTEM_PROMPT = `You suggest places someone could sear
 
 Rules:
 - "types": 3-5 short, generic search terms (e.g. "pharmacy", "hardware store", "post office") — categories, not specific businesses.
-- "names": up to 3 specific, well-known real place or business names that plausibly fit (e.g. "CVS", "Home Depot", "Trader Joe's") — real, commonly-recognized chains/brands, never an invented or made-up name. These are just starting points for a real map search, not a guarantee one is nearby.
+- "names": up to 3 specific, well-known real place or business names that plausibly fit (e.g. "Apollo Pharmacy", "DMart", "Reliance Digital") — real, commonly-recognized chains/brands, never an invented or made-up name. These are just starting points for a real map search, not a guarantee one is nearby.
+- The user is in India by default — prefer chains and brand names common there unless the given coordinates clearly place the user elsewhere, in which case prefer chains common in that region instead.
+- If coordinates are given, use them only to guess the general region/country for picking locally-relevant chains — do not assume an exact address.
 - Base both lists only on the work's title/notes; if it clearly doesn't need a physical place, return both lists empty.
 - Keep each suggestion under 40 characters.
 
 Respond with ONLY a JSON object of this exact shape, no other text:
 {"types": [string], "names": [string]}`;
 
-function buildSuggestPlaceTypesUserPrompt(title, notes) {
-  return [`Work: ${title}`, notes ? `Notes: ${notes}` : null]
+function buildSuggestPlaceTypesUserPrompt(title, notes, location) {
+  return [
+    `Work: ${title}`,
+    notes ? `Notes: ${notes}` : null,
+    location?.latitude != null && location?.longitude != null
+      ? `User's current location: ${location.latitude}, ${location.longitude}`
+      : null,
+  ]
     .filter(Boolean)
     .join("\n");
 }
@@ -208,7 +216,7 @@ router.post("/suggest-place-types", async (req, res) => {
       .json({ error: "AI features are not configured on this server." });
   }
 
-  const { title, notes } = req.body;
+  const { title, notes, location } = req.body;
   if (!title || !title.trim()) {
     return res.status(400).json({ error: "title is required" });
   }
@@ -216,7 +224,11 @@ router.post("/suggest-place-types", async (req, res) => {
   try {
     const parsed = await callGroqJson({
       systemPrompt: SUGGEST_PLACE_TYPES_SYSTEM_PROMPT,
-      userPrompt: buildSuggestPlaceTypesUserPrompt(title.trim(), notes),
+      userPrompt: buildSuggestPlaceTypesUserPrompt(
+        title.trim(),
+        notes,
+        location
+      ),
     });
 
     res.json(sanitizePlaceTypeSuggestions(parsed));

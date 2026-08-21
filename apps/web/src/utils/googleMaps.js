@@ -217,7 +217,8 @@ export function searchPlaces(query, apiKey, nearLocation) {
               latitude: result.geometry?.location?.lat(),
               longitude: result.geometry?.location?.lng(),
               placeId: result.place_id,
-              openingHours: result.opening_hours?.weekday_text || null,
+              rating: result.rating ?? null,
+              ratingsCount: result.user_ratings_total ?? null,
             }))
           );
         } else {
@@ -229,6 +230,10 @@ export function searchPlaces(query, apiKey, nearLocation) {
       const service = new maps.places.PlacesService(
         document.createElement("div")
       );
+      // Only Basic Data + rating (Atmosphere Data) here — phone number and
+      // opening hours (also billed separately by Google) are fetched by
+      // getPlaceEnrichedDetails only once a result is actually added, not
+      // for every search result shown.
       service.findPlaceFromQuery(
         {
           query,
@@ -237,9 +242,56 @@ export function searchPlaces(query, apiKey, nearLocation) {
             "formatted_address",
             "geometry",
             "place_id",
-            "opening_hours",
+            "rating",
+            "user_ratings_total",
           ],
           ...(locationBias ? { locationBias } : {}),
+        },
+        finish
+      );
+    });
+  });
+}
+
+// Called only when a search result is actually being added to a group —
+// fetches the fields billed as Contact Data (phone) and the structured
+// opening hours needed to compute a live open/closed status, neither of
+// which are fetched for every search result.
+export function getPlaceEnrichedDetails(placeId, apiKey) {
+  if (!placeId) {
+    return Promise.reject(new Error("Place ID is required"));
+  }
+
+  return loadGoogleMaps(apiKey).then((maps) => {
+    return new Promise((resolve, reject) => {
+      const finish = (result, status) => {
+        if (status === "OK" && result) {
+          resolve({
+            phoneNumber: result.formatted_phone_number || null,
+            openingHoursText: result.opening_hours?.weekday_text || null,
+            openingPeriods: result.opening_hours?.periods
+              ? result.opening_hours.periods.map((period) => ({
+                  open: period.open
+                    ? { day: period.open.day, time: period.open.time }
+                    : null,
+                  close: period.close
+                    ? { day: period.close.day, time: period.close.time }
+                    : null,
+                }))
+              : null,
+          });
+        } else {
+          reject(new Error(status || "Place details failed"));
+        }
+      };
+
+      const service = new maps.places.PlacesService(
+        document.createElement("div")
+      );
+      service.getDetails(
+        {
+          placeId,
+          fields: ["formatted_phone_number", "opening_hours"],
         },
         finish
       );
@@ -322,7 +374,8 @@ export function getPlaceDetails(placeId, apiKey) {
             latitude: result.geometry?.location?.lat(),
             longitude: result.geometry?.location?.lng(),
             placeId: result.place_id,
-            openingHours: result.opening_hours?.weekday_text || null,
+            rating: result.rating ?? null,
+            ratingsCount: result.user_ratings_total ?? null,
           });
         } else {
           reject(new Error(status || "Place details failed"));
@@ -340,7 +393,8 @@ export function getPlaceDetails(placeId, apiKey) {
             "formatted_address",
             "geometry",
             "place_id",
-            "opening_hours",
+            "rating",
+            "user_ratings_total",
           ],
         },
         finish

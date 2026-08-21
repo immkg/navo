@@ -282,6 +282,38 @@ test("POST /api/ai/suggest-place-types includes notes in the prompt when given",
   }
 });
 
+test("POST /api/ai/suggest-place-types includes the user's current location in the prompt when given", async () => {
+  let capturedBody;
+  const restoreFetch = mockFetchOnce(async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [
+          { message: { content: JSON.stringify({ types: [], names: [] }) } },
+        ],
+      }),
+    };
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/suggest-place-types")
+      .send({
+        title: "Pick up prescription",
+        location: { latitude: 19.076, longitude: 72.8777 },
+      });
+
+    assert.equal(response.statusCode, 200);
+    const userMessage = capturedBody.messages.find(
+      (message) => message.role === "user"
+    );
+    assert.match(userMessage.content, /19\.076, 72\.8777/);
+  } finally {
+    restoreFetch();
+  }
+});
+
 test("POST /api/ai/suggest-place-types returns sanitized types and names on success", async () => {
   const restoreFetch = mockFetchOnce(async () => ({
     ok: true,

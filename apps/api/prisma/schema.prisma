@@ -54,6 +54,16 @@ model Location {
   longitude   Float?
   placeId     String?   @unique
   provider    String?
+  // Fetched from Google Places once, when the place is added (not at
+  // search time) — see docs/AI notes in LocationOptionGroupsEditor.jsx.
+  phoneNumber      String?
+  rating           Float?
+  ratingsCount     Int?
+  // Display strings, e.g. ["Monday: 9:00 AM – 5:00 PM", ...].
+  openingHoursText Json?
+  // Structured periods (Google's opening_hours.periods shape) used to
+  // compute a live "closes in X" / "opens at Y" status.
+  openingPeriods   Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

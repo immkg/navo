@@ -73,6 +73,11 @@ router.post("/", async (req, res) => {
             longitude: loc.longitude,
             placeId: loc.placeId,
             provider: loc.provider,
+            phoneNumber: loc.phoneNumber,
+            rating: loc.rating,
+            ratingsCount: loc.ratingsCount,
+            openingHoursText: loc.openingHoursText,
+            openingPeriods: loc.openingPeriods,
           })),
       };
 
@@ -91,6 +96,11 @@ router.post("/", async (req, res) => {
             longitude: loc.longitude,
             placeId: loc.placeId,
             provider: loc.provider,
+            phoneNumber: loc.phoneNumber,
+            rating: loc.rating,
+            ratingsCount: loc.ratingsCount,
+            openingHoursText: loc.openingHoursText,
+            openingPeriods: loc.openingPeriods,
           },
         }));
 
@@ -300,6 +310,11 @@ router.post("/:id/location-option", async (req, res) => {
               longitude: loc.longitude,
               placeId: loc.placeId,
               provider: loc.provider,
+              phoneNumber: loc.phoneNumber,
+              rating: loc.rating,
+              ratingsCount: loc.ratingsCount,
+              openingHoursText: loc.openingHoursText,
+              openingPeriods: loc.openingPeriods,
             },
           })),
         },
@@ -329,6 +344,11 @@ router.post("/:id/location-option/:optionId/location", async (req, res) => {
       longitude,
       placeId,
       provider,
+      phoneNumber,
+      rating,
+      ratingsCount,
+      openingHoursText,
+      openingPeriods,
     } = req.body;
 
     if (!locationId && !name) {
@@ -348,6 +368,12 @@ router.post("/:id/location-option/:optionId/location", async (req, res) => {
                 longitude === undefined ? undefined : Number(longitude),
               placeId,
               provider,
+              phoneNumber,
+              rating: rating === undefined ? undefined : Number(rating),
+              ratingsCount:
+                ratingsCount === undefined ? undefined : Number(ratingsCount),
+              openingHoursText,
+              openingPeriods,
             },
           },
         };

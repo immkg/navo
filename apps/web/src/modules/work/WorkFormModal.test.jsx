@@ -26,6 +26,11 @@ describe("WorkFormModal", () => {
       types: [],
       names: [],
     });
+    vi.spyOn(googleMaps, "getPlaceEnrichedDetails").mockResolvedValue({
+      phoneNumber: null,
+      openingHoursText: null,
+      openingPeriods: null,
+    });
   });
 
   afterEach(() => {
@@ -93,6 +98,13 @@ describe("WorkFormModal", () => {
       });
       fireEvent.click(screen.getByText("Search"));
       fireEvent.click(await screen.findByText("Add"));
+
+      // handleAddLocationToGroup is async (it awaits place enrichment before
+      // updating local state) — wait for the search results to clear, which
+      // only happens once that update has actually landed.
+      await waitFor(() =>
+        expect(screen.queryByText("Add")).not.toBeInTheDocument()
+      );
       fireEvent.click(screen.getByRole("button", { name: "Add Work" }));
 
       await waitFor(() => expect(workApi.createWorkItem).toHaveBeenCalled());

@@ -249,6 +249,40 @@ test("POST /api/work/:id/location-option creates the option and its locations", 
   assert.equal(response.body.locations[0].name, "Grand Hotel");
 });
 
+test("POST /api/work/:id/location-option persists phone, rating, and hours", async () => {
+  const work = await prisma.work.create({ data: { title: "Book a hotel" } });
+
+  const response = await request(app)
+    .post(`/api/work/${work.id}/location-option`)
+    .send({
+      title: "Option 1",
+      locations: [
+        {
+          name: "Grand Hotel",
+          address: "1 Main St",
+          placeId: "place-grand-hotel",
+          phoneNumber: "+1 555-0100",
+          rating: 4.5,
+          ratingsCount: 120,
+          openingHoursText: ["Monday: 9:00 AM – 5:00 PM"],
+          openingPeriods: [
+            { open: { day: 1, time: "0900" }, close: { day: 1, time: "1700" } },
+          ],
+        },
+      ],
+    });
+
+  assert.equal(response.statusCode, 201);
+  const [location] = response.body.locations;
+  assert.equal(location.phoneNumber, "+1 555-0100");
+  assert.equal(location.rating, 4.5);
+  assert.equal(location.ratingsCount, 120);
+  assert.deepEqual(location.openingHoursText, ["Monday: 9:00 AM – 5:00 PM"]);
+  assert.deepEqual(location.openingPeriods, [
+    { open: { day: 1, time: "0900" }, close: { day: 1, time: "1700" } },
+  ]);
+});
+
 test("POST /api/work/:id/location-option returns 404 for a missing work item", async () => {
   const response = await request(app)
     .post("/api/work/missing-id/location-option")
@@ -270,6 +304,35 @@ test("POST /api/work/:id/location-option/:optionId/location attaches a new locat
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.locations.length, 1);
   assert.equal(response.body.locations[0].name, "Grand Hotel");
+});
+
+test("POST /api/work/:id/location-option/:optionId/location persists phone, rating, and hours", async () => {
+  const work = await prisma.work.create({ data: { title: "Book a hotel" } });
+  const option = await prisma.locationOption.create({
+    data: { workId: work.id, title: "Option 1" },
+  });
+
+  const response = await request(app)
+    .post(`/api/work/${work.id}/location-option/${option.id}/location`)
+    .send({
+      name: "Grand Hotel",
+      address: "1 Main St",
+      placeId: "place-grand-hotel-2",
+      phoneNumber: "+1 555-0100",
+      rating: 4.5,
+      ratingsCount: 120,
+      openingHoursText: ["Monday: 9:00 AM – 5:00 PM"],
+      openingPeriods: [
+        { open: { day: 1, time: "0900" }, close: { day: 1, time: "1700" } },
+      ],
+    });
+
+  assert.equal(response.statusCode, 200);
+  const [location] = response.body.locations;
+  assert.equal(location.phoneNumber, "+1 555-0100");
+  assert.equal(location.rating, 4.5);
+  assert.equal(location.ratingsCount, 120);
+  assert.deepEqual(location.openingHoursText, ["Monday: 9:00 AM – 5:00 PM"]);
 });
 
 test("POST /api/work/:id/location-option/:optionId/location attaches an existing location by id", async () => {

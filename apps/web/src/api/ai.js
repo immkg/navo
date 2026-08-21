@@ -13,10 +13,11 @@ export async function draftIntent(title, description) {
   return response.data;
 }
 
-export async function suggestPlaceTypes(title, notes) {
+export async function suggestPlaceTypes(title, notes, location) {
   const response = await apiClient.post("/api/ai/suggest-place-types", {
     title,
     notes,
+    location,
   });
   return response.data;
 }

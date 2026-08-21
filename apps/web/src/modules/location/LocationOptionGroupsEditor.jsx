@@ -3,6 +3,7 @@ import {
   autocompletePlaces,
   distanceLabel,
   getPlaceDetails,
+  getPlaceEnrichedDetails,
   loadGoogleMaps,
   reverseGeocodeLocation,
   searchPlaces,
@@ -13,6 +14,20 @@ import Badge from "../../components/ui/Badge";
 import LocationCard from "./LocationCard";
 import { useCurrentLocation } from "./hooks";
 import { useSuggestPlaceTypes } from "../ai/hooks";
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char]
+  );
+}
 
 // Presentational + Google Places search UI used by WorkFormModal for both
 // its modes: editing an existing work item persists each change immediately
@@ -56,6 +71,7 @@ export default function LocationOptionGroupsEditor({
   const mapInstanceRef = useRef(null);
   const markerRefs = useRef([]);
   const mapClickListenerRef = useRef(null);
+  const infoWindowRef = useRef(null);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
   const showPlaceSearchPanel = groups.length > 0;
   const currentLocation = useCurrentLocation();
@@ -71,6 +87,7 @@ export default function LocationOptionGroupsEditor({
   const [locationPickerResults, setLocationPickerResults] = useState([]);
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [resultsView, setResultsView] = useState("list");
+  const [enrichingPlaceId, setEnrichingPlaceId] = useState(null);
 
   const handleAutocomplete = async (query) => {
     setSearchError(null);
@@ -137,6 +154,7 @@ export default function LocationOptionGroupsEditor({
       const data = await suggestPlaceTypesMutation.mutateAsync({
         title: workTitle,
         notes: workNotes || undefined,
+        location: nearLocation || undefined,
       });
       setPlaceTypeSuggestions(data?.types || []);
       setPlaceNameSuggestions(data?.names || []);
@@ -200,7 +218,7 @@ export default function LocationOptionGroupsEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workTitle]);
 
-  const handleAddLocationToGroup = (groupIndex, place) => {
+  const handleAddLocationToGroup = async (groupIndex, place) => {
     const group = groups[groupIndex];
     if (!group) return;
 
@@ -211,6 +229,24 @@ export default function LocationOptionGroupsEditor({
       return;
     }
 
+    // Phone number and structured opening hours are billed separately by
+    // Google and only worth fetching for a place someone is actually
+    // adding — not for every search result. Skip it for manual/dropped-pin
+    // entries that don't have a real Google place id to look up.
+    let enrichment = {};
+    const isRealGooglePlace =
+      place.placeId && (!place.provider || place.provider === "google");
+    if (isRealGooglePlace) {
+      setEnrichingPlaceId(place.placeId);
+      try {
+        enrichment = await getPlaceEnrichedDetails(place.placeId, googleKey);
+      } catch (error) {
+        console.error("Failed to fetch place details", error);
+      } finally {
+        setEnrichingPlaceId(null);
+      }
+    }
+
     onAddLocationToGroup(groupIndex, {
       name: place.name,
       address: place.formattedAddress,
@@ -218,6 +254,9 @@ export default function LocationOptionGroupsEditor({
       longitude: place.longitude,
       placeId: place.placeId,
       provider: place.provider || "google",
+      rating: place.rating ?? null,
+      ratingsCount: place.ratingsCount ?? null,
+      ...enrichment,
     });
 
     setPlaceResults([]);
@@ -430,6 +469,28 @@ export default function LocationOptionGroupsEditor({
 
         marker.addListener("click", () => {
           setSelectedPreviewPlace(place);
+
+          if (!infoWindowRef.current) {
+            infoWindowRef.current = new maps.InfoWindow();
+          }
+          const ratingLine =
+            place.rating != null
+              ? `<div>★ ${escapeHtml(place.rating)}${
+                  place.ratingsCount != null
+                    ? ` (${escapeHtml(place.ratingsCount)})`
+                    : ""
+                }</div>`
+              : "";
+          infoWindowRef.current.setContent(
+            `<div style="font-size:13px;line-height:1.4;">` +
+              `<div style="font-weight:600;">${escapeHtml(place.name)}</div>` +
+              (place.formattedAddress
+                ? `<div style="color:#666;">${escapeHtml(place.formattedAddress)}</div>`
+                : "") +
+              ratingLine +
+              `</div>`
+          );
+          infoWindowRef.current.open(mapInstanceRef.current, marker);
         });
 
         bounds.extend(marker.getPosition());
@@ -825,34 +886,25 @@ export default function LocationOptionGroupsEditor({
                               {place.formattedAddress}
                             </div>
                           )}
-                          {nearLocation &&
-                            (() => {
-                              const distance = distanceLabel(
-                                nearLocation.latitude,
-                                nearLocation.longitude,
-                                place.latitude,
-                                place.longitude
-                              );
-                              return (
-                                distance && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {distance}
-                                  </div>
-                                )
-                              );
-                            })()}
-                          {place.openingHours && (
-                            <details className="mt-1.5">
-                              <summary className="cursor-pointer text-xs font-semibold text-primary">
-                                Hours
-                              </summary>
-                              <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                                {place.openingHours.map((line) => (
-                                  <li key={line}>{line}</li>
-                                ))}
-                              </ul>
-                            </details>
-                          )}
+                          <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            {place.rating != null && (
+                              <span>
+                                ★ {place.rating}
+                                {place.ratingsCount != null &&
+                                  ` (${place.ratingsCount})`}
+                              </span>
+                            )}
+                            {nearLocation &&
+                              (() => {
+                                const distance = distanceLabel(
+                                  nearLocation.latitude,
+                                  nearLocation.longitude,
+                                  place.latitude,
+                                  place.longitude
+                                );
+                                return distance && <span>{distance}</span>;
+                              })()}
+                          </div>
                         </div>
                         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
                           <button
@@ -868,6 +920,7 @@ export default function LocationOptionGroupsEditor({
                           <Button
                             variant="primary"
                             size="sm"
+                            disabled={enrichingPlaceId === place.placeId}
                             onClick={() =>
                               handleAddLocationToGroup(
                                 selectedGroupIndex,
@@ -875,7 +928,9 @@ export default function LocationOptionGroupsEditor({
                               )
                             }
                           >
-                            Add
+                            {enrichingPlaceId === place.placeId
+                              ? "Adding…"
+                              : "Add"}
                           </Button>
                         </div>
                       </div>

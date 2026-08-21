@@ -25,6 +25,11 @@ export function buildLocationOptionGroupsFromWork(work) {
       longitude: location.longitude,
       placeId: location.placeId,
       provider: location.provider,
+      phoneNumber: location.phoneNumber,
+      rating: location.rating,
+      ratingsCount: location.ratingsCount,
+      openingHoursText: location.openingHoursText,
+      openingPeriods: location.openingPeriods,
     })),
   }));
 }

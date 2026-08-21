@@ -21,7 +21,8 @@ export function useDraftIntent() {
 
 export function useSuggestPlaceTypes() {
   return useMutation({
-    mutationFn: ({ title, notes }) => suggestPlaceTypes(title, notes),
+    mutationFn: ({ title, notes, location }) =>
+      suggestPlaceTypes(title, notes, location),
   });
 }
 
