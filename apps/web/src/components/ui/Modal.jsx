@@ -21,11 +21,13 @@ export default function Modal({
   if (!open) return null;
 
   const maxWidth =
-    size === "lg"
-      ? "sm:max-w-lg"
-      : size === "sm"
-        ? "sm:max-w-sm"
-        : "sm:max-w-md";
+    size === "xl"
+      ? "sm:max-w-2xl"
+      : size === "lg"
+        ? "sm:max-w-lg"
+        : size === "sm"
+          ? "sm:max-w-sm"
+          : "sm:max-w-md";
 
   return (
     <div

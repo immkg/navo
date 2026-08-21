@@ -108,6 +108,7 @@ describe("Modal", () => {
     ["sm", "sm:max-w-sm"],
     ["md", "sm:max-w-md"],
     ["lg", "sm:max-w-lg"],
+    ["xl", "sm:max-w-2xl"],
   ])("applies the %s size's max-width class", (size, expectedClass) => {
     renderModal({ title: "Confirm", size });
 

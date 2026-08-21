@@ -166,15 +166,16 @@ router.post("/draft-intent", async (req, res) => {
   }
 });
 
-const SUGGEST_PLACE_TYPES_SYSTEM_PROMPT = `You suggest what kind of place someone should search for on a map to get a piece of work done.
+const SUGGEST_PLACE_TYPES_SYSTEM_PROMPT = `You suggest places someone could search for on a map to get a piece of work done.
 
 Rules:
-- Suggest 3-5 short, specific search terms (e.g. "pharmacy", "hardware store", "post office"), not full place names or addresses.
-- Base suggestions only on the work's title/notes; if it clearly doesn't need a physical place, return an empty list.
+- "types": 3-5 short, generic search terms (e.g. "pharmacy", "hardware store", "post office") — categories, not specific businesses.
+- "names": up to 3 specific, well-known real place or business names that plausibly fit (e.g. "CVS", "Home Depot", "Trader Joe's") — real, commonly-recognized chains/brands, never an invented or made-up name. These are just starting points for a real map search, not a guarantee one is nearby.
+- Base both lists only on the work's title/notes; if it clearly doesn't need a physical place, return both lists empty.
 - Keep each suggestion under 40 characters.
 
 Respond with ONLY a JSON object of this exact shape, no other text:
-{"suggestions": [string]}`;
+{"types": [string], "names": [string]}`;
 
 function buildSuggestPlaceTypesUserPrompt(title, notes) {
   return [`Work: ${title}`, notes ? `Notes: ${notes}` : null]
@@ -182,13 +183,20 @@ function buildSuggestPlaceTypesUserPrompt(title, notes) {
     .join("\n");
 }
 
-function sanitizePlaceTypeSuggestions(parsed) {
-  if (!Array.isArray(parsed?.suggestions)) return [];
+function sanitizeSuggestionList(list, maxItems) {
+  if (!Array.isArray(list)) return [];
 
-  return parsed.suggestions
+  return list
     .filter((item) => typeof item === "string" && item.trim())
-    .slice(0, 5)
+    .slice(0, maxItems)
     .map((item) => item.trim().slice(0, 40));
+}
+
+function sanitizePlaceTypeSuggestions(parsed) {
+  return {
+    types: sanitizeSuggestionList(parsed?.types, 5),
+    names: sanitizeSuggestionList(parsed?.names, 3),
+  };
 }
 
 // Ask an LLM what kind of place to search for, given a work item's
@@ -211,7 +219,7 @@ router.post("/suggest-place-types", async (req, res) => {
       userPrompt: buildSuggestPlaceTypesUserPrompt(title.trim(), notes),
     });
 
-    res.json({ suggestions: sanitizePlaceTypeSuggestions(parsed) });
+    res.json(sanitizePlaceTypeSuggestions(parsed));
   } catch (error) {
     const handled = sendGroqError(res, error);
     if (handled) return handled;
