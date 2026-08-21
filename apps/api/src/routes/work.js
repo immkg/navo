@@ -1,13 +1,10 @@
 const express = require("express");
 const prisma = require("../db/client");
 const { deleteWorkItems } = require("../services/workService");
+const { isRecordNotFoundError } = require("../utils/prismaErrors");
 
 const router = express.Router();
 const VALID_STATUSES = new Set(["todo", "in_progress", "done"]);
-
-function isRecordNotFoundError(error) {
-  return error?.code === "P2025";
-}
 
 // Get all work items
 router.get("/", async (req, res) => {
