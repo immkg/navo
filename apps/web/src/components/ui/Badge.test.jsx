@@ -33,9 +33,7 @@ describe("Badge", () => {
 
   it("falls back to the neutral styling for an unknown tone", () => {
     render(<Badge tone="not-a-real-tone">Label</Badge>);
-    expect(screen.getByText("Label").className).toContain(
-      toneStyles.neutral
-    );
+    expect(screen.getByText("Label").className).toContain(toneStyles.neutral);
   });
 
   it("merges a custom className additively", () => {

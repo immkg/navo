@@ -145,7 +145,9 @@ describe("useBulkUpdateIntentStatus", () => {
       { id: "2", status: "active" },
     ]);
     vi.spyOn(intentsApi, "updateIntent").mockImplementation((id) =>
-      id === "1" ? Promise.resolve({ id, status: "completed" }) : Promise.reject(new Error("boom"))
+      id === "1"
+        ? Promise.resolve({ id, status: "completed" })
+        : Promise.reject(new Error("boom"))
     );
 
     const { result } = renderHook(() => useBulkUpdateIntentStatus(), {

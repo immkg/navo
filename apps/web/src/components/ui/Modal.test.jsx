@@ -22,7 +22,12 @@ describe("Modal", () => {
 
   it("renders the title, children, and footer when open", () => {
     render(
-      <Modal open={true} onClose={vi.fn()} title="Confirm" footer={<button>OK</button>}>
+      <Modal
+        open={true}
+        onClose={vi.fn()}
+        title="Confirm"
+        footer={<button>OK</button>}
+      >
         Body content
       </Modal>
     );
@@ -34,7 +39,9 @@ describe("Modal", () => {
 
   it("does not render a title bar when no title is given", () => {
     renderModal({ title: undefined });
-    expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Close" })
+    ).not.toBeInTheDocument();
   });
 
   it("calls onClose when the backdrop is clicked (closeOnBackdrop defaults to true)", () => {

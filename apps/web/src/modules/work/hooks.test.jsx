@@ -54,17 +54,19 @@ describe("useCreateWorkItem", () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync({ title: "New work", intentId: "intent-1" });
+      await result.current.mutateAsync({
+        title: "New work",
+        intentId: "intent-1",
+      });
     });
 
     expect(queryClient.getQueryData(WORK_QUERY_KEY)).toEqual([
       { id: "new", intentId: "intent-1" },
       { id: "existing" },
     ]);
-    expect(queryClient.getQueryData(intentQueryKey("intent-1")).workItems).toEqual([
-      { id: "new", intentId: "intent-1" },
-      { id: "existing" },
-    ]);
+    expect(
+      queryClient.getQueryData(intentQueryKey("intent-1")).workItems
+    ).toEqual([{ id: "new", intentId: "intent-1" }, { id: "existing" }]);
   });
 
   it("does not touch an intent cache that isn't the new item's intent", async () => {
@@ -83,12 +85,15 @@ describe("useCreateWorkItem", () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync({ title: "New work", intentId: "intent-1" });
+      await result.current.mutateAsync({
+        title: "New work",
+        intentId: "intent-1",
+      });
     });
 
-    expect(queryClient.getQueryData(intentQueryKey("other-intent")).workItems).toEqual(
-      []
-    );
+    expect(
+      queryClient.getQueryData(intentQueryKey("other-intent")).workItems
+    ).toEqual([]);
   });
 });
 
@@ -115,7 +120,10 @@ describe("useUpdateWorkItem", () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync({ workId: "w1", patch: { status: "done" } });
+      await result.current.mutateAsync({
+        workId: "w1",
+        patch: { status: "done" },
+      });
     });
 
     expect(queryClient.getQueryData(WORK_QUERY_KEY)).toEqual([
@@ -143,7 +151,10 @@ describe("useUpdateWorkItem", () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync({ workId: "w1", patch: { status: "done" } });
+      await result.current.mutateAsync({
+        workId: "w1",
+        patch: { status: "done" },
+      });
     });
 
     expect(
@@ -171,7 +182,9 @@ describe("useDeleteWorkItem", () => {
     });
 
     expect(queryClient.getQueryData(WORK_QUERY_KEY)).toEqual([{ id: "w2" }]);
-    expect(queryClient.getQueryData(intentQueryKey("intent-1")).workItems).toEqual([]);
+    expect(
+      queryClient.getQueryData(intentQueryKey("intent-1")).workItems
+    ).toEqual([]);
   });
 });
 
@@ -183,7 +196,9 @@ describe("useCreateLocationOption", () => {
     ]);
     queryClient.setQueryData(intentQueryKey("intent-1"), {
       id: "intent-1",
-      workItems: [{ id: "w1", locationOptions: [], selectedLocationOptionId: null }],
+      workItems: [
+        { id: "w1", locationOptions: [], selectedLocationOptionId: null },
+      ],
     });
     vi.spyOn(workApi, "createLocationOption").mockResolvedValue({ id: "opt1" });
 
@@ -192,7 +207,10 @@ describe("useCreateLocationOption", () => {
     });
 
     await act(async () => {
-      await result.current.mutateAsync({ workId: "w1", data: { locations: [] } });
+      await result.current.mutateAsync({
+        workId: "w1",
+        data: { locations: [] },
+      });
     });
 
     const flat = queryClient.getQueryData(WORK_QUERY_KEY)[0];
@@ -200,7 +218,8 @@ describe("useCreateLocationOption", () => {
     // Adding an option never auto-selects it — the user chooses explicitly.
     expect(flat.selectedLocationOptionId).toBe(null);
 
-    const nested = queryClient.getQueryData(intentQueryKey("intent-1")).workItems[0];
+    const nested = queryClient.getQueryData(intentQueryKey("intent-1"))
+      .workItems[0];
     expect(nested.locationOptions).toEqual([{ id: "opt1" }]);
     expect(nested.selectedLocationOptionId).toBe(null);
   });
