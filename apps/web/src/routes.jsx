@@ -22,8 +22,8 @@ export default function AppRoutes() {
         <ThemeProvider>
           <NotificationProvider>
             <div className="min-h-screen bg-background font-sans text-foreground">
-              <header className="sticky top-0 z-40 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur sm:px-6 sm:py-4">
-                <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
+              <header className="sticky top-0 z-40 border-b border-border bg-surface/95 px-2.5 py-3 backdrop-blur sm:px-4 sm:py-4">
+                <div className="flex w-full items-center justify-between gap-3">
                   <NavLink to="/" className="text-xl font-bold tracking-tight">
                     Navo
                   </NavLink>
