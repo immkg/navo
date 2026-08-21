@@ -4,6 +4,25 @@ export const PRIORITY_OPTIONS = [
   { value: "low", label: "Low" },
 ];
 
+// Like Promise.allSettled, but runs one item at a time instead of firing
+// every request concurrently. SQLite only allows one writer at a time, so
+// bulk operations sent all at once just queue up behind the same lock —
+// and if enough of them queue, a later request's own interactive
+// transaction can time out before it ever gets to run. Sequential requests
+// do the same total work without that risk.
+export async function settleSequentially(items, fn) {
+  const results = [];
+  for (const item of items) {
+    try {
+      const value = await fn(item);
+      results.push({ status: "fulfilled", value });
+    } catch (reason) {
+      results.push({ status: "rejected", reason });
+    }
+  }
+  return results;
+}
+
 export const PRIORITY_ORDER = {
   high: 0,
   medium: 1,

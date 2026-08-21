@@ -5,6 +5,7 @@ import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import PrioritySelect from "./PrioritySelect";
 import { useCreateIntent } from "./hooks";
+import { settleSequentially } from "./utils";
 import { useSplitIntent } from "../ai/hooks";
 
 // The primary way to add intents: one auto-growing text field. Enter (or the
@@ -104,14 +105,12 @@ export default function AddIntentPanel({ onOpenDetails }) {
 
     setIsCreatingSplitDrafts(true);
     try {
-      const results = await Promise.allSettled(
-        includedSplitDrafts.map((draft) =>
-          createIntentMutation.mutateAsync({
-            title: draft.title,
-            description: draft.description || undefined,
-            priority: draft.priority,
-          })
-        )
+      const results = await settleSequentially(includedSplitDrafts, (draft) =>
+        createIntentMutation.mutateAsync({
+          title: draft.title,
+          description: draft.description || undefined,
+          priority: draft.priority,
+        })
       );
       const failedCount = results.filter((r) => r.status === "rejected").length;
       const succeededCount = results.length - failedCount;
