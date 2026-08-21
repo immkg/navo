@@ -80,148 +80,124 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
     await onPatchIntent({ status });
   };
 
-  const hasTextChanges =
-    intentTitle.trim() !== (intent.title || "") ||
-    intentDescription.trim() !== (intent.description || "");
-
-  const handleUpdateIntentText = async () => {
+  const handleTitleBlur = async () => {
     const nextTitle = intentTitle.trim();
-    const nextDescription = intentDescription.trim();
-
     if (!nextTitle) {
       setIntentTitle(intent.title || "");
       return;
     }
-
-    await onPatchIntent({
-      title: nextTitle,
-      description: nextDescription || null,
-    });
+    if (nextTitle === (intent.title || "")) return;
+    await onPatchIntent({ title: nextTitle });
   };
 
+  const handleDescriptionBlur = async () => {
+    const nextDescription = intentDescription.trim();
+    if (nextDescription === (intent.description || "")) return;
+    await onPatchIntent({ description: nextDescription || null });
+  };
+
+  const priorityStyle =
+    intentPriority === "high"
+      ? "bg-rose-100 text-rose-800"
+      : intentPriority === "low"
+        ? "bg-slate-100 text-slate-700"
+        : "bg-amber-100 text-amber-800";
+
   return (
-    <section className="mb-4 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:mb-6 sm:p-5">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.85fr)]">
-        <div className="space-y-4">
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Intent
-            </div>
-            <input
-              value={intentTitle}
-              onChange={(e) => setIntentTitle(e.target.value)}
-              disabled={updatingIntent}
-              className="mt-1 w-full min-w-0 rounded-2xl border border-gray-200 px-3 py-2 text-lg font-bold text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-2xl lg:text-3xl"
-            />
-          </div>
-          <textarea
-            value={intentDescription}
-            onChange={(e) => setIntentDescription(e.target.value)}
+    <section className="mb-4 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:mb-6 sm:p-6">
+      <input
+        value={intentTitle}
+        onChange={(e) => setIntentTitle(e.target.value)}
+        onBlur={handleTitleBlur}
+        disabled={updatingIntent}
+        placeholder="Untitled intent"
+        className="-mx-2 w-full min-w-0 rounded-xl border border-transparent px-2 py-1 text-xl font-bold text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-2xl lg:text-3xl"
+      />
+      <textarea
+        value={intentDescription}
+        onChange={(e) => setIntentDescription(e.target.value)}
+        onBlur={handleDescriptionBlur}
+        disabled={updatingIntent}
+        rows={2}
+        placeholder="Add a short description"
+        className="-mx-2 mt-1 w-full resize-none rounded-xl border border-transparent px-2 py-1 text-sm text-gray-600 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+      />
+
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
+        <label className="inline-flex items-center gap-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+            Priority
+          </span>
+          <select
+            value={intentPriority}
+            onChange={(e) => handleUpdatePriority(e.target.value)}
             disabled={updatingIntent}
-            rows={3}
-            placeholder="Add a short description"
-            className="w-full rounded-2xl border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+            className={`h-9 rounded-full border-0 px-3 text-sm font-semibold outline-none transition disabled:opacity-60 ${priorityStyle}`}
+          >
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
+
+        <label className="inline-flex items-center gap-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+            Status
+          </span>
+          <select
+            value={intentStatus}
+            onChange={(e) => handleUpdateStatus(e.target.value)}
+            disabled={updatingIntent}
+            className="h-9 rounded-full border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 outline-none transition focus:border-blue-500 disabled:opacity-60"
+          >
+            <option value="active">Active</option>
+            <option value="completed">Completed</option>
+            <option value="not_required">Not Required</option>
+            <option value="archived">Archived</option>
+          </select>
+        </label>
+
+        <button
+          type="button"
+          onClick={() => openDateInput(`intent-start-date-${intent.id}`)}
+          disabled={updatingIntent}
+          className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 transition hover:bg-gray-50 disabled:opacity-60"
+        >
+          <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+            Start
+          </span>
+          {intentStartDate ? formatDate(intentStartDate) : "Not set"}
+          <input
+            id={`intent-start-date-${intent.id}`}
+            type="date"
+            value={intentStartDate}
+            onChange={(e) => handleUpdateStartDate(e.target.value)}
+            disabled={updatingIntent}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+            aria-label="Set start date"
           />
-          {hasTextChanges && (
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleUpdateIntentText}
-                disabled={updatingIntent || !intentTitle.trim()}
-                className="inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Update
-              </button>
-            </div>
-          )}
-        </div>
+        </button>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          <label className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Priority
-            </span>
-            <select
-              value={intentPriority}
-              onChange={(e) => handleUpdatePriority(e.target.value)}
-              disabled={updatingIntent}
-              className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
-            >
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Status
-            </span>
-            <select
-              value={intentStatus}
-              onChange={(e) => handleUpdateStatus(e.target.value)}
-              disabled={updatingIntent}
-              className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
-            >
-              <option value="active">Active</option>
-              <option value="completed">Completed</option>
-              <option value="not_required">Not Required</option>
-              <option value="archived">Archived</option>
-            </select>
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Start
-            </span>
-            <button
-              type="button"
-              onClick={() => openDateInput(`intent-start-date-${intent.id}`)}
-              disabled={updatingIntent}
-              className="relative h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-left text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:opacity-60"
-            >
-              <span className="flex h-full items-center">
-                {intentStartDate
-                  ? formatDate(intentStartDate)
-                  : "No start date"}
-              </span>
-              <input
-                id={`intent-start-date-${intent.id}`}
-                type="date"
-                value={intentStartDate}
-                onChange={(e) => handleUpdateStartDate(e.target.value)}
-                disabled={updatingIntent}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                aria-label="Set start date"
-              />
-            </button>
-          </label>
-
-          <label className="space-y-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Due
-            </span>
-            <button
-              type="button"
-              onClick={() => openDateInput(`intent-due-date-${intent.id}`)}
-              disabled={updatingIntent}
-              className="relative h-10 w-full rounded-2xl border border-gray-200 bg-gray-50 px-3 text-left text-sm font-medium text-gray-800 transition hover:bg-gray-100 disabled:opacity-60"
-            >
-              <span className="flex h-full items-center">
-                {intentDueDate ? formatDate(intentDueDate) : "No due date"}
-              </span>
-              <input
-                id={`intent-due-date-${intent.id}`}
-                type="date"
-                value={intentDueDate}
-                onChange={(e) => handleUpdateDueDate(e.target.value)}
-                disabled={updatingIntent}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                aria-label="Set due date"
-              />
-            </button>
-          </label>
-        </div>
+        <button
+          type="button"
+          onClick={() => openDateInput(`intent-due-date-${intent.id}`)}
+          disabled={updatingIntent}
+          className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 transition hover:bg-gray-50 disabled:opacity-60"
+        >
+          <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+            Due
+          </span>
+          {intentDueDate ? formatDate(intentDueDate) : "Not set"}
+          <input
+            id={`intent-due-date-${intent.id}`}
+            type="date"
+            value={intentDueDate}
+            onChange={(e) => handleUpdateDueDate(e.target.value)}
+            disabled={updatingIntent}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+            aria-label="Set due date"
+          />
+        </button>
       </div>
     </section>
   );
@@ -1197,7 +1173,7 @@ function WorkLocationOptionsEditor({
 }
 
 export default function IntentView() {
-  const { notify } = useNotifications();
+  const { notify, confirm } = useNotifications();
   const { id } = useParams();
   const [intent, setIntent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -1208,7 +1184,11 @@ export default function IntentView() {
   const [editingWorkDuration, setEditingWorkDuration] = useState(15);
   const [editingWorkStatus, setEditingWorkStatus] = useState("todo");
   const [updatingWorkId, setUpdatingWorkId] = useState(null);
+  const [deletingWorkId, setDeletingWorkId] = useState(null);
   const [addingOptionForWorkId, setAddingOptionForWorkId] = useState(null);
+  const [aiSuggestions, setAiSuggestions] = useState([]);
+  const [isSuggestingWork, setIsSuggestingWork] = useState(false);
+  const [addingSuggestionIndex, setAddingSuggestionIndex] = useState(null);
 
   useEffect(() => {
     async function fetchIntent() {
@@ -1404,6 +1384,82 @@ export default function IntentView() {
     }));
   };
 
+  const handleDeleteWork = async (work) => {
+    const confirmed = await confirm(
+      `Delete "${work.title}"? This can't be undone.`,
+      {
+        title: "Delete work item?",
+        confirmLabel: "Delete",
+        danger: true,
+      }
+    );
+    if (!confirmed) return;
+
+    setDeletingWorkId(work.id);
+    try {
+      await axios.delete(`http://localhost:3001/api/work/${work.id}`);
+      setIntent((prev) => ({
+        ...prev,
+        workItems: prev.workItems.filter((item) => item.id !== work.id),
+      }));
+    } catch (error) {
+      console.error("Failed to delete work item", error);
+      notify("Failed to delete work item.");
+    } finally {
+      setDeletingWorkId(null);
+    }
+  };
+
+  const handleSuggestWork = async () => {
+    setIsSuggestingWork(true);
+    try {
+      const response = await axios.post(
+        "http://localhost:3001/api/ai/suggest-work",
+        { intentId: id }
+      );
+      const suggestions = response.data?.suggestions || [];
+      setAiSuggestions(suggestions);
+      if (suggestions.length === 0) {
+        notify("No suggestions this time - try adding a description.", {
+          type: "info",
+        });
+      }
+    } catch (error) {
+      console.error("Failed to get AI suggestions", error);
+      notify(
+        error.response?.data?.error || "Failed to get AI suggestions right now."
+      );
+    } finally {
+      setIsSuggestingWork(false);
+    }
+  };
+
+  const dismissSuggestion = (index) => {
+    setAiSuggestions((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const addSuggestionAsWork = async (index) => {
+    const suggestion = aiSuggestions[index];
+    if (!suggestion) return;
+
+    setAddingSuggestionIndex(index);
+    try {
+      const response = await axios.post("http://localhost:3001/api/work", {
+        title: suggestion.title,
+        notes: suggestion.notes || undefined,
+        durationMinutes: suggestion.durationMinutes || 30,
+        intentId: id,
+      });
+      handleWorkCreated(response.data);
+      dismissSuggestion(index);
+    } catch (error) {
+      console.error("Failed to add suggested work", error);
+      notify("Failed to add this suggestion.");
+    } finally {
+      setAddingSuggestionIndex(null);
+    }
+  };
+
   if (loading)
     return (
       <div className="p-8 text-center text-gray-500">Loading intent...</div>
@@ -1439,15 +1495,25 @@ export default function IntentView() {
         updatingIntent={updatingIntent}
       />
 
-      <button
-        onClick={() => {
-          const form = document.getElementById("new-work-form");
-          form?.scrollIntoView({ behavior: "smooth" });
-        }}
-        className="mb-4 inline-flex w-full items-center justify-center rounded-full bg-blue-600 px-4 py-3 text-sm font-medium text-white transition hover:bg-blue-700 sm:mb-6 sm:w-auto"
-      >
-        + Add Work
-      </button>
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:flex sm:w-auto">
+        <button
+          onClick={() => {
+            const form = document.getElementById("new-work-form");
+            form?.scrollIntoView({ behavior: "smooth" });
+          }}
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700"
+        >
+          + Add Work
+        </button>
+        <button
+          type="button"
+          onClick={handleSuggestWork}
+          disabled={isSuggestingWork}
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-purple-200 bg-purple-50 px-4 text-sm font-medium text-purple-700 transition hover:bg-purple-100 disabled:opacity-50"
+        >
+          {isSuggestingWork ? "Thinking…" : "✨ Suggest Work"}
+        </button>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
         <section>
@@ -1462,6 +1528,58 @@ export default function IntentView() {
             </div>
           </div>
 
+          {aiSuggestions.length > 0 && (
+            <div className="mb-4 space-y-2 rounded-3xl border border-purple-200 bg-purple-50 p-4">
+              <div className="mb-1 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-purple-900">
+                  ✨ AI suggestions
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setAiSuggestions([])}
+                  className="min-h-8 text-xs font-semibold text-purple-700 hover:underline"
+                >
+                  Dismiss all
+                </button>
+              </div>
+              {aiSuggestions.map((suggestion, index) => (
+                <div
+                  key={`${suggestion.title}-${index}`}
+                  className="flex flex-col gap-2 rounded-2xl border border-purple-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900">
+                      {suggestion.title}
+                    </div>
+                    <div className="mt-0.5 text-xs text-gray-500">
+                      {suggestion.durationMinutes} min
+                      {suggestion.needsLocation ? " · might need a place" : ""}
+                      {suggestion.notes ? ` · ${suggestion.notes}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => dismissSuggestion(index)}
+                      disabled={addingSuggestionIndex === index}
+                      className="inline-flex min-h-9 items-center justify-center rounded-full border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => addSuggestionAsWork(index)}
+                      disabled={addingSuggestionIndex === index}
+                      className="inline-flex min-h-9 items-center justify-center rounded-full bg-purple-600 px-3 text-xs font-semibold text-white transition hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      {addingSuggestionIndex === index ? "Adding…" : "+ Add"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           {intent.workItems && intent.workItems.length > 0 ? (
             <div className="grid gap-3 sm:gap-4">
               {intent.workItems.map((work) => (
@@ -1469,37 +1587,59 @@ export default function IntentView() {
                   key={work.id}
                   className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"
                 >
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                    <div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
                       <h3 className="text-base font-semibold text-gray-900 sm:text-lg">
                         {work.title}
                       </h3>
-                      <div className="mt-1 text-xs text-gray-500 sm:text-sm">
-                        {work.durationMinutes || 30} min • {work.status}
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:text-sm">
+                        <span>{work.durationMinutes || 30} min</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                            work.status === "done"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : work.status === "in_progress"
+                                ? "bg-blue-100 text-blue-800"
+                                : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {work.status.replace("_", " ")}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-                      <button
-                        type="button"
-                        onClick={() => startEditWork(work)}
-                        disabled={updatingWorkId === work.id}
-                        className="rounded-full border border-gray-300 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
-                      <span className="rounded-full bg-gray-100 px-3 py-1 text-center text-xs font-semibold uppercase text-gray-600">
-                        {work.locationOptions?.length > 0
-                          ? `${work.locationOptions.length} option${work.locationOptions.length === 1 ? "" : "s"}`
-                          : "No location"}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => startAddLocationOption(work)}
-                        className="rounded-full border border-blue-200 bg-blue-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
-                      >
-                        Edit locations
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteWork(work)}
+                      disabled={deletingWorkId === work.id}
+                      aria-label={`Delete ${work.title}`}
+                      title="Delete work item"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                    >
+                      {deletingWorkId === work.id ? "…" : "✕"}
+                    </button>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => startEditWork(work)}
+                      disabled={updatingWorkId === work.id}
+                      className="rounded-full border border-gray-300 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                    <span className="rounded-full bg-gray-100 px-3 py-1 text-center text-xs font-semibold uppercase text-gray-600">
+                      {work.locationOptions?.length > 0
+                        ? `${work.locationOptions.length} option${work.locationOptions.length === 1 ? "" : "s"}`
+                        : "No location"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => startAddLocationOption(work)}
+                      className="rounded-full border border-blue-200 bg-blue-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                    >
+                      Edit locations
+                    </button>
                   </div>
 
                   {editingWorkId === work.id && (
