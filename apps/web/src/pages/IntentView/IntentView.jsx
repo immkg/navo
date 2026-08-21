@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import axios from "axios";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import IntentWorkForm from "./IntentWorkForm";
 import LocationCard from "./LocationCard";
 import {
@@ -14,6 +14,17 @@ import { useNotifications } from "../../hooks/useNotifications";
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
+import { getIntent, updateIntent } from "../../api/intents";
+import {
+  createLocationOption,
+  createWorkItem,
+  deleteLocationOption,
+  deleteWorkItem,
+  addLocationToOption,
+  removeLocationFromOption,
+  updateWorkItem,
+} from "../../api/work";
+import { suggestWork } from "../../api/ai";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
@@ -315,13 +326,8 @@ function WorkLocationOptionsEditor({
 
     setIsSaving(true);
     try {
-      const response = await axios.delete(
-        `http://localhost:3001/api/work/${workId}/location-option/${group.id}`
-      );
-      onGroupRemoved?.(
-        group.id,
-        response.data?.selectedLocationOptionId || null
-      );
+      const result = await deleteLocationOption(workId, group.id);
+      onGroupRemoved?.(group.id, result?.selectedLocationOptionId || null);
       removeGroupAtIndex(groupIndex);
     } catch (error) {
       console.error("Failed to remove location option group", error);
@@ -353,10 +359,11 @@ function WorkLocationOptionsEditor({
 
     setIsSaving(true);
     try {
-      const response = await axios.delete(
-        `http://localhost:3001/api/work/${workId}/location-option/${group.id}/location/${location.id}`
+      const updatedOption = await removeLocationFromOption(
+        workId,
+        group.id,
+        location.id
       );
-      const updatedOption = response.data;
       setLocationOptionGroups((prev) =>
         prev.map((item, index) =>
           index === groupIndex
@@ -392,19 +399,15 @@ function WorkLocationOptionsEditor({
       return false;
     }
 
-    const response = await axios.post(
-      `http://localhost:3001/api/work/${workId}/location-option/${group.id}/location`,
-      {
-        name: place.name,
-        address: place.address,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        placeId: place.placeId,
-        provider: place.provider,
-      }
-    );
+    const updatedOption = await addLocationToOption(workId, group.id, {
+      name: place.name,
+      address: place.address,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      placeId: place.placeId,
+      provider: place.provider,
+    });
 
-    const updatedOption = response.data;
     setLocationOptionGroups((prev) =>
       prev.map((item, index) =>
         index === groupIndex
@@ -790,21 +793,18 @@ function WorkLocationOptionsEditor({
     try {
       const createdOptions = [];
       for (const group of validGroups) {
-        const response = await axios.post(
-          `http://localhost:3001/api/work/${workId}/location-option`,
-          {
-            title: group.title,
-            locations: group.locations.map((location) => ({
-              name: location.name,
-              address: location.address,
-              latitude: location.latitude,
-              longitude: location.longitude,
-              placeId: location.placeId,
-              provider: location.provider,
-            })),
-          }
-        );
-        createdOptions.push(response.data);
+        const createdOption = await createLocationOption(workId, {
+          title: group.title,
+          locations: group.locations.map((location) => ({
+            name: location.name,
+            address: location.address,
+            latitude: location.latitude,
+            longitude: location.longitude,
+            placeId: location.placeId,
+            provider: location.provider,
+          })),
+        });
+        createdOptions.push(createdOption);
       }
 
       onOptionsCreated(createdOptions);
@@ -1184,9 +1184,11 @@ function WorkLocationOptionsEditor({
 export default function IntentView() {
   const { notify, confirm } = useNotifications();
   const { id } = useParams();
-  const [intent, setIntent] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [updatingIntent, setUpdatingIntent] = useState(false);
+  const queryClient = useQueryClient();
+  const { data: intent, isLoading: loading } = useQuery({
+    queryKey: ["intent", id],
+    queryFn: () => getIntent(id),
+  });
   const [editingWorkId, setEditingWorkId] = useState(null);
   const [editingWorkTitle, setEditingWorkTitle] = useState("");
   const [editingWorkNotes, setEditingWorkNotes] = useState("");
@@ -1199,59 +1201,44 @@ export default function IntentView() {
   const [isSuggestingWork, setIsSuggestingWork] = useState(false);
   const [addingSuggestionIndex, setAddingSuggestionIndex] = useState(null);
 
-  useEffect(() => {
-    async function fetchIntent() {
-      try {
-        const response = await axios.get(
-          `http://localhost:3001/api/intents/${id}`
-        );
-        setIntent(response.data);
-      } catch (error) {
-        console.error("Failed to fetch intent", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchIntent();
-  }, [id]);
+  const patchIntentMutation = useMutation({
+    mutationFn: (patch) => updateIntent(id, patch),
+    onSuccess: (updatedIntent) => {
+      queryClient.setQueryData(["intent", id], updatedIntent);
+    },
+  });
 
   const handlePatchIntent = async (patch) => {
-    setUpdatingIntent(true);
-
     try {
-      const response = await axios.patch(
-        `http://localhost:3001/api/intents/${id}`,
-        patch
-      );
-      setIntent(response.data);
-      return response.data;
+      return await patchIntentMutation.mutateAsync(patch);
     } catch (error) {
       console.error("Failed to update intent", error);
       notify("Unable to update intent right now.");
       throw error;
-    } finally {
-      setUpdatingIntent(false);
     }
   };
+
+  const patchWorkMutation = useMutation({
+    mutationFn: ({ workId, patch }) => updateWorkItem(workId, patch),
+    onSuccess: (updatedWork, { workId }) => {
+      queryClient.setQueryData(
+        ["intent", id],
+        (prev) =>
+          prev && {
+            ...prev,
+            workItems: prev.workItems.map((item) =>
+              item.id === workId ? { ...item, ...updatedWork } : item
+            ),
+          }
+      );
+    },
+  });
 
   const handlePatchWork = async (workId, patch) => {
     setUpdatingWorkId(workId);
 
     try {
-      const response = await axios.patch(
-        `http://localhost:3001/api/work/${workId}`,
-        patch
-      );
-      const updatedWork = response.data;
-
-      setIntent((prev) => ({
-        ...prev,
-        workItems: prev.workItems.map((item) =>
-          item.id === workId ? { ...item, ...updatedWork } : item
-        ),
-      }));
-
-      return updatedWork;
+      return await patchWorkMutation.mutateAsync({ workId, patch });
     } catch (error) {
       console.error("Failed to update work", error);
       notify("Unable to update work right now.");
@@ -1262,39 +1249,47 @@ export default function IntentView() {
   };
 
   const handleLocationOptionsCreated = (workId, createdOptions) => {
-    setIntent((prev) => ({
-      ...prev,
-      workItems: prev.workItems.map((item) =>
-        item.id === workId
-          ? {
-              ...item,
-              locationOptions: [
-                ...(item.locationOptions || []),
-                ...createdOptions,
-              ],
-              selectedLocationOptionId:
-                createdOptions[createdOptions.length - 1]?.id ||
-                item.selectedLocationOptionId,
-            }
-          : item
-      ),
-    }));
+    queryClient.setQueryData(
+      ["intent", id],
+      (prev) =>
+        prev && {
+          ...prev,
+          workItems: prev.workItems.map((item) =>
+            item.id === workId
+              ? {
+                  ...item,
+                  locationOptions: [
+                    ...(item.locationOptions || []),
+                    ...createdOptions,
+                  ],
+                  selectedLocationOptionId:
+                    createdOptions[createdOptions.length - 1]?.id ||
+                    item.selectedLocationOptionId,
+                }
+              : item
+          ),
+        }
+    );
   };
 
   const handleLocationAttached = (workId, optionId, updatedOption) => {
-    setIntent((prev) => ({
-      ...prev,
-      workItems: prev.workItems.map((item) =>
-        item.id === workId
-          ? {
-              ...item,
-              locationOptions: (item.locationOptions || []).map((option) =>
-                option.id === optionId ? updatedOption : option
-              ),
-            }
-          : item
-      ),
-    }));
+    queryClient.setQueryData(
+      ["intent", id],
+      (prev) =>
+        prev && {
+          ...prev,
+          workItems: prev.workItems.map((item) =>
+            item.id === workId
+              ? {
+                  ...item,
+                  locationOptions: (item.locationOptions || []).map((option) =>
+                    option.id === optionId ? updatedOption : option
+                  ),
+                }
+              : item
+          ),
+        }
+    );
   };
 
   const handleLocationOptionRemoved = (
@@ -1302,24 +1297,27 @@ export default function IntentView() {
     optionId,
     selectedLocationOptionId
   ) => {
-    setIntent((prev) => ({
-      ...prev,
-      workItems: prev.workItems.map((item) => {
-        if (item.id !== workId) {
-          return item;
-        }
+    queryClient.setQueryData(["intent", id], (prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        workItems: prev.workItems.map((item) => {
+          if (item.id !== workId) {
+            return item;
+          }
 
-        const remainingOptions = (item.locationOptions || []).filter(
-          (option) => option.id !== optionId
-        );
-        return {
-          ...item,
-          locationOptions: remainingOptions,
-          selectedLocationOptionId:
-            selectedLocationOptionId || remainingOptions[0]?.id || null,
-        };
-      }),
-    }));
+          const remainingOptions = (item.locationOptions || []).filter(
+            (option) => option.id !== optionId
+          );
+          return {
+            ...item,
+            locationOptions: remainingOptions,
+            selectedLocationOptionId:
+              selectedLocationOptionId || remainingOptions[0]?.id || null,
+          };
+        }),
+      };
+    });
   };
 
   const startAddLocationOption = (work) => {
@@ -1387,11 +1385,29 @@ export default function IntentView() {
   };
 
   const handleWorkCreated = (newWork) => {
-    setIntent((prev) => ({
-      ...prev,
-      workItems: [newWork, ...(prev.workItems || [])],
-    }));
+    queryClient.setQueryData(
+      ["intent", id],
+      (prev) =>
+        prev && {
+          ...prev,
+          workItems: [newWork, ...(prev.workItems || [])],
+        }
+    );
   };
+
+  const deleteWorkMutation = useMutation({
+    mutationFn: (workId) => deleteWorkItem(workId),
+    onSuccess: (_data, workId) => {
+      queryClient.setQueryData(
+        ["intent", id],
+        (prev) =>
+          prev && {
+            ...prev,
+            workItems: prev.workItems.filter((item) => item.id !== workId),
+          }
+      );
+    },
+  });
 
   const handleDeleteWork = async (work) => {
     const confirmed = await confirm(
@@ -1406,11 +1422,7 @@ export default function IntentView() {
 
     setDeletingWorkId(work.id);
     try {
-      await axios.delete(`http://localhost:3001/api/work/${work.id}`);
-      setIntent((prev) => ({
-        ...prev,
-        workItems: prev.workItems.filter((item) => item.id !== work.id),
-      }));
+      await deleteWorkMutation.mutateAsync(work.id);
     } catch (error) {
       console.error("Failed to delete work item", error);
       notify("Failed to delete work item.");
@@ -1419,14 +1431,15 @@ export default function IntentView() {
     }
   };
 
+  const suggestWorkMutation = useMutation({
+    mutationFn: () => suggestWork(id),
+  });
+
   const handleSuggestWork = async () => {
     setIsSuggestingWork(true);
     try {
-      const response = await axios.post(
-        "http://localhost:3001/api/ai/suggest-work",
-        { intentId: id }
-      );
-      const suggestions = response.data?.suggestions || [];
+      const data = await suggestWorkMutation.mutateAsync();
+      const suggestions = data?.suggestions || [];
       setAiSuggestions(suggestions);
       if (suggestions.length === 0) {
         notify("No suggestions this time - try adding a description.", {
@@ -1447,19 +1460,23 @@ export default function IntentView() {
     setAiSuggestions((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const createWorkMutation = useMutation({
+    mutationFn: (payload) => createWorkItem(payload),
+  });
+
   const addSuggestionAsWork = async (index) => {
     const suggestion = aiSuggestions[index];
     if (!suggestion) return;
 
     setAddingSuggestionIndex(index);
     try {
-      const response = await axios.post("http://localhost:3001/api/work", {
+      const newWork = await createWorkMutation.mutateAsync({
         title: suggestion.title,
         notes: suggestion.notes || undefined,
         durationMinutes: suggestion.durationMinutes || 30,
         intentId: id,
       });
-      handleWorkCreated(response.data);
+      handleWorkCreated(newWork);
       dismissSuggestion(index);
     } catch (error) {
       console.error("Failed to add suggested work", error);
@@ -1503,7 +1520,7 @@ export default function IntentView() {
       <IntentSummaryCard
         intent={intent}
         onPatchIntent={handlePatchIntent}
-        updatingIntent={updatingIntent}
+        updatingIntent={patchIntentMutation.isPending}
       />
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:flex sm:w-auto">

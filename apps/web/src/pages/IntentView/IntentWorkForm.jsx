@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import axios from "axios";
+import { createWorkItem } from "../../api/work";
 import {
   searchPlaces,
   autocompletePlaces,
@@ -133,8 +133,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         }
       }
 
-      const res = await axios.post("http://localhost:3001/api/work", payload);
-      const newWork = res.data;
+      const newWork = await createWorkItem(payload);
 
       onWorkCreated({
         ...newWork,

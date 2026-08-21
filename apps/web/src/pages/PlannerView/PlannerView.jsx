@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import axios from "axios";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   loadGoogleMaps,
   buildGoogleMapsDirectionsUrl,
 } from "../../utils/googleMaps";
 import { useNotifications } from "../../hooks/useNotifications";
+import {
+  getWorkItems,
+  createLocationOption,
+  updateWorkItem,
+} from "../../api/work";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -125,8 +130,11 @@ function getChosenOption(work) {
 
 export default function PlannerView() {
   const { notify } = useNotifications();
-  const [workItems, setWorkItems] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: workItems = [], isLoading: loading } = useQuery({
+    queryKey: ["work"],
+    queryFn: getWorkItems,
+  });
   const [currentLocation, setCurrentLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState(
     typeof navigator !== "undefined" && navigator.geolocation
@@ -142,21 +150,52 @@ export default function PlannerView() {
   const [addLocationTitle, setAddLocationTitle] = useState("");
   const [addLocationName, setAddLocationName] = useState("");
   const [addLocationAddress, setAddLocationAddress] = useState("");
-  const [isSavingLocation, setIsSavingLocation] = useState(false);
 
-  useEffect(() => {
-    async function fetchWork() {
-      try {
-        const response = await axios.get("http://localhost:3001/api/work");
-        setWorkItems(response.data);
-      } catch (error) {
-        console.error("Failed to fetch work", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchWork();
-  }, []);
+  const addLocationOptionMutation = useMutation({
+    mutationFn: ({ workId, data }) => createLocationOption(workId, data),
+    onSuccess: (createdOption, { workId }) => {
+      queryClient.setQueryData(["work"], (prev) =>
+        (prev || []).map((item) =>
+          item.id === workId
+            ? {
+                ...item,
+                locationOptions: [
+                  ...(item.locationOptions || []),
+                  createdOption,
+                ],
+              }
+            : item
+        )
+      );
+      closeAddLocationForm();
+    },
+    onError: (error) => {
+      console.error("Failed to add location option", error);
+      notify("Failed to add location option");
+    },
+  });
+  const isSavingLocation = addLocationOptionMutation.isPending;
+
+  const selectLocationOptionMutation = useMutation({
+    mutationFn: ({ workId, optionId }) =>
+      updateWorkItem(workId, { selectedLocationOptionId: optionId }),
+    onSuccess: (updated, { workId }) => {
+      queryClient.setQueryData(["work"], (prev) =>
+        (prev || []).map((item) =>
+          item.id === workId
+            ? {
+                ...item,
+                selectedLocationOptionId: updated.selectedLocationOptionId,
+              }
+            : item
+        )
+      );
+    },
+    onError: (error) => {
+      console.error("Failed to select location option", error);
+      notify("Failed to choose location option");
+    },
+  });
 
   const openAddLocationForm = (work) => {
     setAddLocationFormWorkId(work.id);
@@ -176,73 +215,29 @@ export default function PlannerView() {
     setAddLocationAddress("");
   };
 
-  const submitAddLocationForm = async (event, work) => {
+  const submitAddLocationForm = (event, work) => {
     event.preventDefault();
     if (!addLocationName.trim()) {
       notify("Location name is required.");
       return;
     }
 
-    setIsSavingLocation(true);
-    try {
-      const response = await axios.post(
-        `http://localhost:3001/api/work/${work.id}/location-option`,
-        {
-          title: addLocationTitle.trim() || undefined,
-          locations: [
-            {
-              name: addLocationName.trim(),
-              address: addLocationAddress.trim() || undefined,
-            },
-          ],
-        }
-      );
-
-      setWorkItems((prev) =>
-        prev.map((item) =>
-          item.id === work.id
-            ? {
-                ...item,
-                locationOptions: [
-                  ...(item.locationOptions || []),
-                  response.data,
-                ],
-              }
-            : item
-        )
-      );
-      closeAddLocationForm();
-    } catch (error) {
-      console.error("Failed to add location option", error);
-      notify("Failed to add location option");
-    } finally {
-      setIsSavingLocation(false);
-    }
+    addLocationOptionMutation.mutate({
+      workId: work.id,
+      data: {
+        title: addLocationTitle.trim() || undefined,
+        locations: [
+          {
+            name: addLocationName.trim(),
+            address: addLocationAddress.trim() || undefined,
+          },
+        ],
+      },
+    });
   };
 
-  const handleSelectLocationOption = async (workId, optionId) => {
-    try {
-      const response = await axios.patch(
-        `http://localhost:3001/api/work/${workId}`,
-        {
-          selectedLocationOptionId: optionId,
-        }
-      );
-      const updated = response.data;
-      setWorkItems((prev) =>
-        prev.map((item) =>
-          item.id === workId
-            ? {
-                ...item,
-                selectedLocationOptionId: updated.selectedLocationOptionId,
-              }
-            : item
-        )
-      );
-    } catch (error) {
-      console.error("Failed to select location option", error);
-      notify("Failed to choose location option");
-    }
+  const handleSelectLocationOption = (workId, optionId) => {
+    selectLocationOptionMutation.mutate({ workId, optionId });
   };
 
   useEffect(() => {
