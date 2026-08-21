@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "../../hooks/useNotifications";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
+import {
+  createIntent,
+  deleteIntent,
+  getIntents,
+  updateIntent,
+} from "../../api/intents";
 
 const PRIORITY_ORDER = {
   high: 0,
@@ -84,22 +90,28 @@ function toDateInputValue(dateValue) {
 
 export default function Dashboard() {
   const { notify, confirm } = useNotifications();
-  const [intents, setIntents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    async function fetchIntents() {
-      try {
-        const response = await axios.get("http://localhost:3001/api/intents");
-        setIntents(response.data.map(normalizeIntent));
-      } catch (error) {
-        console.error("Failed to fetch intents", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchIntents();
-  }, []);
+  const { data: intents = [], isLoading: loading } = useQuery({
+    queryKey: ["intents"],
+    queryFn: async () => {
+      const data = await getIntents();
+      return data.map(normalizeIntent);
+    },
+    retry: false,
+  });
+
+  const createIntentMutation = useMutation({ mutationFn: createIntent });
+  const patchIntentMutation = useMutation({
+    mutationFn: ({ intentId, patch }) => updateIntent(intentId, patch),
+  });
+  const bulkStatusMutation = useMutation({
+    mutationFn: ({ ids, status }) =>
+      Promise.allSettled(ids.map((id) => updateIntent(id, { status }))),
+  });
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids) => Promise.allSettled(ids.map((id) => deleteIntent(id))),
+  });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newIntentTitle, setNewIntentTitle] = useState("");
@@ -107,7 +119,7 @@ export default function Dashboard() {
   const [newIntentPriority, setNewIntentPriority] = useState("medium");
   const [newIntentStartDate, setNewIntentStartDate] = useState("");
   const [newIntentDueDate, setNewIntentDueDate] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmitting = createIntentMutation.isPending;
   const [updatingIntentId, setUpdatingIntentId] = useState("");
   const [addAnotherIntent, setAddAnotherIntent] = useState(false);
   const [keepPreviousDetails, setKeepPreviousDetails] = useState(false);
@@ -139,16 +151,18 @@ export default function Dashboard() {
     e.preventDefault();
     if (!newIntentTitle.trim()) return;
 
-    setIsSubmitting(true);
     try {
-      const res = await axios.post("http://localhost:3001/api/intents", {
+      const newIntent = await createIntentMutation.mutateAsync({
         title: newIntentTitle,
         description: newIntentDescription,
         priority: newIntentPriority,
         startDate: newIntentStartDate || null,
         dueDate: newIntentDueDate || null,
       });
-      setIntents((previous) => [normalizeIntent(res.data), ...previous]);
+      queryClient.setQueryData(["intents"], (previous = []) => [
+        normalizeIntent(newIntent),
+        ...previous,
+      ]);
 
       setNewIntentTitle("");
       setNewIntentDescription("");
@@ -166,16 +180,14 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Failed to create intent", error);
       notify("Failed to create intent. Make sure the API is running.");
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   const handlePatchIntent = async (intentId, patch, failureMessage) => {
     setUpdatingIntentId(intentId);
     try {
-      await axios.patch(`http://localhost:3001/api/intents/${intentId}`, patch);
-      setIntents((previous) =>
+      await patchIntentMutation.mutateAsync({ intentId, patch });
+      queryClient.setQueryData(["intents"], (previous = []) =>
         previous.map((intent) =>
           intent.id === intentId
             ? normalizeIntent({ ...intent, ...patch })
@@ -266,18 +278,14 @@ export default function Dashboard() {
     setIsBulkWorking(true);
     const ids = Array.from(selectedIds);
     try {
-      const results = await Promise.allSettled(
-        ids.map((id) =>
-          axios.patch(`http://localhost:3001/api/intents/${id}`, { status })
-        )
-      );
+      const results = await bulkStatusMutation.mutateAsync({ ids, status });
 
       const succeededIds = ids.filter(
         (_, index) => results[index].status === "fulfilled"
       );
       const failedCount = ids.length - succeededIds.length;
 
-      setIntents((previous) =>
+      queryClient.setQueryData(["intents"], (previous = []) =>
         previous.map((intent) =>
           succeededIds.includes(intent.id)
             ? normalizeIntent({ ...intent, status })
@@ -308,16 +316,14 @@ export default function Dashboard() {
     setIsBulkWorking(true);
     const ids = Array.from(selectedIds);
     try {
-      const results = await Promise.allSettled(
-        ids.map((id) => axios.delete(`http://localhost:3001/api/intents/${id}`))
-      );
+      const results = await bulkDeleteMutation.mutateAsync(ids);
 
       const succeededIds = ids.filter(
         (_, index) => results[index].status === "fulfilled"
       );
       const failedCount = ids.length - succeededIds.length;
 
-      setIntents((previous) =>
+      queryClient.setQueryData(["intents"], (previous = []) =>
         previous.filter((intent) => !succeededIds.includes(intent.id))
       );
       setSelectedIds(new Set());
