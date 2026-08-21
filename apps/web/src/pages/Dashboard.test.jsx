@@ -158,3 +158,32 @@ describe("Dashboard — search", () => {
     expect(screen.getByText("Book flights")).toBeInTheDocument();
   });
 });
+
+describe("Dashboard — failed to load intents", () => {
+  it("shows the actual error instead of a misleading empty state", async () => {
+    vi.spyOn(intentsApi, "getIntents").mockRejectedValue(
+      new Error("Network Error")
+    );
+
+    renderWithProviders(<Dashboard />);
+
+    await screen.findByText("Couldn't load your intents.");
+    expect(screen.getByText("Network Error")).toBeInTheDocument();
+    expect(screen.queryByText("You have no active intents.")).toBeNull();
+  });
+
+  it("retries the request when Try again is clicked", async () => {
+    const getIntentsSpy = vi
+      .spyOn(intentsApi, "getIntents")
+      .mockRejectedValueOnce(new Error("Network Error"))
+      .mockResolvedValueOnce([buildIntent()]);
+
+    renderWithProviders(<Dashboard />);
+
+    await screen.findByText("Couldn't load your intents.");
+    fireEvent.click(screen.getByText("Try again"));
+
+    await screen.findByText("Renew passport");
+    expect(getIntentsSpy).toHaveBeenCalledTimes(2);
+  });
+});

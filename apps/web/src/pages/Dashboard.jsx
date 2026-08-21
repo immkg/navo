@@ -21,7 +21,13 @@ import { useDraftIntent } from "../modules/ai/hooks";
 export default function Dashboard() {
   const { notify, confirm } = useNotifications();
 
-  const { data: intents = [], isLoading: loading } = useIntents();
+  const {
+    data: intents = [],
+    isLoading: loading,
+    isError: intentsFailed,
+    error: intentsError,
+    refetch: refetchIntents,
+  } = useIntents();
 
   const createIntentMutation = useCreateIntent();
   const bulkStatusMutation = useBulkUpdateIntentStatus();
@@ -396,7 +402,19 @@ export default function Dashboard() {
         </div>
       )}
 
-      {loading ? (
+      {intentsFailed ? (
+        <div className="rounded-2xl border border-dashed border-danger/40 bg-danger/10 p-6 text-center sm:p-12">
+          <p className="mb-1 font-medium text-danger">
+            Couldn't load your intents.
+          </p>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {intentsError?.message || "The API may be unreachable."}
+          </p>
+          <Button variant="secondary" pill={false} onClick={refetchIntents}>
+            Try again
+          </Button>
+        </div>
+      ) : loading ? (
         <div className="text-center py-12 text-muted-foreground">
           Loading intents...
         </div>
