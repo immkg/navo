@@ -80,9 +80,7 @@ export default function AddIntentPanel({ onOpenDetails }) {
         });
         return;
       }
-      setSplitDrafts(
-        intents.map((intent) => ({ ...intent, included: true }))
-      );
+      setSplitDrafts(intents.map((intent) => ({ ...intent, included: true })));
     } catch (error) {
       console.error("Failed to split intent with AI", error);
       notify(
