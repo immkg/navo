@@ -1,12 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  addLocationToOption,
-  createLocationOption,
   createWorkItem,
-  deleteLocationOption,
   deleteWorkItem,
   getWorkItems,
-  removeLocationFromOption,
   updateWorkItem,
 } from "../../api/work";
 import { intentQueryKey } from "../intents/hooks";
@@ -16,7 +12,7 @@ const INTENT_QUERIES_FILTER = { queryKey: ["intent"] };
 
 // Work items are cached in two places: the flat ["work"] list (used by the
 // Planner) and the nested workItems array inside each ["intent", id] query
-// (used by IntentView). Every mutation below writes through both caches so
+// (used by IntentPage). Every mutation below writes through both caches so
 // editing a work item from either page keeps the other in sync.
 function patchWorkItemInCaches(queryClient, workId, patch) {
   queryClient.setQueryData(WORK_QUERY_KEY, (previous) =>
@@ -100,159 +96,5 @@ export function useDeleteWorkItem() {
   return useMutation({
     mutationFn: (workId) => deleteWorkItem(workId),
     onSuccess: (_data, workId) => removeWorkItemFromCaches(queryClient, workId),
-  });
-}
-
-export function useCreateLocationOption() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ workId, data }) => createLocationOption(workId, data),
-    onSuccess: (createdOption, { workId }) => {
-      queryClient.setQueryData(WORK_QUERY_KEY, (previous) =>
-        previous?.map((item) =>
-          item.id === workId
-            ? {
-                ...item,
-                locationOptions: [
-                  ...(item.locationOptions || []),
-                  createdOption,
-                ],
-              }
-            : item
-        )
-      );
-      queryClient
-        .getQueryCache()
-        .findAll(INTENT_QUERIES_FILTER)
-        .forEach(({ queryKey }) => {
-          queryClient.setQueryData(
-            queryKey,
-            (previous) =>
-              previous && {
-                ...previous,
-                workItems: previous.workItems?.map((item) =>
-                  item.id === workId
-                    ? {
-                        ...item,
-                        locationOptions: [
-                          ...(item.locationOptions || []),
-                          createdOption,
-                        ],
-                      }
-                    : item
-                ),
-              }
-          );
-        });
-    },
-  });
-}
-
-export function useDeleteLocationOption() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ workId, optionId }) =>
-      deleteLocationOption(workId, optionId),
-    onSuccess: ({ selectedLocationOptionId }, { workId, optionId }) => {
-      const removeOption = (item) => ({
-        ...item,
-        locationOptions: (item.locationOptions || []).filter(
-          (option) => option.id !== optionId
-        ),
-        selectedLocationOptionId,
-      });
-      queryClient.setQueryData(WORK_QUERY_KEY, (previous) =>
-        previous?.map((item) =>
-          item.id === workId ? removeOption(item) : item
-        )
-      );
-      queryClient
-        .getQueryCache()
-        .findAll(INTENT_QUERIES_FILTER)
-        .forEach(({ queryKey }) => {
-          queryClient.setQueryData(
-            queryKey,
-            (previous) =>
-              previous && {
-                ...previous,
-                workItems: previous.workItems?.map((item) =>
-                  item.id === workId ? removeOption(item) : item
-                ),
-              }
-          );
-        });
-    },
-  });
-}
-
-export function useAddLocationToOption() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ workId, optionId, data }) =>
-      addLocationToOption(workId, optionId, data),
-    onSuccess: (updatedOption, { workId, optionId }) => {
-      const replaceOption = (item) => ({
-        ...item,
-        locationOptions: (item.locationOptions || []).map((option) =>
-          option.id === optionId ? updatedOption : option
-        ),
-      });
-      queryClient.setQueryData(WORK_QUERY_KEY, (previous) =>
-        previous?.map((item) =>
-          item.id === workId ? replaceOption(item) : item
-        )
-      );
-      queryClient
-        .getQueryCache()
-        .findAll(INTENT_QUERIES_FILTER)
-        .forEach(({ queryKey }) => {
-          queryClient.setQueryData(
-            queryKey,
-            (previous) =>
-              previous && {
-                ...previous,
-                workItems: previous.workItems?.map((item) =>
-                  item.id === workId ? replaceOption(item) : item
-                ),
-              }
-          );
-        });
-    },
-  });
-}
-
-export function useRemoveLocationFromOption() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ workId, optionId, locationId }) =>
-      removeLocationFromOption(workId, optionId, locationId),
-    onSuccess: (updatedOption, { workId, optionId }) => {
-      const replaceOption = (item) => ({
-        ...item,
-        locationOptions: (item.locationOptions || []).map((option) =>
-          option.id === optionId ? updatedOption : option
-        ),
-      });
-      queryClient.setQueryData(WORK_QUERY_KEY, (previous) =>
-        previous?.map((item) =>
-          item.id === workId ? replaceOption(item) : item
-        )
-      );
-      queryClient
-        .getQueryCache()
-        .findAll(INTENT_QUERIES_FILTER)
-        .forEach(({ queryKey }) => {
-          queryClient.setQueryData(
-            queryKey,
-            (previous) =>
-              previous && {
-                ...previous,
-                workItems: previous.workItems?.map((item) =>
-                  item.id === workId ? replaceOption(item) : item
-                ),
-              }
-          );
-        });
-    },
   });
 }

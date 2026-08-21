@@ -9,15 +9,15 @@ import {
 import Button from "../../components/ui/Button";
 import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
-import LocationCard from "../../pages/IntentView/LocationCard";
+import LocationCard from "./LocationCard";
 
-// Presentational + Google Places search UI shared by IntentView's
+// Presentational + Google Places search UI shared by IntentPage's
 // WorkLocationOptionsEditor (persists each change immediately via the API)
-// and IntentWorkForm's location step (accumulates groups locally until the
-// whole work item is created). This component owns none of that persistence
-// decision — it only renders the group list + search/map UI and calls back
-// into the parent for every mutation, so the parent decides how (or whether)
-// to persist it.
+// and modules/work/CreateWorkForm's location step (accumulates groups
+// locally until the whole work item is created). This component owns none
+// of that persistence decision — it only renders the group list + search/
+// map UI and calls back into the parent for every mutation, so the parent
+// decides how (or whether) to persist it.
 export default function LocationOptionGroupsEditor({
   groups,
   selectedGroupIndex,

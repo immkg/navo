@@ -1,29 +1,33 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import IntentWorkForm from "./IntentWorkForm";
-import LocationCard from "./LocationCard";
-import { useNotifications } from "../../hooks/useNotifications";
-import Button from "../../components/ui/Button";
-import Card from "../../components/ui/Card";
-import Badge from "../../components/ui/Badge";
+import CreateWorkForm from "../modules/work/CreateWorkForm";
+import { useNotifications } from "../hooks/useNotifications";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
+import Badge from "../components/ui/Badge";
 import {
   createLocationOption,
   deleteLocationOption,
   addLocationToOption,
   removeLocationFromOption,
-} from "../../api/work";
-import { useIntent, usePatchIntent } from "../../modules/intents/hooks";
-import { BULK_STATUS_OPTIONS, formatDate } from "../../modules/intents/utils";
-import PrioritySelect from "../../modules/intents/PrioritySelect";
+} from "../api/work";
+import { useIntent, usePatchIntent } from "../modules/intents/hooks";
+import { BULK_STATUS_OPTIONS, formatDate } from "../modules/intents/utils";
+import PrioritySelect from "../modules/intents/PrioritySelect";
 import {
   useCreateWorkItem,
   useDeleteWorkItem,
   useUpdateWorkItem,
-} from "../../modules/work/hooks";
-import { WORK_STATUS_OPTIONS } from "../../modules/work/utils";
-import LocationOptionGroupsEditor from "../../modules/work/LocationOptionGroupsEditor";
-import { useSuggestWork } from "../../modules/ai/hooks";
+} from "../modules/work/hooks";
+import { WORK_STATUS_OPTIONS } from "../modules/work/utils";
+import LocationOptionGroupsEditor from "../modules/location/LocationOptionGroupsEditor";
+import LocationCard from "../modules/location/LocationCard";
+import {
+  buildLocationOptionGroupsFromWork,
+  getChosenOption,
+} from "../modules/location/utils";
+import { useSuggestWork } from "../modules/ai/hooks";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
@@ -198,22 +202,6 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
       </div>
     </Card>
   );
-}
-
-function buildLocationOptionGroupsFromWork(work) {
-  return (work?.locationOptions || []).map((option) => ({
-    id: option.id,
-    title: option.title || "",
-    locations: (option.locations || []).map((location) => ({
-      id: location.id,
-      name: location.name,
-      address: location.address,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      placeId: location.placeId,
-      provider: location.provider,
-    })),
-  }));
 }
 
 function WorkLocationOptionsEditor({
@@ -512,7 +500,7 @@ function WorkLocationOptionsEditor({
   );
 }
 
-export default function IntentView() {
+export default function IntentPage() {
   const { notify, confirm } = useNotifications();
   const { id } = useParams();
   const queryClient = useQueryClient();
@@ -680,17 +668,6 @@ export default function IntentView() {
       console.error("Failed to select location option", error);
       notify("Failed to choose location option");
     }
-  };
-
-  const getChosenOption = (work) => {
-    if (!work.locationOptions || work.locationOptions.length === 0) {
-      return null;
-    }
-    return (
-      work.locationOptions.find(
-        (option) => option.id === work.selectedLocationOptionId
-      ) || work.locationOptions[0]
-    );
   };
 
   const deleteWorkMutation = useDeleteWorkItem();
@@ -1155,7 +1132,7 @@ export default function IntentView() {
             </div>
           )}
 
-          <IntentWorkForm intentId={id} />
+          <CreateWorkForm intentId={id} />
         </section>
 
         <Card
