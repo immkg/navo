@@ -20,6 +20,7 @@ import {
   startOfToday,
   toDateInputValue,
 } from "../modules/intents/utils";
+import { useDraftIntent } from "../modules/ai/hooks";
 
 export default function Dashboard() {
   const { notify, confirm } = useNotifications();
@@ -30,6 +31,7 @@ export default function Dashboard() {
   const patchIntentMutation = usePatchIntent();
   const bulkStatusMutation = useBulkUpdateIntentStatus();
   const bulkDeleteMutation = useBulkDeleteIntents();
+  const draftIntentMutation = useDraftIntent();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newIntentTitle, setNewIntentTitle] = useState("");
@@ -62,6 +64,28 @@ export default function Dashboard() {
     setAddAnotherIntent(checked);
     if (!checked) {
       setKeepPreviousDetails(false);
+    }
+  };
+
+  const handleDraftWithAi = async () => {
+    if (!newIntentTitle.trim()) {
+      notify("Enter a title first, then AI can draft the rest.");
+      return;
+    }
+
+    try {
+      const draft = await draftIntentMutation.mutateAsync({
+        title: newIntentTitle,
+        description: newIntentDescription || undefined,
+      });
+      if (draft.description) setNewIntentDescription(draft.description);
+      setNewIntentPriority(draft.priority);
+      if (draft.dueDate) setNewIntentDueDate(draft.dueDate);
+    } catch (error) {
+      console.error("Failed to draft intent with AI", error);
+      notify(
+        error.response?.data?.error || "Failed to draft intent right now."
+      );
     }
   };
 
@@ -685,9 +709,24 @@ export default function Dashboard() {
       >
         <form id="create-intent-form" onSubmit={handleCreateIntent}>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-foreground mb-1">
-              What is your intent?
-            </label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="block text-sm font-medium text-foreground">
+                What is your intent?
+              </label>
+              <Button
+                type="button"
+                variant="accent-outline"
+                size="sm"
+                onClick={handleDraftWithAi}
+                disabled={
+                  draftIntentMutation.isPending || !newIntentTitle.trim()
+                }
+              >
+                {draftIntentMutation.isPending
+                  ? "Drafting…"
+                  : "✨ Draft with AI"}
+              </Button>
+            </div>
             <input
               ref={titleInputRef}
               type="text"

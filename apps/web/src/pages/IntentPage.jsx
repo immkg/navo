@@ -468,6 +468,8 @@ function WorkLocationOptionsEditor({
         onAddLocationToGroup={handleAddLocationToGroup}
         onRemoveLocationFromGroup={handleRemoveLocationFromGroup}
         disabled={isSaving}
+        workTitle={work?.title}
+        workNotes={work?.notes}
       />
 
       {locationOptionGroups.length > 0 && (

@@ -283,6 +283,8 @@ export default function CreateWorkForm({ intentId }) {
               onAddLocationToGroup={handleAddLocationToGroup}
               onRemoveLocationFromGroup={handleRemoveLocationFromGroup}
               addGroupLabel="+ Add Group"
+              workTitle={newWorkTitle}
+              workNotes={newWorkNotes}
             />
           </div>
         )}
