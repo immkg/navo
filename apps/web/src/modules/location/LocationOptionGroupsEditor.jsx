@@ -11,6 +11,7 @@ import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
 import LocationCard from "./LocationCard";
 import { useCurrentLocation } from "./hooks";
+import { useSuggestPlaceTypes } from "../ai/hooks";
 
 // Presentational + Google Places search UI shared by IntentPage's
 // WorkLocationOptionsEditor (persists each change immediately via the API)
@@ -30,6 +31,8 @@ export default function LocationOptionGroupsEditor({
   onRemoveLocationFromGroup,
   disabled = false,
   addGroupLabel = "+ Add group",
+  workTitle,
+  workNotes,
 }) {
   const [placeQuery, setPlaceQuery] = useState("");
   const [autocompleteResults, setAutocompleteResults] = useState([]);
@@ -38,6 +41,8 @@ export default function LocationOptionGroupsEditor({
   const [droppedPinPlace, setDroppedPinPlace] = useState(null);
   const [searchError, setSearchError] = useState(null);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
+  const [placeTypeSuggestions, setPlaceTypeSuggestions] = useState([]);
+  const suggestPlaceTypesMutation = useSuggestPlaceTypes();
   const [mapReady, setMapReady] = useState(false);
   const [showManualPlaceForm, setShowManualPlaceForm] = useState(false);
   const [manualPlaceName, setManualPlaceName] = useState("");
@@ -81,13 +86,15 @@ export default function LocationOptionGroupsEditor({
     }
   };
 
-  const handleSearchPlaces = async () => {
+  const handleSearchPlaces = async (queryOverride) => {
+    const query = (queryOverride ?? placeQuery).trim();
+
     if (!googleKey) {
       setSearchError("Google Maps API key is not configured.");
       return;
     }
 
-    if (!placeQuery.trim()) {
+    if (!query) {
       setSearchError("Enter a place name or address to search.");
       return;
     }
@@ -98,11 +105,7 @@ export default function LocationOptionGroupsEditor({
     setDroppedPinPlace(null);
 
     try {
-      const results = await searchPlaces(
-        placeQuery.trim(),
-        googleKey,
-        nearLocation
-      );
+      const results = await searchPlaces(query, googleKey, nearLocation);
       setPlaceResults(results);
       if (results.length > 0) {
         setSelectedPreviewPlace(results[0]);
@@ -115,6 +118,30 @@ export default function LocationOptionGroupsEditor({
     } finally {
       setIsSearchingPlaces(false);
     }
+  };
+
+  const handleSuggestPlaceTypes = async () => {
+    if (!workTitle?.trim()) return;
+
+    try {
+      const data = await suggestPlaceTypesMutation.mutateAsync({
+        title: workTitle,
+        notes: workNotes || undefined,
+      });
+      setPlaceTypeSuggestions(data?.suggestions || []);
+    } catch (error) {
+      console.error("Failed to suggest place types", error);
+      setSearchError(
+        error.response?.data?.error ||
+          "Failed to suggest place types right now."
+      );
+    }
+  };
+
+  const handleUsePlaceTypeSuggestion = (term) => {
+    setPlaceQuery(term);
+    setPlaceTypeSuggestions([]);
+    handleSearchPlaces(term);
   };
 
   const handleAddLocationToGroup = (groupIndex, place) => {
@@ -411,7 +438,7 @@ export default function LocationOptionGroupsEditor({
             <Button
               variant="primary"
               pill={false}
-              onClick={handleSearchPlaces}
+              onClick={() => handleSearchPlaces()}
               disabled={isSearchingPlaces}
               className="px-4 py-3 text-xs"
             >
@@ -422,6 +449,35 @@ export default function LocationOptionGroupsEditor({
           {nearLocation && (
             <div className="text-xs text-muted-foreground">
               📍 Showing results near your current location first
+            </div>
+          )}
+
+          {workTitle?.trim() && (
+            <div>
+              <button
+                type="button"
+                onClick={handleSuggestPlaceTypes}
+                disabled={suggestPlaceTypesMutation.isPending}
+                className="min-h-9 text-xs font-semibold text-accent hover:underline disabled:opacity-60"
+              >
+                {suggestPlaceTypesMutation.isPending
+                  ? "Thinking…"
+                  : "✨ Suggest place types"}
+              </button>
+              {placeTypeSuggestions.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {placeTypeSuggestions.map((term) => (
+                    <button
+                      key={term}
+                      type="button"
+                      onClick={() => handleUsePlaceTypeSuggestion(term)}
+                      className="rounded-full border border-accent/30 bg-accent/10 min-h-8 px-3 py-1 text-xs font-semibold text-accent transition hover:bg-accent/20"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

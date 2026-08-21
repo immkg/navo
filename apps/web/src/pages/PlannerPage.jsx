@@ -7,6 +7,7 @@ import { useNotifications } from "../hooks/useNotifications";
 import { useWorkItems, useUpdateWorkItem } from "../modules/work/hooks";
 import { useCreateLocationOption } from "../modules/location/hooks";
 import { getChosenOption } from "../modules/location/utils";
+import { useOptimizeRoute } from "../modules/ai/hooks";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
@@ -80,6 +81,24 @@ function orderStopsByDistance(stops, startPoint) {
   return ordered;
 }
 
+// Reorders stops to match an AI-suggested sequence of location ids. Returns
+// null (meaning "fall back to distance ordering") whenever the suggested
+// order doesn't cover exactly the current set of stops — e.g. the work
+// items changed since the suggestion was made.
+function applyAiStopOrder(stops, orderedLocationIds) {
+  if (!orderedLocationIds || orderedLocationIds.length !== stops.length) {
+    return null;
+  }
+
+  const stopsById = new Map(stops.map((stop) => [stop.location.id, stop]));
+  const reordered = orderedLocationIds.map((id) => stopsById.get(id));
+  if (reordered.some((stop) => !stop)) {
+    return null;
+  }
+
+  return reordered;
+}
+
 function buildStaticMapUrl(stops, startPoint, apiKey) {
   if (!apiKey || stops.length === 0) return null;
 
@@ -133,6 +152,10 @@ export default function PlannerPage() {
   const isSavingLocation = addLocationOptionMutation.isPending;
 
   const selectLocationOptionMutation = useUpdateWorkItem();
+
+  const [aiStopOrder, setAiStopOrder] = useState(null);
+  const [aiReasoning, setAiReasoning] = useState(null);
+  const optimizeRouteMutation = useOptimizeRoute();
 
   const openAddLocationForm = (work) => {
     setAddLocationFormWorkId(work.id);
@@ -258,10 +281,48 @@ export default function PlannerPage() {
     return Array.from(map.values());
   }, [locatedWork]);
 
-  const orderedStops = useMemo(
-    () => orderStopsByDistance(routeStops, currentLocation),
-    [routeStops, currentLocation]
+  const aiOrderedStops = useMemo(
+    () => applyAiStopOrder(routeStops, aiStopOrder),
+    [routeStops, aiStopOrder]
   );
+  const isUsingAiOrder = Boolean(aiOrderedStops);
+  const orderedStops = useMemo(
+    () => aiOrderedStops || orderStopsByDistance(routeStops, currentLocation),
+    [aiOrderedStops, routeStops, currentLocation]
+  );
+
+  const handleOptimizeRoute = async () => {
+    try {
+      const data = await optimizeRouteMutation.mutateAsync({
+        startPoint:
+          currentLocation?.latitude != null &&
+          currentLocation?.longitude != null
+            ? {
+                latitude: currentLocation.latitude,
+                longitude: currentLocation.longitude,
+              }
+            : null,
+        stops: routeStops.map((stop) => ({
+          id: stop.location.id,
+          title: stop.location.name,
+          latitude: stop.location.latitude,
+          longitude: stop.location.longitude,
+        })),
+      });
+      setAiStopOrder(data.order);
+      setAiReasoning(data.reasoning);
+    } catch (error) {
+      console.error("Failed to optimize route", error);
+      notify(
+        error.response?.data?.error || "Failed to optimize route right now."
+      );
+    }
+  };
+
+  const resetToDistanceOrder = () => {
+    setAiStopOrder(null);
+    setAiReasoning(null);
+  };
 
   const routeMinutes = useMemo(() => {
     if (orderedStops.length === 0) return 0;
@@ -628,6 +689,38 @@ export default function PlannerPage() {
                 </div>
               </div>
             </div>
+
+            {orderedStops.length > 1 && (
+              <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-accent/20 bg-accent/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <button
+                    type="button"
+                    onClick={handleOptimizeRoute}
+                    disabled={optimizeRouteMutation.isPending}
+                    className="min-h-9 text-sm font-semibold text-accent hover:underline disabled:opacity-60"
+                  >
+                    {optimizeRouteMutation.isPending
+                      ? "Thinking…"
+                      : "✨ AI-optimize route"}
+                  </button>
+                  {isUsingAiOrder && aiReasoning && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {aiReasoning}
+                    </p>
+                  )}
+                </div>
+                {isUsingAiOrder && (
+                  <button
+                    type="button"
+                    onClick={resetToDistanceOrder}
+                    className="min-h-9 shrink-0 text-xs font-semibold text-muted-foreground hover:underline"
+                  >
+                    Reset to nearest-first
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="mt-4 grid gap-4">
               {orderedStops.length === 0 ? (
                 <div className="rounded-3xl bg-surface-alt p-6 text-muted-foreground">
