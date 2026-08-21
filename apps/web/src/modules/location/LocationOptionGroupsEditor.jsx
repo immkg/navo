@@ -13,13 +13,15 @@ import LocationCard from "./LocationCard";
 import { useCurrentLocation } from "./hooks";
 import { useSuggestPlaceTypes } from "../ai/hooks";
 
-// Presentational + Google Places search UI shared by IntentPage's
-// WorkLocationOptionsEditor (persists each change immediately via the API)
-// and modules/work/CreateWorkForm's location step (accumulates groups
-// locally until the whole work item is created). This component owns none
-// of that persistence decision — it only renders the group list + search/
-// map UI and calls back into the parent for every mutation, so the parent
-// decides how (or whether) to persist it.
+// Presentational + Google Places search UI used by WorkFormModal for both
+// its modes: editing an existing work item persists each change immediately
+// via the API, while creating a new one accumulates groups locally until
+// the whole work item is saved. This component owns none of that
+// persistence decision — it only renders the group list + search/map UI and
+// calls back into the parent for every mutation, so the parent decides how
+// (or whether) to persist it. `hideGroupManagement` collapses the UI to a
+// single implicit group (the common case: one plan, add as many places as
+// needed) until the parent explicitly adds a second, alternate group.
 export default function LocationOptionGroupsEditor({
   groups,
   selectedGroupIndex,
@@ -31,6 +33,7 @@ export default function LocationOptionGroupsEditor({
   onRemoveLocationFromGroup,
   disabled = false,
   addGroupLabel = "+ Add group",
+  hideGroupManagement = false,
   workTitle,
   workNotes,
 }) {
@@ -42,6 +45,7 @@ export default function LocationOptionGroupsEditor({
   const [searchError, setSearchError] = useState(null);
   const [isSearchingPlaces, setIsSearchingPlaces] = useState(false);
   const [placeTypeSuggestions, setPlaceTypeSuggestions] = useState([]);
+  const [placeNameSuggestions, setPlaceNameSuggestions] = useState([]);
   const suggestPlaceTypesMutation = useSuggestPlaceTypes();
   const [mapReady, setMapReady] = useState(false);
   const [showManualPlaceForm, setShowManualPlaceForm] = useState(false);
@@ -55,12 +59,16 @@ export default function LocationOptionGroupsEditor({
   const showPlaceSearchPanel = groups.length > 0;
   const currentLocation = useCurrentLocation();
   const nearLocation =
-    currentLocation.status === "success"
+    currentLocation.status === "success" || currentLocation.status === "manual"
       ? {
           latitude: currentLocation.latitude,
           longitude: currentLocation.longitude,
         }
       : null;
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [locationPickerQuery, setLocationPickerQuery] = useState("");
+  const [locationPickerResults, setLocationPickerResults] = useState([]);
+  const [isPickingLocation, setIsPickingLocation] = useState(false);
 
   const handleAutocomplete = async (query) => {
     setSearchError(null);
@@ -128,7 +136,8 @@ export default function LocationOptionGroupsEditor({
         title: workTitle,
         notes: workNotes || undefined,
       });
-      setPlaceTypeSuggestions(data?.suggestions || []);
+      setPlaceTypeSuggestions(data?.types || []);
+      setPlaceNameSuggestions(data?.names || []);
     } catch (error) {
       console.error("Failed to suggest place types", error);
       setSearchError(
@@ -143,6 +152,51 @@ export default function LocationOptionGroupsEditor({
     setPlaceTypeSuggestions([]);
     handleSearchPlaces(term);
   };
+
+  const handleSearchLocationPicker = async (event) => {
+    event.preventDefault();
+    const query = locationPickerQuery.trim();
+    if (!query || !googleKey) return;
+
+    setIsPickingLocation(true);
+    try {
+      const results = await searchPlaces(query, googleKey, null);
+      setLocationPickerResults(results);
+    } catch (error) {
+      console.error("Failed to search for a location", error);
+      setLocationPickerResults([]);
+    } finally {
+      setIsPickingLocation(false);
+    }
+  };
+
+  const handleUseLocationPickerResult = (place) => {
+    currentLocation.setManualLocation({
+      latitude: place.latitude,
+      longitude: place.longitude,
+      label: place.name,
+    });
+    setShowLocationPicker(false);
+    setLocationPickerQuery("");
+    setLocationPickerResults([]);
+  };
+
+  const hasAutoSuggestedRef = useRef(false);
+  useEffect(() => {
+    if (hasAutoSuggestedRef.current) return;
+    if (!workTitle?.trim()) return;
+    hasAutoSuggestedRef.current = true;
+    // Deferred a tick so the mutation's setState doesn't fire synchronously
+    // within this effect's own commit.
+    const timeoutId = setTimeout(() => {
+      handleSuggestPlaceTypes();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+    // handleSuggestPlaceTypes intentionally omitted: it's stable enough for
+    // this one-shot, run-once-per-mount fetch and re-including it would just
+    // re-trigger on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workTitle]);
 
   const handleAddLocationToGroup = (groupIndex, place) => {
     const group = groups[groupIndex];
@@ -405,6 +459,14 @@ export default function LocationOptionGroupsEditor({
     updateMarkers();
   }, [placeResults, selectedPreviewPlace, droppedPinPlace, mapReady]);
 
+  const showGroupChrome = groups.length > 1 || !hideGroupManagement;
+  const addGroupButtonLabel =
+    groups.length === 0
+      ? "Edit Locations"
+      : hideGroupManagement && groups.length === 1
+        ? "+ Add alternate option"
+        : addGroupLabel;
+
   return (
     <>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -413,7 +475,7 @@ export default function LocationOptionGroupsEditor({
           onClick={onAddGroup}
           className="rounded-full border border-primary/30 bg-surface min-h-9 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
         >
-          {groups.length === 0 ? "Edit Locations" : addGroupLabel}
+          {addGroupButtonLabel}
         </button>
       </div>
 
@@ -446,9 +508,79 @@ export default function LocationOptionGroupsEditor({
             </Button>
           </div>
 
-          {nearLocation && (
-            <div className="text-xs text-muted-foreground">
-              📍 Showing results near your current location first
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {currentLocation.status === "success" && (
+              <span>📍 Showing results near your current location</span>
+            )}
+            {currentLocation.status === "manual" && (
+              <span>
+                📍 Showing results near{" "}
+                {currentLocation.label || "your set location"}
+              </span>
+            )}
+            {currentLocation.status === "denied" && (
+              <span>Location access denied — searching everywhere.</span>
+            )}
+            {currentLocation.status === "unsupported" && (
+              <span>Searching everywhere.</span>
+            )}
+            {currentLocation.status === "denied" && (
+              <button
+                type="button"
+                onClick={currentLocation.requestLocation}
+                className="font-semibold text-primary hover:underline"
+              >
+                Try detecting again
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowLocationPicker((prev) => !prev)}
+              className="font-semibold text-primary hover:underline"
+            >
+              {currentLocation.status === "manual"
+                ? "Change"
+                : "Set a location"}
+            </button>
+          </div>
+
+          {showLocationPicker && (
+            <div className="space-y-2 rounded-2xl border border-border bg-surface-alt p-3">
+              <form
+                onSubmit={handleSearchLocationPicker}
+                className="flex gap-2"
+              >
+                <input
+                  value={locationPickerQuery}
+                  onChange={(e) => setLocationPickerQuery(e.target.value)}
+                  placeholder="Search a city or address"
+                  autoFocus
+                  className="block w-full min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={isPickingLocation || !locationPickerQuery.trim()}
+                >
+                  {isPickingLocation ? "Searching…" : "Search"}
+                </Button>
+              </form>
+              {locationPickerResults.map((place) => (
+                <button
+                  key={place.placeId}
+                  type="button"
+                  onClick={() => handleUseLocationPickerResult(place)}
+                  className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-left text-sm text-foreground transition hover:bg-surface-alt"
+                >
+                  <div className="font-medium">{place.name}</div>
+                  {place.formattedAddress && (
+                    <div className="text-xs text-muted-foreground">
+                      {place.formattedAddress}
+                    </div>
+                  )}
+                </button>
+              ))}
             </div>
           )}
 
@@ -461,21 +593,48 @@ export default function LocationOptionGroupsEditor({
                 className="min-h-9 text-xs font-semibold text-accent hover:underline disabled:opacity-60"
               >
                 {suggestPlaceTypesMutation.isPending
-                  ? "Thinking…"
-                  : "✨ Suggest place types"}
+                  ? "✨ Thinking…"
+                  : placeTypeSuggestions.length > 0 ||
+                      placeNameSuggestions.length > 0
+                    ? "✨ Refresh suggestions"
+                    : "✨ Suggest places"}
               </button>
+              {placeNameSuggestions.length > 0 && (
+                <div className="mt-2">
+                  <div className="mb-1 text-xs text-muted-foreground">
+                    Specific places to try
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {placeNameSuggestions.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => handleUsePlaceTypeSuggestion(term)}
+                        className="rounded-full border border-accent/30 bg-accent/10 min-h-8 px-3 py-1 text-xs font-semibold text-accent transition hover:bg-accent/20"
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {placeTypeSuggestions.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {placeTypeSuggestions.map((term) => (
-                    <button
-                      key={term}
-                      type="button"
-                      onClick={() => handleUsePlaceTypeSuggestion(term)}
-                      className="rounded-full border border-accent/30 bg-accent/10 min-h-8 px-3 py-1 text-xs font-semibold text-accent transition hover:bg-accent/20"
-                    >
-                      {term}
-                    </button>
-                  ))}
+                <div className="mt-2">
+                  <div className="mb-1 text-xs text-muted-foreground">
+                    Categories to search
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {placeTypeSuggestions.map((term) => (
+                      <button
+                        key={term}
+                        type="button"
+                        onClick={() => handleUsePlaceTypeSuggestion(term)}
+                        className="rounded-full border border-border bg-surface-alt min-h-8 px-3 py-1 text-xs font-semibold text-foreground transition hover:bg-border"
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -589,61 +748,75 @@ export default function LocationOptionGroupsEditor({
           )}
 
           {placeResults.length > 0 && (
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.95fr)]">
-              <div className="space-y-2">
-                <Card padding="sm">
-                  <div className="mb-2 flex items-center justify-between">
-                    <div className="text-sm font-semibold text-foreground">
-                      Places
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {placeResults.length} results
-                    </div>
+            // Stacked, not side-by-side: this editor only ever renders
+            // inside a modal now, which isn't wide enough for a results
+            // list and a map to share a row without both becoming
+            // unreadable.
+            <div className="space-y-4">
+              <Card padding="sm">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="text-sm font-semibold text-foreground">
+                    Places
                   </div>
-                  <div className="space-y-2">
-                    {placeResults.map((place, resultIndex) => (
-                      <div
-                        key={resultIndex}
-                        className={`rounded-2xl border p-3 ${selectedPreviewPlace?.placeId === place.placeId ? "border-primary bg-primary/10" : "border-border bg-surface-alt"}`}
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                          <div className="min-w-0">
-                            <div className="truncate font-medium text-foreground">
-                              {place.name}
+                  <div className="text-xs text-muted-foreground">
+                    {placeResults.length} results
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {placeResults.map((place, resultIndex) => (
+                    <div
+                      key={resultIndex}
+                      className={`rounded-2xl border p-3 ${selectedPreviewPlace?.placeId === place.placeId ? "border-primary bg-primary/10" : "border-border bg-surface-alt"}`}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium text-foreground">
+                            {place.name}
+                          </div>
+                          {place.formattedAddress && (
+                            <div className="text-sm text-muted-foreground">
+                              {place.formattedAddress}
                             </div>
-                            {place.formattedAddress && (
-                              <div className="truncate text-sm text-muted-foreground">
-                                {place.formattedAddress}
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex flex-col gap-2 sm:flex-row">
-                            <button
-                              type="button"
-                              onClick={() => previewPlaceInMap(place)}
-                              className="rounded-full border border-primary/30 bg-surface min-h-9 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
-                            >
-                              Preview
-                            </button>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() =>
-                                handleAddLocationToGroup(
-                                  selectedGroupIndex,
-                                  place
-                                )
-                              }
-                            >
-                              Add
-                            </Button>
-                          </div>
+                          )}
+                          {place.openingHours && (
+                            <details className="mt-1.5">
+                              <summary className="cursor-pointer text-xs font-semibold text-primary">
+                                Hours
+                              </summary>
+                              <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                                {place.openingHours.map((line) => (
+                                  <li key={line}>{line}</li>
+                                ))}
+                              </ul>
+                            </details>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() => previewPlaceInMap(place)}
+                            className="rounded-full border border-primary/30 bg-surface min-h-9 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                          >
+                            Preview
+                          </button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() =>
+                              handleAddLocationToGroup(
+                                selectedGroupIndex,
+                                place
+                              )
+                            }
+                          >
+                            Add
+                          </Button>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </Card>
-              </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
 
               <Card padding="sm">
                 <div className="mb-2 text-sm font-semibold text-foreground">
@@ -680,89 +853,115 @@ export default function LocationOptionGroupsEditor({
           )}
 
           <div className="space-y-4">
-            {groups.map((group, index) => (
-              <div
-                key={index}
-                className={`rounded-3xl border p-4 ${selectedGroupIndex === index ? "border-primary bg-primary/10" : "border-border bg-surface"}`}
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <input
-                        value={group.title}
-                        readOnly={Boolean(group.id)}
-                        onChange={(e) => {
-                          if (group.id) return;
-                          onRenameGroup(index, e.target.value);
-                        }}
-                        placeholder={
-                          group.id
-                            ? "Existing group"
-                            : "Option title (optional)"
+            {!showGroupChrome && groups[0]?.locations.length > 0 && (
+              <div className="space-y-2">
+                {groups[0].locations.map((location, locationIndex) => (
+                  <LocationCard
+                    key={
+                      location.id ||
+                      `${location.placeId || location.name}-${locationIndex}`
+                    }
+                    location={location}
+                    actions={
+                      <Button
+                        variant="danger-outline"
+                        size="sm"
+                        onClick={() =>
+                          onRemoveLocationFromGroup(0, locationIndex)
                         }
-                        className="w-full max-w-[260px] rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary disabled:bg-surface-alt"
-                      />
-                      <Badge
-                        tone="neutral"
-                        className="normal-case tracking-normal"
+                        disabled={disabled}
                       >
-                        {group.locations.length} place
-                        {group.locations.length === 1 ? "" : "s"}
-                      </Badge>
-                    </div>
-                    {group.locations.length > 0 && (
-                      <div className="mt-2 text-sm text-muted-foreground">
-                        {group.locations.length === 1
-                          ? "1 place added"
-                          : `${group.locations.length} places added`}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onSelectGroup(index)}
-                    className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${selectedGroupIndex === index ? "border border-primary bg-primary text-primary-foreground" : "border border-border bg-surface text-foreground hover:bg-surface-alt"}`}
-                  >
-                    {selectedGroupIndex === index ? "Selected" : "Select"}
-                  </button>
-                </div>
-                <div className="mt-3">
-                  <Button
-                    variant="danger-outline"
-                    size="sm"
-                    onClick={() => onRemoveGroup(index)}
-                    disabled={disabled}
-                  >
-                    Remove group
-                  </Button>
-                </div>
-                {group.locations.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {group.locations.map((location, locationIndex) => (
-                      <LocationCard
-                        key={
-                          location.id ||
-                          `${location.placeId || location.name}-${locationIndex}`
-                        }
-                        location={location}
-                        actions={
-                          <Button
-                            variant="danger-outline"
-                            size="sm"
-                            onClick={() =>
-                              onRemoveLocationFromGroup(index, locationIndex)
-                            }
-                            disabled={disabled}
-                          >
-                            Remove place
-                          </Button>
-                        }
-                      />
-                    ))}
-                  </div>
-                )}
+                        Remove place
+                      </Button>
+                    }
+                  />
+                ))}
               </div>
-            ))}
+            )}
+            {showGroupChrome &&
+              groups.map((group, index) => (
+                <div
+                  key={index}
+                  className={`rounded-3xl border p-4 ${selectedGroupIndex === index ? "border-primary bg-primary/10" : "border-border bg-surface"}`}
+                >
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <input
+                          value={group.title}
+                          readOnly={Boolean(group.id)}
+                          onChange={(e) => {
+                            if (group.id) return;
+                            onRenameGroup(index, e.target.value);
+                          }}
+                          placeholder={
+                            group.id
+                              ? "Existing group"
+                              : "Option title (optional)"
+                          }
+                          className="w-full max-w-[260px] rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary disabled:bg-surface-alt"
+                        />
+                        <Badge
+                          tone="neutral"
+                          className="normal-case tracking-normal"
+                        >
+                          {group.locations.length} place
+                          {group.locations.length === 1 ? "" : "s"}
+                        </Badge>
+                      </div>
+                      {group.locations.length > 0 && (
+                        <div className="mt-2 text-sm text-muted-foreground">
+                          {group.locations.length === 1
+                            ? "1 place added"
+                            : `${group.locations.length} places added`}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onSelectGroup(index)}
+                      className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${selectedGroupIndex === index ? "border border-primary bg-primary text-primary-foreground" : "border border-border bg-surface text-foreground hover:bg-surface-alt"}`}
+                    >
+                      {selectedGroupIndex === index ? "Selected" : "Select"}
+                    </button>
+                  </div>
+                  <div className="mt-3">
+                    <Button
+                      variant="danger-outline"
+                      size="sm"
+                      onClick={() => onRemoveGroup(index)}
+                      disabled={disabled}
+                    >
+                      Remove group
+                    </Button>
+                  </div>
+                  {group.locations.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {group.locations.map((location, locationIndex) => (
+                        <LocationCard
+                          key={
+                            location.id ||
+                            `${location.placeId || location.name}-${locationIndex}`
+                          }
+                          location={location}
+                          actions={
+                            <Button
+                              variant="danger-outline"
+                              size="sm"
+                              onClick={() =>
+                                onRemoveLocationFromGroup(index, locationIndex)
+                              }
+                              disabled={disabled}
+                            >
+                              Remove place
+                            </Button>
+                          }
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
           </div>
         </div>
       )}

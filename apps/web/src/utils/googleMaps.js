@@ -11,6 +11,15 @@ export function loadGoogleMaps(apiKey) {
     );
   }
 
+  // "Ready" means both the core maps library (Map) and the places library
+  // are hydrated — checking Map alone is not enough: importLibrary("maps")
+  // and importLibrary("places") are awaited sequentially below, so a
+  // concurrent caller (e.g. autocomplete firing on every keystroke) could
+  // otherwise see Map already available and return before places finishes,
+  // leaving maps.places undefined for that caller.
+  const isMapsReady = (maps) =>
+    typeof maps?.Map === "function" && Boolean(maps?.places);
+
   const ensureMapsReady = async () => {
     const waitForReady = async () => {
       for (let attempt = 0; attempt < 40; attempt += 1) {
@@ -20,17 +29,14 @@ export function loadGoogleMaps(apiKey) {
           continue;
         }
 
-        if (typeof maps.Map === "function") {
+        if (isMapsReady(maps)) {
           return maps;
         }
 
         if (maps.importLibrary) {
-          const mapsLib = await maps.importLibrary("maps");
+          await maps.importLibrary("maps");
           await maps.importLibrary("places");
-          if (
-            typeof mapsLib?.Map === "function" ||
-            typeof maps.Map === "function"
-          ) {
+          if (isMapsReady(maps)) {
             return maps;
           }
         }
@@ -185,6 +191,7 @@ export function searchPlaces(query, apiKey, nearLocation) {
               latitude: result.geometry?.location?.lat(),
               longitude: result.geometry?.location?.lng(),
               placeId: result.place_id,
+              openingHours: result.opening_hours?.weekday_text || null,
             }))
           );
         } else {
@@ -199,7 +206,13 @@ export function searchPlaces(query, apiKey, nearLocation) {
       service.findPlaceFromQuery(
         {
           query,
-          fields: ["name", "formatted_address", "geometry", "place_id"],
+          fields: [
+            "name",
+            "formatted_address",
+            "geometry",
+            "place_id",
+            "opening_hours",
+          ],
           ...(locationBias ? { locationBias } : {}),
         },
         finish
@@ -283,35 +296,29 @@ export function getPlaceDetails(placeId, apiKey) {
             latitude: result.geometry?.location?.lat(),
             longitude: result.geometry?.location?.lng(),
             placeId: result.place_id,
+            openingHours: result.opening_hours?.weekday_text || null,
           });
         } else {
           reject(new Error(status || "Place details failed"));
         }
       };
 
-      if (maps.places.Place) {
-        const service = new maps.places.PlacesService(
-          document.createElement("div")
-        );
-        service.getDetails(
-          {
-            placeId,
-            fields: ["name", "formatted_address", "geometry", "place_id"],
-          },
-          finish
-        );
-      } else {
-        const service = new maps.places.PlacesService(
-          document.createElement("div")
-        );
-        service.getDetails(
-          {
-            placeId,
-            fields: ["name", "formatted_address", "geometry", "place_id"],
-          },
-          finish
-        );
-      }
+      const service = new maps.places.PlacesService(
+        document.createElement("div")
+      );
+      service.getDetails(
+        {
+          placeId,
+          fields: [
+            "name",
+            "formatted_address",
+            "geometry",
+            "place_id",
+            "opening_hours",
+          ],
+        },
+        finish
+      );
     });
   });
 }

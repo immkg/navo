@@ -264,7 +264,9 @@ test("POST /api/ai/suggest-place-types includes notes in the prompt when given",
   const restoreFetch = mockFetchOnce(async () => ({
     ok: true,
     json: async () => ({
-      choices: [{ message: { content: JSON.stringify({ suggestions: [] }) } }],
+      choices: [
+        { message: { content: JSON.stringify({ types: [], names: [] }) } },
+      ],
     }),
   }));
 
@@ -274,13 +276,13 @@ test("POST /api/ai/suggest-place-types includes notes in the prompt when given",
       .send({ title: "Pick up prescription", notes: "Ask for generic" });
 
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.body.suggestions, []);
+    assert.deepEqual(response.body, { types: [], names: [] });
   } finally {
     restoreFetch();
   }
 });
 
-test("POST /api/ai/suggest-place-types returns sanitized suggestions on success", async () => {
+test("POST /api/ai/suggest-place-types returns sanitized types and names on success", async () => {
   const restoreFetch = mockFetchOnce(async () => ({
     ok: true,
     json: async () => ({
@@ -288,7 +290,8 @@ test("POST /api/ai/suggest-place-types returns sanitized suggestions on success"
         {
           message: {
             content: JSON.stringify({
-              suggestions: ["pharmacy", "drugstore", 42, "  "],
+              types: ["pharmacy", "drugstore", 42, "  "],
+              names: ["CVS", "Walgreens", "Rite Aid", "Duane Reade"],
             }),
           },
         },
@@ -302,7 +305,8 @@ test("POST /api/ai/suggest-place-types returns sanitized suggestions on success"
       .send({ title: "Pick up prescription" });
 
     assert.equal(response.statusCode, 200);
-    assert.deepEqual(response.body.suggestions, ["pharmacy", "drugstore"]);
+    assert.deepEqual(response.body.types, ["pharmacy", "drugstore"]);
+    assert.deepEqual(response.body.names, ["CVS", "Walgreens", "Rite Aid"]);
   } finally {
     restoreFetch();
   }

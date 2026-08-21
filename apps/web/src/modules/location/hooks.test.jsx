@@ -147,6 +147,7 @@ describe("useAddLocationToOption / useRemoveLocationFromOption", () => {
 describe("useCurrentLocation", () => {
   afterEach(() => {
     delete navigator.geolocation;
+    sessionStorage.clear();
   });
 
   it("reports unsupported when the browser has no geolocation API", () => {
@@ -178,5 +179,63 @@ describe("useCurrentLocation", () => {
     const { result } = renderHook(() => useCurrentLocation());
 
     await waitFor(() => expect(result.current.status).toBe("denied"));
+  });
+
+  it("lets the caller set a manual location, remembered for the session", () => {
+    delete navigator.geolocation;
+    const { result } = renderHook(() => useCurrentLocation());
+
+    act(() => {
+      result.current.setManualLocation({
+        latitude: 1,
+        longitude: 2,
+        label: "Downtown",
+      });
+    });
+
+    expect(result.current.status).toBe("manual");
+    expect(result.current.latitude).toBe(1);
+    expect(result.current.longitude).toBe(2);
+    expect(result.current.label).toBe("Downtown");
+    expect(
+      JSON.parse(sessionStorage.getItem("navo:searchNearLocation"))
+    ).toEqual({
+      latitude: 1,
+      longitude: 2,
+      label: "Downtown",
+    });
+  });
+
+  it("starts from a manual location already stored this session", () => {
+    sessionStorage.setItem(
+      "navo:searchNearLocation",
+      JSON.stringify({ latitude: 3, longitude: 4, label: "Airport" })
+    );
+
+    const { result } = renderHook(() => useCurrentLocation());
+
+    expect(result.current.status).toBe("manual");
+    expect(result.current.label).toBe("Airport");
+  });
+
+  it("re-requests geolocation and clears the stored manual location", async () => {
+    sessionStorage.setItem(
+      "navo:searchNearLocation",
+      JSON.stringify({ latitude: 3, longitude: 4, label: "Airport" })
+    );
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 9, longitude: 9 } }),
+    };
+
+    const { result } = renderHook(() => useCurrentLocation());
+    expect(result.current.status).toBe("manual");
+
+    act(() => {
+      result.current.requestLocation();
+    });
+
+    await waitFor(() => expect(result.current.status).toBe("success"));
+    expect(sessionStorage.getItem("navo:searchNearLocation")).toBeNull();
   });
 });
