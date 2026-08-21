@@ -1,6 +1,6 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTestQueryClient } from "../../test/renderWithProviders";
 import { intentQueryKey } from "../intents/hooks";
 import { WORK_QUERY_KEY } from "../work/hooks";
@@ -8,6 +8,7 @@ import * as workApi from "../../api/work";
 import {
   useAddLocationToOption,
   useCreateLocationOption,
+  useCurrentLocation,
   useDeleteLocationOption,
   useRemoveLocationFromOption,
 } from "./hooks";
@@ -140,5 +141,42 @@ describe("useAddLocationToOption / useRemoveLocationFromOption", () => {
     expect(
       queryClient.getQueryData(WORK_QUERY_KEY)[0].locationOptions[0].locations
     ).toEqual([]);
+  });
+});
+
+describe("useCurrentLocation", () => {
+  afterEach(() => {
+    delete navigator.geolocation;
+  });
+
+  it("reports unsupported when the browser has no geolocation API", () => {
+    delete navigator.geolocation;
+
+    const { result } = renderHook(() => useCurrentLocation());
+
+    expect(result.current.status).toBe("unsupported");
+  });
+
+  it("reports success with coordinates once geolocation resolves", async () => {
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 12.34, longitude: 56.78 } }),
+    };
+
+    const { result } = renderHook(() => useCurrentLocation());
+
+    await waitFor(() => expect(result.current.status).toBe("success"));
+    expect(result.current.latitude).toBe(12.34);
+    expect(result.current.longitude).toBe(56.78);
+  });
+
+  it("reports denied when geolocation fails", async () => {
+    navigator.geolocation = {
+      getCurrentPosition: (_onSuccess, onError) => onError(new Error("nope")),
+    };
+
+    const { result } = renderHook(() => useCurrentLocation());
+
+    await waitFor(() => expect(result.current.status).toBe("denied"));
   });
 });

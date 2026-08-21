@@ -153,7 +153,23 @@ export function reverseGeocodeLocation(latitude, longitude, apiKey) {
   });
 }
 
-export function searchPlaces(query, apiKey) {
+// Default bias radius (meters) used to prefer results near the user's
+// current location instead of searching the whole world. This is a bias,
+// not a hard restriction — a great match further away can still surface.
+const DEFAULT_NEARBY_RADIUS_METERS = 20000;
+
+function buildLocationBias(nearLocation) {
+  if (nearLocation?.latitude == null || nearLocation?.longitude == null) {
+    return undefined;
+  }
+
+  return {
+    center: { lat: nearLocation.latitude, lng: nearLocation.longitude },
+    radius: nearLocation.radiusMeters || DEFAULT_NEARBY_RADIUS_METERS,
+  };
+}
+
+export function searchPlaces(query, apiKey, nearLocation) {
   if (!query) {
     return Promise.reject(new Error("Place query is required"));
   }
@@ -176,34 +192,23 @@ export function searchPlaces(query, apiKey) {
         }
       };
 
-      if (maps.places.Place) {
-        const service = new maps.places.PlacesService(
-          document.createElement("div")
-        );
-        service.findPlaceFromQuery(
-          {
-            query,
-            fields: ["name", "formatted_address", "geometry", "place_id"],
-          },
-          finish
-        );
-      } else {
-        const service = new maps.places.PlacesService(
-          document.createElement("div")
-        );
-        service.findPlaceFromQuery(
-          {
-            query,
-            fields: ["name", "formatted_address", "geometry", "place_id"],
-          },
-          finish
-        );
-      }
+      const locationBias = buildLocationBias(nearLocation);
+      const service = new maps.places.PlacesService(
+        document.createElement("div")
+      );
+      service.findPlaceFromQuery(
+        {
+          query,
+          fields: ["name", "formatted_address", "geometry", "place_id"],
+          ...(locationBias ? { locationBias } : {}),
+        },
+        finish
+      );
     });
   });
 }
 
-export function autocompletePlaces(query, apiKey) {
+export function autocompletePlaces(query, apiKey, nearLocation) {
   if (!query) {
     return Promise.reject(new Error("Autocomplete query is required"));
   }
@@ -223,6 +228,8 @@ export function autocompletePlaces(query, apiKey) {
         resolve([]);
       };
 
+      const locationBias = buildLocationBias(nearLocation);
+
       try {
         const suggestionProto = maps.places.AutocompleteSuggestion?.prototype;
         if (suggestionProto?.getPlacePredictions) {
@@ -230,6 +237,7 @@ export function autocompletePlaces(query, apiKey) {
           service.getPlacePredictions(
             {
               input: query,
+              ...(locationBias ? { locationBias } : {}),
             },
             finalize
           );
@@ -241,6 +249,15 @@ export function autocompletePlaces(query, apiKey) {
           {
             input: query,
             types: ["establishment", "geocode"],
+            ...(locationBias
+              ? {
+                  location: new maps.LatLng(
+                    locationBias.center.lat,
+                    locationBias.center.lng
+                  ),
+                  radius: locationBias.radius,
+                }
+              : {}),
           },
           finalize
         );
