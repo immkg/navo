@@ -5,6 +5,9 @@ import {
   buildGoogleMapsDirectionsUrl,
 } from "../../utils/googleMaps";
 import { useNotifications } from "../../hooks/useNotifications";
+import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
+import Badge from "../../components/ui/Badge";
 
 const DEFAULT_TRAVEL_MIN_PER_KM = 8;
 
@@ -467,20 +470,20 @@ export default function PlannerView() {
       <div className="mb-4 sm:mb-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+            <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
               Daily Planner
             </h1>
-            <p className="mt-1 text-sm text-gray-600 sm:mt-2 sm:text-base">
+            <p className="mt-1 text-sm text-muted-foreground sm:mt-2 sm:text-base">
               See nearby work, chosen locations, and a practical route for
               today.
             </p>
           </div>
           <div className="space-y-1 sm:space-y-2 sm:text-right">
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-muted-foreground">
               {orderedStops.length} stop{orderedStops.length === 1 ? "" : "s"} •{" "}
               {totalMinutes} min estimated
             </div>
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-muted-foreground">
               Current location: {currentLocation?.label || "Unknown"}
             </div>
           </div>
@@ -489,19 +492,19 @@ export default function PlannerView() {
 
       <div className="grid gap-4 sm:gap-6 lg:grid-cols-[1.65fr_1fr] lg:gap-8">
         <section className="space-y-4 sm:space-y-6">
-          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <Card padding="lg">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
+                <h2 className="text-lg font-semibold text-foreground sm:text-xl">
                   Starting point
                 </h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Use your device location or enter a manual start coordinate.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
                   onClick={() => {
                     navigator.geolocation?.getCurrentPosition(
                       (position) => {
@@ -515,28 +518,23 @@ export default function PlannerView() {
                       () => setLocationStatus("denied")
                     );
                   }}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
                 >
                   Use current location
-                </button>
-                <button
-                  type="button"
-                  onClick={openManualStart}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
-                >
+                </Button>
+                <Button variant="secondary" onClick={openManualStart}>
                   Set start point
-                </button>
+                </Button>
               </div>
             </div>
 
             {manualStartOpen && (
               <form
                 onSubmit={submitManualStart}
-                className="mt-4 space-y-3 rounded-3xl border border-gray-200 bg-gray-50 p-4"
+                className="mt-4 space-y-3 rounded-3xl border border-border bg-surface-alt p-4"
               >
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="space-y-1">
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Latitude
                     </span>
                     <input
@@ -547,11 +545,11 @@ export default function PlannerView() {
                       value={manualLat}
                       onChange={(e) => setManualLat(e.target.value)}
                       placeholder="e.g., 37.7749"
-                      className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                      className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
                     />
                   </label>
                   <label className="space-y-1">
-                    <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                    <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Longitude
                     </span>
                     <input
@@ -561,52 +559,48 @@ export default function PlannerView() {
                       value={manualLng}
                       onChange={(e) => setManualLng(e.target.value)}
                       placeholder="e.g., -122.4194"
-                      className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                      className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
                     />
                   </label>
                 </div>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
+                  <Button
+                    variant="secondary"
                     onClick={() => setManualStartOpen(false)}
-                    className="inline-flex min-h-11 items-center justify-center rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
                   >
                     Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="inline-flex min-h-11 items-center justify-center rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
-                  >
+                  </Button>
+                  <Button variant="primary" type="submit">
                     Save start point
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
 
-            <div className="mt-4 flex flex-col gap-3 rounded-3xl bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-4 flex flex-col gap-3 rounded-3xl bg-surface-alt p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-gray-500">Location status</p>
-                <p className="text-base font-medium text-gray-900 capitalize">
+                <p className="text-sm text-muted-foreground">Location status</p>
+                <p className="text-base font-medium text-foreground capitalize">
                   {locationStatus}
                 </p>
               </div>
               {currentLocation?.latitude != null &&
                 currentLocation?.longitude != null && (
-                  <div className="text-sm text-gray-600">
+                  <div className="text-sm text-muted-foreground">
                     {currentLocation.latitude.toFixed(4)},{" "}
                     {currentLocation.longitude.toFixed(4)}
                   </div>
                 )}
             </div>
-          </div>
+          </Card>
 
-          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <Card padding="lg">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
+                <h2 className="text-lg font-semibold text-foreground sm:text-xl">
                   Route preview
                 </h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Nearby locations are grouped and ordered based on distance
                   from your start point.
                 </p>
@@ -615,14 +609,14 @@ export default function PlannerView() {
                 href={mapLink}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex min-h-11 items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary-hover"
               >
                 Open in Maps
               </a>
             </div>
 
             {loading ? (
-              <div className="text-center text-gray-500 py-8">
+              <div className="text-center text-muted-foreground py-8">
                 Loading route...
               </div>
             ) : googleKey ? (
@@ -631,11 +625,11 @@ export default function PlannerView() {
                   <img
                     src={staticMapUrl}
                     alt="Route preview"
-                    className="mt-6 w-full rounded-3xl border border-gray-200 object-cover"
+                    className="mt-6 w-full rounded-3xl border border-border object-cover"
                   />
                 ) : (
-                  <div className="mt-6 rounded-3xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-gray-600">
-                    <p className="font-medium text-gray-900">
+                  <div className="mt-6 rounded-3xl border border-dashed border-border bg-surface-alt p-8 text-center text-muted-foreground">
+                    <p className="font-medium text-foreground">
                       Map preview failed
                     </p>
                     <p className="mt-2 text-sm">{mapError}</p>
@@ -644,18 +638,18 @@ export default function PlannerView() {
               ) : (
                 <div
                   ref={mapRef}
-                  className="mt-6 h-80 w-full rounded-3xl border border-gray-200"
+                  className="mt-6 h-80 w-full rounded-3xl border border-border"
                 />
               )
             ) : staticMapUrl ? (
               <img
                 src={staticMapUrl}
                 alt="Route preview"
-                className="mt-6 w-full rounded-3xl border border-gray-200 object-cover"
+                className="mt-6 w-full rounded-3xl border border-border object-cover"
               />
             ) : (
-              <div className="mt-6 rounded-3xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center text-gray-600">
-                <p className="font-medium text-gray-900">
+              <div className="mt-6 rounded-3xl border border-dashed border-border bg-surface-alt p-8 text-center text-muted-foreground">
+                <p className="font-medium text-foreground">
                   Map preview unavailable
                 </p>
                 <p className="mt-2 text-sm">
@@ -664,28 +658,28 @@ export default function PlannerView() {
                 </p>
               </div>
             )}
-          </div>
+          </Card>
 
-          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <Card padding="lg">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
+                <h2 className="text-lg font-semibold text-foreground sm:text-xl">
                   Planned route
                 </h2>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   Estimated travel + stop time for this route.
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-sm text-gray-500">Travel time</div>
-                <div className="text-lg font-semibold text-gray-900">
+                <div className="text-sm text-muted-foreground">Travel time</div>
+                <div className="text-lg font-semibold text-foreground">
                   {routeMinutes} min
                 </div>
               </div>
             </div>
             <div className="mt-4 grid gap-4">
               {orderedStops.length === 0 ? (
-                <div className="rounded-3xl bg-gray-50 p-6 text-gray-500">
+                <div className="rounded-3xl bg-surface-alt p-6 text-muted-foreground">
                   No location-based work was found. Open an intent and attach a
                   location to your work.
                 </div>
@@ -693,23 +687,23 @@ export default function PlannerView() {
                 orderedStops.map((stop, index) => (
                   <div
                     key={stop.location.id}
-                    className="rounded-3xl border border-gray-200 p-4"
+                    className="rounded-3xl border border-border p-4"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <div className="text-xs uppercase tracking-wide text-gray-500">
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
                           Stop {index + 1}
                         </div>
-                        <div className="text-lg font-semibold text-gray-900">
+                        <div className="text-lg font-semibold text-foreground">
                           {stop.location.name}
                         </div>
                         {stop.location.address && (
-                          <div className="text-sm text-gray-500 mt-1">
+                          <div className="text-sm text-muted-foreground mt-1">
                             {stop.location.address}
                           </div>
                         )}
                       </div>
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm text-foreground">
                         {stop.works.reduce(
                           (sum, work) => sum + (work.durationMinutes || 30),
                           0
@@ -723,20 +717,20 @@ export default function PlannerView() {
                         return (
                           <div
                             key={work.id}
-                            className="rounded-2xl bg-gray-50 p-3"
+                            className="rounded-2xl bg-surface-alt p-3"
                           >
                             <div className="flex items-center justify-between gap-3">
-                              <div className="font-medium text-gray-800">
+                              <div className="font-medium text-foreground">
                                 {work.title}
                               </div>
                               {chosenOption?.title && (
-                                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                                <Badge tone="primary">
                                   {chosenOption.title}
-                                </span>
+                                </Badge>
                               )}
                             </div>
                             <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                              <div className="text-sm text-gray-500">
+                              <div className="text-sm text-muted-foreground">
                                 {work.type} · {work.durationMinutes || 30} min
                               </div>
                               {work.locationOptions?.length > 1 && (
@@ -752,7 +746,7 @@ export default function PlannerView() {
                                         e.target.value
                                       )
                                     }
-                                    className="min-h-9 rounded-full border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-700 transition hover:bg-blue-50"
+                                    className="min-h-9 rounded-full border border-primary/30 bg-surface px-3 text-xs font-semibold text-primary transition hover:bg-primary/10"
                                   >
                                     {work.locationOptions.map(
                                       (option, optionIndex) => (
@@ -777,16 +771,16 @@ export default function PlannerView() {
                 ))
               )}
             </div>
-          </div>
+          </Card>
         </section>
 
         <aside className="space-y-4 sm:space-y-6">
           {unplacedWork.length > 0 && (
-            <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-              <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
+            <Card padding="lg">
+              <h2 className="text-lg font-semibold text-foreground sm:text-xl">
                 Unplaced work
               </h2>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-muted-foreground">
                 These items still need a location to be part of the route.
               </p>
               <div className="mt-4 space-y-3">
@@ -796,25 +790,25 @@ export default function PlannerView() {
                   return (
                     <div
                       key={work.id}
-                      className="rounded-3xl border border-yellow-100 bg-yellow-50 p-4"
+                      className="rounded-3xl border border-warning/30 bg-warning/10 p-4"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <div>
-                          <div className="font-medium text-yellow-900">
+                          <div className="font-medium text-foreground">
                             {work.title}
                           </div>
-                          <div className="mt-1 text-sm text-gray-600">
+                          <div className="mt-1 text-sm text-muted-foreground">
                             {work.type} · {work.durationMinutes || 30} min
                           </div>
                           {chosenOption && (
-                            <div className="mt-2 text-xs text-yellow-900">
+                            <div className="mt-2 text-xs text-warning">
                               Selected:{" "}
                               {chosenOption.title ||
                                 `Option ${work.locationOptions.indexOf(chosenOption) + 1}`}
                             </div>
                           )}
                           {hasOptions && (
-                            <div className="mt-2 text-xs text-yellow-900">
+                            <div className="mt-2 text-xs text-warning">
                               {work.locationOptions.length} saved option
                               {work.locationOptions.length === 1 ? "" : "s"}
                             </div>
@@ -824,7 +818,7 @@ export default function PlannerView() {
                           <button
                             type="button"
                             onClick={() => openAddLocationForm(work)}
-                            className="inline-flex min-h-9 items-center justify-center rounded-full bg-yellow-900 px-3 text-xs font-semibold text-white transition hover:bg-yellow-800"
+                            className="inline-flex min-h-9 items-center justify-center rounded-full bg-warning px-3 text-xs font-semibold text-warning-foreground transition hover:bg-warning-hover"
                           >
                             + Add location
                           </button>
@@ -838,7 +832,7 @@ export default function PlannerView() {
                                 )
                               }
                               aria-label={`Choose location option for ${work.title}`}
-                              className="min-h-9 rounded-full border border-yellow-900 bg-white px-3 text-xs font-semibold text-yellow-900 transition hover:bg-yellow-100"
+                              className="min-h-9 rounded-full border border-warning bg-surface px-3 text-xs font-semibold text-warning transition hover:bg-warning/20"
                             >
                               {work.locationOptions.map(
                                 (option, optionIndex) => (
@@ -856,10 +850,10 @@ export default function PlannerView() {
                       {addLocationFormWorkId === work.id && (
                         <form
                           onSubmit={(e) => submitAddLocationForm(e, work)}
-                          className="mt-3 space-y-3 rounded-2xl border border-yellow-200 bg-white p-3"
+                          className="mt-3 space-y-3 rounded-2xl border border-warning/30 bg-surface p-3"
                         >
                           <label className="block space-y-1">
-                            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                               Option title (optional)
                             </span>
                             <input
@@ -867,11 +861,11 @@ export default function PlannerView() {
                               onChange={(e) =>
                                 setAddLocationTitle(e.target.value)
                               }
-                              className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                              className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                             />
                           </label>
                           <label className="block space-y-1">
-                            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                               Location name
                             </span>
                             <input
@@ -882,11 +876,11 @@ export default function PlannerView() {
                               required
                               autoFocus
                               placeholder="e.g., Downtown Farmers Market"
-                              className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                              className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                             />
                           </label>
                           <label className="block space-y-1">
-                            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                               Address (optional)
                             </span>
                             <input
@@ -894,24 +888,23 @@ export default function PlannerView() {
                               onChange={(e) =>
                                 setAddLocationAddress(e.target.value)
                               }
-                              className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                              className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                             />
                           </label>
                           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                            <button
-                              type="button"
+                            <Button
+                              variant="secondary"
                               onClick={closeAddLocationForm}
-                              className="inline-flex min-h-10 items-center justify-center rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-400"
                             >
                               Cancel
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                              variant="primary"
                               type="submit"
                               disabled={isSavingLocation}
-                              className="inline-flex min-h-10 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
                             >
                               {isSavingLocation ? "Saving..." : "Save location"}
-                            </button>
+                            </Button>
                           </div>
                         </form>
                       )}
@@ -919,31 +912,31 @@ export default function PlannerView() {
                   );
                 })}
               </div>
-            </div>
+            </Card>
           )}
 
-          <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-            <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
+          <Card padding="lg">
+            <h2 className="text-lg font-semibold text-foreground sm:text-xl">
               Nearby work
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-muted-foreground">
               Work grouped by the most relevant location.
             </p>
             <div className="mt-4 space-y-3 sm:mt-6 sm:space-y-4">
               {orderedStops.length === 0 ? (
-                <div className="rounded-3xl bg-gray-50 p-4 text-gray-500">
+                <div className="rounded-3xl bg-surface-alt p-4 text-muted-foreground">
                   No nearby work with location data yet.
                 </div>
               ) : (
                 orderedStops.map((stop) => (
                   <div
                     key={stop.location.id}
-                    className="rounded-3xl bg-gray-50 p-4"
+                    className="rounded-3xl bg-surface-alt p-4"
                   >
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-foreground">
                       {stop.location.name}
                     </div>
-                    <div className="mt-1 text-sm text-gray-500">
+                    <div className="mt-1 text-sm text-muted-foreground">
                       {stop.works.length} work item
                       {stop.works.length === 1 ? "" : "s"}
                     </div>
@@ -951,7 +944,7 @@ export default function PlannerView() {
                 ))
               )}
             </div>
-          </div>
+          </Card>
         </aside>
       </div>
     </div>

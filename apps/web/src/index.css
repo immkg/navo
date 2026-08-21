@@ -1,1 +1,61 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: #f9fafb;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f3f4f6;
+  --color-foreground: #111827;
+  --color-muted-foreground: #6b7280;
+  --color-border: #e5e7eb;
+
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-foreground: #ffffff;
+
+  --color-danger: #dc2626;
+  --color-danger-hover: #b91c1c;
+  --color-danger-foreground: #ffffff;
+
+  --color-success: #059669;
+  --color-success-hover: #047857;
+  --color-success-foreground: #ffffff;
+
+  --color-warning: #f59e0b;
+  --color-warning-hover: #d97706;
+  --color-warning-foreground: #111827;
+
+  --color-accent: #7c3aed;
+  --color-accent-hover: #6d28d9;
+  --color-accent-foreground: #ffffff;
+}
+
+.dark {
+  --color-background: #0f172a;
+  --color-surface: #1e293b;
+  --color-surface-alt: #273449;
+  --color-foreground: #f1f5f9;
+  --color-muted-foreground: #94a3b8;
+  --color-border: #334155;
+
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-primary-foreground: #ffffff;
+
+  --color-danger: #ef4444;
+  --color-danger-hover: #f87171;
+  --color-danger-foreground: #ffffff;
+
+  --color-success: #10b981;
+  --color-success-hover: #34d399;
+  --color-success-foreground: #ffffff;
+
+  --color-warning: #fbbf24;
+  --color-warning-hover: #fcd34d;
+  --color-warning-foreground: #111827;
+
+  --color-accent: #a78bfa;
+  --color-accent-hover: #c4b5fd;
+  --color-accent-foreground: #111827;
+}

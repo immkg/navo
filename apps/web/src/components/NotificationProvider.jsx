@@ -1,12 +1,14 @@
 import { useCallback, useState } from "react";
 import { NotificationContext } from "../hooks/useNotifications";
+import Modal from "./ui/Modal";
+import Button from "./ui/Button";
 
 let nextToastId = 0;
 
 const TOAST_STYLES = {
-  error: "border-red-200 bg-red-50 text-red-900",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  info: "border-blue-200 bg-blue-50 text-blue-900",
+  error: "border-danger/30 bg-danger/10 text-danger",
+  success: "border-success/30 bg-success/10 text-success",
+  info: "border-primary/30 bg-primary/10 text-primary",
 };
 
 export function NotificationProvider({ children }) {
@@ -81,36 +83,38 @@ export function NotificationProvider({ children }) {
         ))}
       </div>
 
-      {confirmState && (
-        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/50 p-3 sm:items-center sm:p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900">
-              {confirmState.title}
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">{confirmState.message}</p>
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
-              <button
-                type="button"
+      <Modal
+        open={Boolean(confirmState)}
+        onClose={() => resolveConfirm(false)}
+        title={confirmState?.title}
+        closeOnBackdrop={false}
+        footer={
+          confirmState && (
+            <>
+              <Button
+                variant="secondary"
+                pill={false}
                 onClick={() => resolveConfirm(false)}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-gray-300 px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-100"
               >
                 {confirmState.cancelLabel}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant={confirmState.danger ? "danger" : "primary"}
+                pill={false}
                 onClick={() => resolveConfirm(true)}
-                className={`inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold text-white shadow transition ${
-                  confirmState.danger
-                    ? "bg-red-600 hover:bg-red-700"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
               >
                 {confirmState.confirmLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </Button>
+            </>
+          )
+        }
+      >
+        {confirmState && (
+          <p className="text-sm text-muted-foreground">
+            {confirmState.message}
+          </p>
+        )}
+      </Modal>
     </NotificationContext.Provider>
   );
 }
