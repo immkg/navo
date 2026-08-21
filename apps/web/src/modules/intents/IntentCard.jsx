@@ -3,20 +3,27 @@ import { Link } from "react-router-dom";
 import Badge from "../../components/ui/Badge";
 import { useNotifications } from "../../hooks/useNotifications";
 import { useBulkDeleteIntents, usePatchIntent } from "./hooks";
-import { formatDate, getDueMeta, toDateInputValue } from "./utils";
+import { getDueMeta } from "./utils";
 
 const LONG_PRESS_MS = 500;
 const LONG_PRESS_MOVE_TOLERANCE = 10;
 const SWIPE_ACTIVATE_PX = 12;
 const SWIPE_ACTION_PX = 88;
 
-// The whole card is one clickable region — an invisible full-bleed Link
-// sits behind everything so tapping anywhere (not just the title) opens the
-// intent's detail page. Priority/date/status controls stay directly
-// clickable by punching through the passive content's `pointer-events-none`
-// with their own `pointer-events-auto`. A press-and-hold anywhere else
-// enters bulk-selection mode, and on touch devices a horizontal drag
-// completes or deletes the intent without leaving the list.
+const PRIORITY_ACCENT = {
+  high: "bg-danger",
+  medium: "bg-warning",
+  low: "bg-muted-foreground/40",
+};
+
+// A display-only summary for scanning a list of many intents — title,
+// priority, due/urgency, and progress. Editing priority/status/dates lives
+// on the detail page, not here. The whole card is one clickable region (an
+// invisible full-bleed link behind the passive content) so tapping
+// anywhere opens the detail page; the checkbox punches through via its own
+// `pointer-events-auto`. A press-and-hold enters bulk-selection mode, and
+// on touch devices a horizontal drag completes or deletes the intent
+// without leaving the list.
 export default function IntentCard({
   intent,
   selectionMode,
@@ -33,31 +40,17 @@ export default function IntentCard({
   const gestureRef = useRef(null);
   const suppressClickRef = useRef(false);
 
-  const isUpdating = patchIntentMutation.isPending;
-
-  const handlePatch = async (patch, failureMessage) => {
+  const handleUpdateStatus = async (status) => {
     try {
-      await patchIntentMutation.mutateAsync({ intentId: intent.id, patch });
+      await patchIntentMutation.mutateAsync({
+        intentId: intent.id,
+        patch: { status },
+      });
     } catch (error) {
       console.error("Failed to update intent", error);
-      notify(failureMessage);
+      notify("Unable to update status right now.");
     }
   };
-
-  const handleUpdateStatus = (status) =>
-    handlePatch({ status }, "Unable to update status right now.");
-  const handleUpdatePriority = (priority) =>
-    handlePatch({ priority }, "Unable to update priority right now.");
-  const handleUpdateStartDate = (value) =>
-    handlePatch(
-      { startDate: value || null },
-      "Unable to update start date right now."
-    );
-  const handleUpdateDueDate = (value) =>
-    handlePatch(
-      { dueDate: value || null },
-      "Unable to update due date right now."
-    );
 
   const handleSwipeDelete = async () => {
     const confirmed = await confirm(
@@ -75,17 +68,6 @@ export default function IntentCard({
       notify("Unable to delete intent right now.");
       setDragX(0);
     }
-  };
-
-  const openDateInput = (inputId) => {
-    const element = document.getElementById(inputId);
-    if (!element) return;
-    if (typeof element.showPicker === "function") {
-      element.showPicker();
-      return;
-    }
-    element.focus();
-    element.click();
   };
 
   const clearLongPressTimer = () => {
@@ -186,7 +168,6 @@ export default function IntentCard({
 
   const workCount = intent.workCount;
   const doneCount = intent.completedWorkCount;
-  const placeCount = intent.placeCount;
   const completion =
     workCount > 0 ? Math.round((doneCount / workCount) * 100) : 0;
   const statusTone =
@@ -195,62 +176,6 @@ export default function IntentCard({
       : intent.status === "not_required"
         ? "neutral"
         : "primary";
-  const actionConfigs =
-    intent.status === "active"
-      ? [
-          {
-            label: "Complete",
-            value: "completed",
-            style:
-              "border-success/30 bg-success/10 text-success hover:bg-success/20",
-          },
-          {
-            label: "Not Required",
-            value: "not_required",
-            style:
-              "border-border bg-surface-alt text-muted-foreground hover:bg-border",
-          },
-        ]
-      : intent.status === "completed"
-        ? [
-            {
-              label: "Active",
-              value: "active",
-              style:
-                "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20",
-            },
-            {
-              label: "Not Required",
-              value: "not_required",
-              style:
-                "border-border bg-surface-alt text-muted-foreground hover:bg-border",
-            },
-          ]
-        : [
-            {
-              label: "Active",
-              value: "active",
-              style:
-                "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20",
-            },
-            {
-              label: "Complete",
-              value: "completed",
-              style:
-                "border-success/30 bg-success/10 text-success hover:bg-success/20",
-            },
-          ];
-  const priorityTone =
-    intent.priority === "high"
-      ? "danger"
-      : intent.priority === "low"
-        ? "neutral"
-        : "warning";
-  const priorityStyle = {
-    danger: "bg-danger/15 text-danger",
-    neutral: "bg-surface-alt text-muted-foreground",
-    warning: "bg-warning/15 text-warning",
-  }[priorityTone];
   const dueMeta = getDueMeta(intent.dueDate);
   const isOverdue = dueMeta.label.includes("overdue");
   const topMetaLabel = isOverdue
@@ -263,6 +188,8 @@ export default function IntentCard({
     : intent.status === "active"
       ? dueMeta.tone
       : statusTone;
+  const priorityAccent =
+    PRIORITY_ACCENT[intent.priority] || PRIORITY_ACCENT.medium;
 
   return (
     <article
@@ -274,12 +201,18 @@ export default function IntentCard({
       onClickCapture={handleClickCapture}
       onContextMenu={(event) => event.preventDefault()}
       style={{ WebkitTouchCallout: "none" }}
-      className={`group relative flex flex-col gap-3 overflow-hidden rounded-2xl border bg-surface p-4 shadow-sm transition-all select-none hover:shadow-md sm:p-5 ${
+      className={`group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border bg-surface p-4 shadow-sm transition-all select-none hover:shadow-md ${
         isSelected
           ? "border-primary ring-2 ring-primary/20"
           : "border-border hover:border-primary/50"
       }`}
     >
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-y-0 left-0 w-1.5 ${priorityAccent}`}
+        title={`${intent.priority} priority`}
+      />
+
       <div className="pointer-events-none absolute inset-0 flex items-center justify-between rounded-2xl">
         <span
           className={`flex h-full items-center bg-success px-4 text-sm font-semibold text-success-foreground transition-opacity ${
@@ -305,133 +238,42 @@ export default function IntentCard({
       />
 
       <div
-        className="relative z-10 flex flex-1 flex-col gap-3 pointer-events-none"
+        className="relative z-10 flex flex-1 flex-col gap-2.5 pointer-events-none"
         style={{
           transform: `translateX(${dragX}px)`,
           transition: isDragging ? "none" : "transform 200ms ease",
         }}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-3 pl-1.5">
           {selectionMode && (
             <input
               type="checkbox"
               checked={isSelected}
               onChange={() => onToggleSelected(intent.id)}
               aria-label={`Select ${intent.title}`}
-              className="pointer-events-auto mt-1.5 h-5 w-5 shrink-0 rounded border-border text-primary focus:ring-primary"
+              className="pointer-events-auto mt-1 h-5 w-5 shrink-0 rounded border-border text-primary focus:ring-primary"
             />
           )}
 
-          <div className="min-w-0 flex-1">
-            <h2 className="line-clamp-2 text-lg font-semibold text-foreground transition-colors group-hover:text-primary sm:text-xl">
-              {intent.title}
-            </h2>
-            {intent.description && (
-              <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
-                {intent.description}
-              </p>
-            )}
-          </div>
+          <h2 className="line-clamp-2 min-w-0 flex-1 text-base font-semibold text-foreground transition-colors group-hover:text-primary">
+            {intent.title}
+          </h2>
 
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <select
-              value={intent.priority}
-              onChange={(e) => handleUpdatePriority(e.target.value)}
-              disabled={isUpdating}
-              className={`pointer-events-auto h-8 rounded-full border-0 px-3 text-xs font-semibold uppercase tracking-wide outline-none disabled:opacity-60 ${priorityStyle}`}
-              title="Set priority"
-            >
-              <option value="high">high</option>
-              <option value="medium">medium</option>
-              <option value="low">low</option>
-            </select>
-            <Badge tone={topMetaTone}>{topMetaLabel}</Badge>
-          </div>
+          <Badge tone={topMetaTone} className="shrink-0">
+            {topMetaLabel}
+          </Badge>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex min-w-0 flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Start
-            </span>
-            <button
-              type="button"
-              onClick={() => openDateInput(`start-date-${intent.id}`)}
-              disabled={isUpdating}
-              className="pointer-events-auto relative h-10 w-full rounded-lg border border-border bg-surface-alt px-2.5 text-left text-sm font-medium text-foreground transition hover:bg-border disabled:opacity-60"
-            >
-              <span className="flex h-full items-center">
-                {formatDate(intent.startDate)}
-              </span>
-              <input
-                id={`start-date-${intent.id}`}
-                type="date"
-                value={toDateInputValue(intent.startDate)}
-                onChange={(e) => handleUpdateStartDate(e.target.value)}
-                disabled={isUpdating}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                title="Set start date"
-              />
-            </button>
-          </label>
-
-          <label className="flex min-w-0 flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Due
-            </span>
-            <button
-              type="button"
-              onClick={() => openDateInput(`due-date-${intent.id}`)}
-              disabled={isUpdating}
-              className="pointer-events-auto relative h-10 w-full rounded-lg border border-border bg-surface-alt px-2.5 text-left text-sm font-medium text-foreground transition hover:bg-border disabled:opacity-60"
-            >
-              <span className="flex h-full items-center">
-                {formatDate(intent.dueDate)}
-              </span>
-              <input
-                id={`due-date-${intent.id}`}
-                type="date"
-                value={toDateInputValue(intent.dueDate)}
-                onChange={(e) => handleUpdateDueDate(e.target.value)}
-                disabled={isUpdating}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                title="Set due date"
-              />
-            </button>
-          </label>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span
-            className="whitespace-nowrap text-sm text-muted-foreground"
-            title={`${doneCount} of ${workCount} work items complete, ${placeCount} place${placeCount === 1 ? "" : "s"}`}
-          >
-            {doneCount}/{workCount} work · {placeCount} place
-            {placeCount === 1 ? "" : "s"}
-          </span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-alt">
+        <div className="flex items-center gap-2 pl-1.5">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-alt">
             <div
               className="h-full rounded-full bg-primary transition-all"
               style={{ width: `${completion}%` }}
             />
           </div>
-          <span className="whitespace-nowrap text-sm font-semibold text-foreground">
-            {completion}%
+          <span className="whitespace-nowrap text-xs font-medium text-muted-foreground">
+            {doneCount}/{workCount}
           </span>
-        </div>
-
-        <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-          {actionConfigs.map((action) => (
-            <button
-              key={action.value}
-              type="button"
-              onClick={() => handleUpdateStatus(action.value)}
-              disabled={isUpdating || intent.status === action.value}
-              className={`pointer-events-auto inline-flex h-9 flex-1 items-center justify-center rounded-lg border px-3 text-sm font-semibold transition disabled:opacity-50 ${action.style}`}
-            >
-              {action.label}
-            </button>
-          ))}
         </div>
       </div>
     </article>
