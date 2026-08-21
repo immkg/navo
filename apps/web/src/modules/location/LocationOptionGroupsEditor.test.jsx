@@ -1,5 +1,5 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import * as aiApi from "../../api/ai";
 import * as googleMaps from "../../utils/googleMaps";
@@ -20,6 +20,17 @@ function baseProps(overrides = {}) {
 }
 
 describe("LocationOptionGroupsEditor — Suggest place types", () => {
+  beforeEach(() => {
+    // The real key only exists in the local, gitignored .env — stub it so
+    // this test doesn't depend on that (CI has none, so googleKey would
+    // otherwise be undefined and handleSearchPlaces would short-circuit).
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-maps-key");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it("does not show the suggest button when there's no work title", () => {
     renderWithProviders(
       <LocationOptionGroupsEditor {...baseProps({ workTitle: "" })} />
