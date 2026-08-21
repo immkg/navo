@@ -502,3 +502,106 @@ test("POST /api/ai/optimize-route returns 500 for a non-Groq failure", async () 
     restoreFetch();
   }
 });
+
+test("POST /api/ai/split-intent returns 503 when GROQ_API_KEY is not configured", async () => {
+  delete process.env.GROQ_API_KEY;
+
+  const response = await request(app)
+    .post("/api/ai/split-intent")
+    .send({ text: "renew passport, book flights" });
+
+  assert.equal(response.statusCode, 503);
+});
+
+test("POST /api/ai/split-intent requires text", async () => {
+  const response = await request(app).post("/api/ai/split-intent").send({});
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("POST /api/ai/split-intent rejects whitespace-only text", async () => {
+  const response = await request(app)
+    .post("/api/ai/split-intent")
+    .send({ text: "   " });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("POST /api/ai/split-intent returns sanitized intents on success", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: true,
+    json: async () => ({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              intents: [
+                {
+                  title: "Renew passport",
+                  description: "Before the trip in September",
+                  priority: "high",
+                },
+                { title: "Book flights", priority: "urgent" },
+                { title: "  " }, // blank title, should be filtered out
+              ],
+            }),
+          },
+        },
+      ],
+    }),
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/split-intent")
+      .send({ text: "renew passport before september trip, book flights" });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.intents.length, 2);
+    assert.equal(response.body.intents[0].title, "Renew passport");
+    assert.equal(response.body.intents[0].priority, "high");
+    assert.equal(
+      response.body.intents[0].description,
+      "Before the trip in September"
+    );
+    assert.equal(response.body.intents[1].title, "Book flights");
+    assert.equal(response.body.intents[1].priority, "medium");
+    assert.equal(response.body.intents[1].description, null);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/split-intent returns 502 when the AI provider request fails", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: false,
+    status: 500,
+    text: async () => "provider error",
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/split-intent")
+      .send({ text: "renew passport" });
+
+    assert.equal(response.statusCode, 502);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/split-intent returns 500 for a non-Groq failure", async () => {
+  const restoreFetch = mockFetchOnce(() => {
+    throw new Error("network down");
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/split-intent")
+      .send({ text: "renew passport" });
+
+    assert.equal(response.statusCode, 500);
+  } finally {
+    restoreFetch();
+  }
+});

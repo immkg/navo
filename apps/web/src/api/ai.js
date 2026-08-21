@@ -28,3 +28,8 @@ export async function optimizeRoute(startPoint, stops) {
   });
   return response.data;
 }
+
+export async function splitIntent(text) {
+  const response = await apiClient.post("/api/ai/split-intent", { text });
+  return response.data;
+}

@@ -6,6 +6,7 @@ import * as aiApi from "../../api/ai";
 import {
   useDraftIntent,
   useOptimizeRoute,
+  useSplitIntent,
   useSuggestPlaceTypes,
   useSuggestWork,
 } from "./hooks";
@@ -112,5 +113,32 @@ describe("useOptimizeRoute", () => {
 
     expect(aiApi.optimizeRoute).toHaveBeenCalledWith(startPoint, stops);
     expect(resolved.order).toEqual(["w2", "w1"]);
+  });
+});
+
+describe("useSplitIntent", () => {
+  it("calls splitIntent with the text and returns its result", async () => {
+    vi.spyOn(aiApi, "splitIntent").mockResolvedValue({
+      intents: [{ title: "Renew passport", priority: "high" }],
+    });
+    const queryClient = createTestQueryClient();
+
+    const { result } = renderHook(() => useSplitIntent(), {
+      wrapper: withQueryClient(queryClient),
+    });
+
+    let resolved;
+    await act(async () => {
+      resolved = await result.current.mutateAsync(
+        "renew passport, book flights"
+      );
+    });
+
+    expect(aiApi.splitIntent).toHaveBeenCalledWith(
+      "renew passport, book flights"
+    );
+    expect(resolved.intents).toEqual([
+      { title: "Renew passport", priority: "high" },
+    ]);
   });
 });

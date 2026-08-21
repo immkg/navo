@@ -3,6 +3,7 @@ import apiClient from "./client";
 import {
   draftIntent,
   optimizeRoute,
+  splitIntent,
   suggestPlaceTypes,
   suggestWork,
 } from "./ai";
@@ -72,5 +73,22 @@ describe("optimizeRoute", () => {
       stops,
     });
     expect(result.order).toEqual(["w2", "w1"]);
+  });
+});
+
+describe("splitIntent", () => {
+  it("posts the text and returns the response body", async () => {
+    apiClient.post.mockResolvedValue({
+      data: { intents: [{ title: "Renew passport", priority: "high" }] },
+    });
+
+    const result = await splitIntent("renew passport, book flights");
+
+    expect(apiClient.post).toHaveBeenCalledWith("/api/ai/split-intent", {
+      text: "renew passport, book flights",
+    });
+    expect(result.intents).toEqual([
+      { title: "Renew passport", priority: "high" },
+    ]);
   });
 });
