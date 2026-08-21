@@ -1,26 +1,21 @@
 const GROQ_MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-20b";
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-class GroqNotConfiguredError extends Error {}
 class GroqProviderError extends Error {}
 class GroqParseError extends Error {}
 
+// Every route calls this first and returns its own 503 before ever calling
+// callGroqJson, so callGroqJson itself trusts the key is present rather than
+// re-checking it — there is no caller path that reaches it otherwise.
 function isGroqConfigured() {
   return Boolean(process.env.GROQ_API_KEY);
 }
 
 async function callGroqJson({ systemPrompt, userPrompt, temperature = 0.4 }) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    throw new GroqNotConfiguredError(
-      "AI features are not configured on this server."
-    );
-  }
-
   const response = await fetch(GROQ_URL, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -56,9 +51,6 @@ async function callGroqJson({ systemPrompt, userPrompt, temperature = 0.4 }) {
 // anything callGroqJson itself can throw; other errors (e.g. a DB lookup
 // failure) are the route's own to handle.
 function sendGroqError(res, error) {
-  if (error instanceof GroqNotConfiguredError) {
-    return res.status(503).json({ error: error.message });
-  }
   if (error instanceof GroqProviderError || error instanceof GroqParseError) {
     return res.status(502).json({ error: error.message });
   }
@@ -69,7 +61,6 @@ module.exports = {
   isGroqConfigured,
   callGroqJson,
   sendGroqError,
-  GroqNotConfiguredError,
   GroqProviderError,
   GroqParseError,
 };
