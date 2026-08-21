@@ -140,7 +140,7 @@ export default function AddIntentPanel({ onOpenDetails }) {
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="What do you want to do? (e.g., Plan a vacation)"
+            placeholder="What do you want to do?"
             rows={1}
             className="scrollbar-hide block max-h-40 w-full resize-none overflow-y-auto rounded-xl border border-border bg-surface px-3 py-2.5 pr-11 text-sm text-foreground outline-none focus:ring focus:ring-primary/30"
           />

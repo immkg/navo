@@ -14,7 +14,7 @@ function firstArgsOf(mockFn) {
 
 function getTextField() {
   return screen.getByPlaceholderText(
-    "What do you want to do? (e.g., Plan a vacation)"
+    "What do you want to do?"
   );
 }
 
