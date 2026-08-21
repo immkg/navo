@@ -13,9 +13,7 @@ function firstArgsOf(mockFn) {
 }
 
 function getTextField() {
-  return screen.getByPlaceholderText(
-    "What do you want to do?"
-  );
+  return screen.getByPlaceholderText("What do you want to do?");
 }
 
 describe("AddIntentPanel", () => {

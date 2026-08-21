@@ -6,7 +6,7 @@ import {
   getIntents,
   updateIntent,
 } from "../../api/intents";
-import { normalizeIntent } from "./utils";
+import { normalizeIntent, settleSequentially } from "./utils";
 
 export const INTENTS_QUERY_KEY = ["intents"];
 export const intentQueryKey = (id) => ["intent", id];
@@ -64,8 +64,8 @@ export function useBulkUpdateIntentStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ ids, status }) => {
-      const results = await Promise.allSettled(
-        ids.map((id) => updateIntent(id, { status }))
+      const results = await settleSequentially(ids, (id) =>
+        updateIntent(id, { status })
       );
       return { results, ids, status };
     },
@@ -88,9 +88,7 @@ export function useBulkDeleteIntents() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (ids) => {
-      const results = await Promise.allSettled(
-        ids.map((id) => deleteIntent(id))
-      );
+      const results = await settleSequentially(ids, deleteIntent);
       return { results, ids };
     },
     onSuccess: ({ results, ids }) => {
