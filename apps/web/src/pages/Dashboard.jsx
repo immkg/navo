@@ -1,25 +1,20 @@
 import { useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { useNotifications } from "../hooks/useNotifications";
 import Button from "../components/ui/Button";
-import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import PrioritySelect from "../modules/intents/PrioritySelect";
 import AddIntentPanel from "../modules/intents/AddIntentPanel";
+import IntentCard from "../modules/intents/IntentCard";
 import {
   useBulkDeleteIntents,
   useBulkUpdateIntentStatus,
   useCreateIntent,
   useIntents,
-  usePatchIntent,
 } from "../modules/intents/hooks";
 import {
   BULK_STATUS_OPTIONS,
   PRIORITY_ORDER,
-  formatDate,
-  getDueMeta,
   startOfToday,
-  toDateInputValue,
 } from "../modules/intents/utils";
 import { useDraftIntent } from "../modules/ai/hooks";
 
@@ -29,7 +24,6 @@ export default function Dashboard() {
   const { data: intents = [], isLoading: loading } = useIntents();
 
   const createIntentMutation = useCreateIntent();
-  const patchIntentMutation = usePatchIntent();
   const bulkStatusMutation = useBulkUpdateIntentStatus();
   const bulkDeleteMutation = useBulkDeleteIntents();
   const draftIntentMutation = useDraftIntent();
@@ -41,7 +35,6 @@ export default function Dashboard() {
   const [newIntentStartDate, setNewIntentStartDate] = useState("");
   const [newIntentDueDate, setNewIntentDueDate] = useState("");
   const isSubmitting = createIntentMutation.isPending;
-  const [updatingIntentId, setUpdatingIntentId] = useState("");
   const [addAnotherIntent, setAddAnotherIntent] = useState(false);
   const [keepPreviousDetails, setKeepPreviousDetails] = useState(false);
   const titleInputRef = useRef(null);
@@ -49,7 +42,17 @@ export default function Dashboard() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [isBulkWorking, setIsBulkWorking] = useState(false);
-  const longPressRef = useRef({});
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const visibleIntents = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return intents.filter(
+      (intent) =>
+        !query ||
+        intent.title.toLowerCase().includes(query) ||
+        (intent.description || "").toLowerCase().includes(query)
+    );
+  }, [intents, searchQuery]);
 
   const closeModal = () => {
     setIsModalOpen(false);
@@ -128,63 +131,6 @@ export default function Dashboard() {
     }
   };
 
-  const handlePatchIntent = async (intentId, patch, failureMessage) => {
-    setUpdatingIntentId(intentId);
-    try {
-      await patchIntentMutation.mutateAsync({ intentId, patch });
-    } catch (error) {
-      console.error("Failed to patch intent", error);
-      notify(failureMessage);
-    } finally {
-      setUpdatingIntentId("");
-    }
-  };
-
-  const handleUpdateIntentStatus = async (intentId, status) => {
-    await handlePatchIntent(
-      intentId,
-      { status },
-      "Unable to update status right now."
-    );
-  };
-
-  const handleUpdatePriority = async (intentId, priority) => {
-    await handlePatchIntent(
-      intentId,
-      { priority },
-      "Unable to update priority right now."
-    );
-  };
-
-  const handleUpdateDueDate = async (intentId, dueDateValue) => {
-    await handlePatchIntent(
-      intentId,
-      { dueDate: dueDateValue || null },
-      "Unable to update due date right now."
-    );
-  };
-
-  const handleUpdateStartDate = async (intentId, startDateValue) => {
-    await handlePatchIntent(
-      intentId,
-      { startDate: startDateValue || null },
-      "Unable to update start date right now."
-    );
-  };
-
-  const openDateInput = (inputId) => {
-    const element = document.getElementById(inputId);
-    if (!element) return;
-
-    if (typeof element.showPicker === "function") {
-      element.showPicker();
-      return;
-    }
-
-    element.focus();
-    element.click();
-  };
-
   const toggleSelectionMode = () => {
     setSelectionMode((prev) => !prev);
     setSelectedIds(new Set());
@@ -202,61 +148,13 @@ export default function Dashboard() {
     });
   };
 
-  const LONG_PRESS_MS = 500;
-  const LONG_PRESS_MOVE_TOLERANCE = 10;
-
-  const handleCardPointerDown = (intentId) => (event) => {
-    if (event.pointerType === "mouse" && event.button !== 0) return;
-    // Interactive controls (priority select, date pickers, status buttons,
-    // the selection checkbox) should react immediately — only the card body
-    // and its title link participate in the long-press-to-select gesture.
-    if (event.target.closest("button, select, input, label")) return;
-
-    const state = {
-      triggered: false,
-      startX: event.clientX,
-      startY: event.clientY,
-    };
-    state.timer = setTimeout(() => {
-      state.triggered = true;
-      navigator.vibrate?.(15);
-      setSelectionMode((prev) => (prev ? prev : true));
-      toggleSelected(intentId);
-    }, LONG_PRESS_MS);
-    longPressRef.current[intentId] = state;
-  };
-
-  const clearLongPress = (intentId) => {
-    const state = longPressRef.current[intentId];
-    if (state?.timer) clearTimeout(state.timer);
-  };
-
-  const handleCardPointerMove = (intentId) => (event) => {
-    const state = longPressRef.current[intentId];
-    if (!state || state.triggered) return;
-    if (
-      Math.abs(event.clientX - state.startX) > LONG_PRESS_MOVE_TOLERANCE ||
-      Math.abs(event.clientY - state.startY) > LONG_PRESS_MOVE_TOLERANCE
-    ) {
-      clearLongPress(intentId);
-    }
-  };
-
-  const handleCardPointerEnd = (intentId) => () => {
-    clearLongPress(intentId);
-  };
-
-  const handleCardClickCapture = (intentId) => (event) => {
-    const state = longPressRef.current[intentId];
-    if (state?.triggered) {
-      event.preventDefault();
-      event.stopPropagation();
-      state.triggered = false;
-    }
+  const handleEnterSelectionMode = (intentId) => {
+    setSelectionMode((prev) => (prev ? prev : true));
+    toggleSelected(intentId);
   };
 
   const handleSelectAll = () => {
-    setSelectedIds(new Set(intents.map((intent) => intent.id)));
+    setSelectedIds(new Set(visibleIntents.map((intent) => intent.id)));
   };
 
   const handleClearSelection = () => {
@@ -328,7 +226,7 @@ export default function Dashboard() {
       closed: [],
     };
 
-    intents.forEach((intent) => {
+    visibleIntents.forEach((intent) => {
       const due = intent.dueDate ? new Date(intent.dueDate) : null;
       const start = intent.startDate ? new Date(intent.startDate) : null;
 
@@ -388,239 +286,7 @@ export default function Dashboard() {
     );
 
     return next;
-  }, [intents]);
-
-  const renderIntentCard = (intent) => {
-    const workCount = intent.workCount;
-    const doneCount = intent.completedWorkCount;
-    const placeCount = intent.placeCount;
-    const completion =
-      workCount > 0 ? Math.round((doneCount / workCount) * 100) : 0;
-    const statusTone =
-      intent.status === "completed"
-        ? "success"
-        : intent.status === "not_required"
-          ? "neutral"
-          : "primary";
-    const actionConfigs =
-      intent.status === "active"
-        ? [
-            {
-              label: "Complete",
-              value: "completed",
-              style:
-                "border-success/30 bg-success/10 text-success hover:bg-success/20",
-            },
-            {
-              label: "Not Required",
-              value: "not_required",
-              style:
-                "border-border bg-surface-alt text-muted-foreground hover:bg-border",
-            },
-          ]
-        : intent.status === "completed"
-          ? [
-              {
-                label: "Active",
-                value: "active",
-                style:
-                  "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20",
-              },
-              {
-                label: "Not Required",
-                value: "not_required",
-                style:
-                  "border-border bg-surface-alt text-muted-foreground hover:bg-border",
-              },
-            ]
-          : [
-              {
-                label: "Active",
-                value: "active",
-                style:
-                  "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20",
-              },
-              {
-                label: "Complete",
-                value: "completed",
-                style:
-                  "border-success/30 bg-success/10 text-success hover:bg-success/20",
-              },
-            ];
-    const priorityTone =
-      intent.priority === "high"
-        ? "danger"
-        : intent.priority === "low"
-          ? "neutral"
-          : "warning";
-    const priorityStyle = {
-      danger: "bg-danger/15 text-danger",
-      neutral: "bg-surface-alt text-muted-foreground",
-      warning: "bg-warning/15 text-warning",
-    }[priorityTone];
-    const dueMeta = getDueMeta(intent.dueDate);
-    const isOverdue = dueMeta.label.includes("overdue");
-    const topMetaLabel = isOverdue
-      ? dueMeta.label
-      : intent.status === "active"
-        ? dueMeta.label
-        : intent.status.replace("_", " ");
-    const topMetaTone = isOverdue
-      ? dueMeta.tone
-      : intent.status === "active"
-        ? dueMeta.tone
-        : statusTone;
-    const isSelected = selectedIds.has(intent.id);
-
-    return (
-      <article
-        key={intent.id}
-        onPointerDown={handleCardPointerDown(intent.id)}
-        onPointerMove={handleCardPointerMove(intent.id)}
-        onPointerUp={handleCardPointerEnd(intent.id)}
-        onPointerCancel={handleCardPointerEnd(intent.id)}
-        onPointerLeave={handleCardPointerEnd(intent.id)}
-        onClickCapture={handleCardClickCapture(intent.id)}
-        onContextMenu={(event) => event.preventDefault()}
-        style={{ WebkitTouchCallout: "none" }}
-        className={`flex flex-col gap-3 rounded-2xl border bg-surface p-4 shadow-sm transition-all select-none hover:shadow-md sm:p-5 ${
-          isSelected
-            ? "border-primary ring-2 ring-primary/20"
-            : "border-border hover:border-primary/50"
-        }`}
-      >
-        <div className="flex items-start gap-3">
-          {selectionMode && (
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => toggleSelected(intent.id)}
-              aria-label={`Select ${intent.title}`}
-              className="mt-1.5 h-5 w-5 shrink-0 rounded border-border text-primary focus:ring-primary"
-            />
-          )}
-
-          <Link
-            to={`/intent/${intent.id}`}
-            className="group -mx-1.5 -my-1 block min-w-0 flex-1 rounded-lg px-1.5 py-1 transition hover:bg-primary/10"
-          >
-            <h2 className="line-clamp-2 text-lg font-semibold text-foreground transition-colors group-hover:text-primary sm:text-xl">
-              {intent.title}
-            </h2>
-            {intent.description && (
-              <p className="mt-1 line-clamp-1 text-sm text-muted-foreground">
-                {intent.description}
-              </p>
-            )}
-          </Link>
-
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <select
-              value={intent.priority}
-              onChange={(e) => handleUpdatePriority(intent.id, e.target.value)}
-              disabled={updatingIntentId === intent.id}
-              className={`h-8 rounded-full border-0 px-3 text-xs font-semibold uppercase tracking-wide outline-none disabled:opacity-60 ${priorityStyle}`}
-              title="Set priority"
-            >
-              <option value="high">high</option>
-              <option value="medium">medium</option>
-              <option value="low">low</option>
-            </select>
-            <Badge tone={topMetaTone}>{topMetaLabel}</Badge>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex min-w-0 flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Start
-            </span>
-            <button
-              type="button"
-              onClick={() => openDateInput(`start-date-${intent.id}`)}
-              disabled={updatingIntentId === intent.id}
-              className="relative h-10 w-full rounded-lg border border-border bg-surface-alt px-2.5 text-left text-sm font-medium text-foreground transition hover:bg-border disabled:opacity-60"
-            >
-              <span className="flex h-full items-center">
-                {formatDate(intent.startDate)}
-              </span>
-              <input
-                id={`start-date-${intent.id}`}
-                type="date"
-                value={toDateInputValue(intent.startDate)}
-                onChange={(e) =>
-                  handleUpdateStartDate(intent.id, e.target.value)
-                }
-                disabled={updatingIntentId === intent.id}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                title="Set start date"
-              />
-            </button>
-          </label>
-
-          <label className="flex min-w-0 flex-col gap-1">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Due
-            </span>
-            <button
-              type="button"
-              onClick={() => openDateInput(`due-date-${intent.id}`)}
-              disabled={updatingIntentId === intent.id}
-              className="relative h-10 w-full rounded-lg border border-border bg-surface-alt px-2.5 text-left text-sm font-medium text-foreground transition hover:bg-border disabled:opacity-60"
-            >
-              <span className="flex h-full items-center">
-                {formatDate(intent.dueDate)}
-              </span>
-              <input
-                id={`due-date-${intent.id}`}
-                type="date"
-                value={toDateInputValue(intent.dueDate)}
-                onChange={(e) => handleUpdateDueDate(intent.id, e.target.value)}
-                disabled={updatingIntentId === intent.id}
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-                title="Set due date"
-              />
-            </button>
-          </label>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <span
-            className="whitespace-nowrap text-sm text-muted-foreground"
-            title={`${doneCount} of ${workCount} work items complete, ${placeCount} place${placeCount === 1 ? "" : "s"}`}
-          >
-            {doneCount}/{workCount} work · {placeCount} place
-            {placeCount === 1 ? "" : "s"}
-          </span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-surface-alt">
-            <div
-              className="h-full rounded-full bg-primary transition-all"
-              style={{ width: `${completion}%` }}
-            />
-          </div>
-          <span className="whitespace-nowrap text-sm font-semibold text-foreground">
-            {completion}%
-          </span>
-        </div>
-
-        <div className="flex flex-wrap gap-2 border-t border-border pt-3">
-          {actionConfigs.map((action) => (
-            <button
-              key={action.value}
-              type="button"
-              onClick={() => handleUpdateIntentStatus(intent.id, action.value)}
-              disabled={
-                updatingIntentId === intent.id || intent.status === action.value
-              }
-              className={`inline-flex h-9 flex-1 items-center justify-center rounded-lg border px-3 text-sm font-semibold transition disabled:opacity-50 ${action.style}`}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      </article>
-    );
-  };
+  }, [visibleIntents]);
 
   const renderSection = (title, sectionIntents) => {
     if (sectionIntents.length === 0) return null;
@@ -635,16 +301,40 @@ export default function Dashboard() {
             {sectionIntents.length}
           </span>
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
-          {sectionIntents.map(renderIntentCard)}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-3 sm:gap-4">
+          {sectionIntents.map((intent) => (
+            <IntentCard
+              key={intent.id}
+              intent={intent}
+              selectionMode={selectionMode}
+              isSelected={selectedIds.has(intent.id)}
+              onToggleSelected={toggleSelected}
+              onEnterSelectionMode={handleEnterSelectionMode}
+            />
+          ))}
         </div>
       </section>
     );
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-2.5 pb-4 pt-2 sm:px-4 sm:pb-7 sm:pt-4">
+    <div className="w-full px-2.5 pb-4 pt-2 sm:px-4 sm:pb-7 sm:pt-4">
       <AddIntentPanel onOpenDetails={handleOpenDetails} />
+
+      {intents.length > 0 && (
+        <div className="relative mb-3">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search intents…"
+            className="block w-full rounded-xl border border-border bg-surface py-2.5 pl-9 pr-3 text-sm text-foreground outline-none focus:ring focus:ring-primary/30"
+          />
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            🔍
+          </span>
+        </div>
+      )}
 
       {selectionMode && (
         <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-primary/30 bg-primary/10 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
@@ -660,10 +350,10 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={handleSelectAll}
-              disabled={selectedIds.size === intents.length}
+              disabled={selectedIds.size === visibleIntents.length}
               className="min-h-9 rounded-full border border-primary/30 bg-surface px-3 text-xs font-semibold text-primary transition hover:bg-primary/20 disabled:opacity-50"
             >
-              Select all ({intents.length})
+              Select all ({visibleIntents.length})
             </button>
             {selectedIds.size > 0 && (
               <button
@@ -710,13 +400,27 @@ export default function Dashboard() {
         <div className="text-center py-12 text-muted-foreground">
           Loading intents...
         </div>
-      ) : intents.length > 0 ? (
+      ) : visibleIntents.length > 0 ? (
         <>
           {renderSection("Overdue", groupedIntents.overdue)}
           {renderSection("Upcoming", groupedIntents.upcoming)}
           {renderSection("Active", groupedIntents.active)}
           {renderSection("Closed", groupedIntents.closed)}
         </>
+      ) : intents.length > 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-surface-alt p-6 text-center sm:p-12">
+          <p className="text-muted-foreground mb-4">
+            No intents match “{searchQuery.trim()}”.
+          </p>
+          <Button
+            variant="secondary"
+            pill={false}
+            className="min-h-11"
+            onClick={() => setSearchQuery("")}
+          >
+            Clear search
+          </Button>
+        </div>
       ) : (
         <div className="rounded-2xl border border-dashed border-border bg-surface-alt p-6 text-center sm:p-12">
           <p className="text-muted-foreground mb-4">
