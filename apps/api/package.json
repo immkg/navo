@@ -7,8 +7,11 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "lint": "eslint .",
-    "test": "node --test --test-reporter=tap --test-reporter-destination=stdout",
-    "test:coverage": "node --test --experimental-test-coverage --test-reporter=tap --test-reporter-destination=stdout"
+    "pretest": "npm run test:db:push",
+    "pretest:coverage": "npm run test:db:push",
+    "test:db:push": "DATABASE_URL=\"file:./prisma/test.db\" prisma db push --skip-generate --accept-data-loss",
+    "test": "DATABASE_URL=\"file:./prisma/test.db\" node --test --test-concurrency=1 --test-reporter=tap --test-reporter-destination=stdout",
+    "test:coverage": "DATABASE_URL=\"file:./prisma/test.db\" node --test --test-concurrency=1 --experimental-test-coverage --test-reporter=tap --test-reporter-destination=stdout"
   },
   "keywords": [],
   "author": "",
