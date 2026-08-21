@@ -4,3 +4,27 @@ export async function suggestWork(intentId) {
   const response = await apiClient.post("/api/ai/suggest-work", { intentId });
   return response.data;
 }
+
+export async function draftIntent(title, description) {
+  const response = await apiClient.post("/api/ai/draft-intent", {
+    title,
+    description,
+  });
+  return response.data;
+}
+
+export async function suggestPlaceTypes(title, notes) {
+  const response = await apiClient.post("/api/ai/suggest-place-types", {
+    title,
+    notes,
+  });
+  return response.data;
+}
+
+export async function optimizeRoute(startPoint, stops) {
+  const response = await apiClient.post("/api/ai/optimize-route", {
+    startPoint,
+    stops,
+  });
+  return response.data;
+}
