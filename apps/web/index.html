@@ -10,6 +10,20 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Navo</title>
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("navo-theme");
+          var isDark =
+            stored === "dark" ||
+            (stored !== "light" &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (isDark) document.documentElement.classList.add("dark");
+        } catch {
+          // Ignore - defaults to light if localStorage/matchMedia are unavailable.
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

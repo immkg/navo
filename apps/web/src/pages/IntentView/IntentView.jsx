@@ -11,6 +11,9 @@ import {
   searchPlaces,
 } from "../../utils/googleMaps";
 import { useNotifications } from "../../hooks/useNotifications";
+import Button from "../../components/ui/Button";
+import Card from "../../components/ui/Card";
+import Badge from "../../components/ui/Badge";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
@@ -98,20 +101,20 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
 
   const priorityStyle =
     intentPriority === "high"
-      ? "bg-rose-100 text-rose-800"
+      ? "bg-danger/15 text-danger"
       : intentPriority === "low"
-        ? "bg-slate-100 text-slate-700"
-        : "bg-amber-100 text-amber-800";
+        ? "bg-surface-alt text-muted-foreground"
+        : "bg-warning/15 text-warning";
 
   return (
-    <section className="mb-4 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:mb-6 sm:p-6">
+    <Card as="section" className="mb-4 sm:mb-6" padding="lg">
       <input
         value={intentTitle}
         onChange={(e) => setIntentTitle(e.target.value)}
         onBlur={handleTitleBlur}
         disabled={updatingIntent}
         placeholder="Untitled intent"
-        className="-mx-2 w-full min-w-0 rounded-xl border border-transparent px-2 py-1 text-xl font-bold text-gray-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60 sm:text-2xl lg:text-3xl"
+        className="-mx-2 w-full min-w-0 rounded-xl border border-transparent px-2 py-1 text-xl font-bold text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 sm:text-2xl lg:text-3xl"
       />
       <textarea
         value={intentDescription}
@@ -120,12 +123,12 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
         disabled={updatingIntent}
         rows={2}
         placeholder="Add a short description"
-        className="-mx-2 mt-1 w-full resize-none rounded-xl border border-transparent px-2 py-1 text-sm text-gray-600 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-60"
+        className="-mx-2 mt-1 w-full resize-none rounded-xl border border-transparent px-2 py-1 text-sm text-muted-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
       />
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
         <label className="inline-flex items-center gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Priority
           </span>
           <select
@@ -141,14 +144,14 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
         </label>
 
         <label className="inline-flex items-center gap-1.5">
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Status
           </span>
           <select
             value={intentStatus}
             onChange={(e) => handleUpdateStatus(e.target.value)}
             disabled={updatingIntent}
-            className="h-9 rounded-full border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 outline-none transition focus:border-blue-500 disabled:opacity-60"
+            className="h-9 rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground outline-none transition focus:border-primary disabled:opacity-60"
           >
             <option value="active">Active</option>
             <option value="completed">Completed</option>
@@ -161,9 +164,9 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
           type="button"
           onClick={() => openDateInput(`intent-start-date-${intent.id}`)}
           disabled={updatingIntent}
-          className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 transition hover:bg-gray-50 disabled:opacity-60"
+          className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground transition hover:bg-surface-alt disabled:opacity-60"
         >
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Start
           </span>
           {intentStartDate ? formatDate(intentStartDate) : "Not set"}
@@ -182,9 +185,9 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
           type="button"
           onClick={() => openDateInput(`intent-due-date-${intent.id}`)}
           disabled={updatingIntent}
-          className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 text-sm font-medium text-gray-800 transition hover:bg-gray-50 disabled:opacity-60"
+          className="relative inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-sm font-medium text-foreground transition hover:bg-surface-alt disabled:opacity-60"
         >
-          <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Due
           </span>
           {intentDueDate ? formatDate(intentDueDate) : "Not set"}
@@ -199,7 +202,7 @@ function IntentSummaryCard({ intent, onPatchIntent, updatingIntent }) {
           />
         </button>
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -816,19 +819,19 @@ function WorkLocationOptionsEditor({
   };
 
   return (
-    <div className="mt-4 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+    <Card className="mt-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button
           type="button"
           onClick={handleAddLocationOptionGroup}
-          className="rounded-full border border-blue-200 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+          className="rounded-full border border-primary/30 bg-surface min-h-9 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
         >
           {locationOptionGroups.length === 0 ? "Edit Locations" : "+ Add group"}
         </button>
       </div>
 
       {locationOptionGroups.length === 0 ? (
-        <div className="mt-4 rounded-3xl border border-dashed border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+        <div className="mt-4 rounded-3xl border border-dashed border-primary/30 bg-primary/10 p-4 text-sm text-primary">
           Add a location option group first, then add one or more places inside
           it.
         </div>
@@ -843,20 +846,21 @@ function WorkLocationOptionsEditor({
                 handleAutocomplete(nextQuery);
               }}
               placeholder="Search for a place"
-              className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
             />
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              pill={false}
               onClick={handleSearchPlaces}
               disabled={isSearchingPlaces}
-              className="rounded-full bg-blue-600 px-4 py-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-3 text-xs"
             >
               {isSearchingPlaces ? "Searching…" : "Search"}
-            </button>
+            </Button>
           </div>
 
           {searchError && (
-            <div className="text-sm text-red-600">{searchError}</div>
+            <div className="text-sm text-danger">{searchError}</div>
           )}
 
           <div>
@@ -864,17 +868,17 @@ function WorkLocationOptionsEditor({
               <button
                 type="button"
                 onClick={() => setShowManualPlaceForm(true)}
-                className="min-h-9 text-xs font-semibold text-blue-700 hover:underline"
+                className="min-h-9 text-xs font-semibold text-primary hover:underline"
               >
                 Can&apos;t find it? Add a place manually
               </button>
             ) : (
               <form
                 onSubmit={handleAddManualPlace}
-                className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-3"
+                className="space-y-3 rounded-2xl border border-border bg-surface-alt p-3"
               >
                 <label className="block space-y-1">
-                  <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Location name
                   </span>
                   <input
@@ -883,46 +887,48 @@ function WorkLocationOptionsEditor({
                     required
                     autoFocus
                     placeholder="e.g., Downtown Farmers Market"
-                    className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                    className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                   />
                 </label>
                 <label className="block space-y-1">
-                  <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     Address (optional)
                   </span>
                   <input
                     value={manualPlaceAddress}
                     onChange={(e) => setManualPlaceAddress(e.target.value)}
-                    className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                    className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                   />
                 </label>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <button
+                  <Button
                     type="button"
+                    variant="secondary"
+                    pill={false}
                     onClick={() => {
                       setShowManualPlaceForm(false);
                       setManualPlaceName("");
                       setManualPlaceAddress("");
                     }}
-                    className="inline-flex min-h-10 items-center justify-center rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-400"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
                     type="submit"
+                    variant="primary"
+                    pill={false}
                     disabled={!manualPlaceName.trim()}
-                    className="inline-flex min-h-10 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
                   >
                     Add place
-                  </button>
+                  </Button>
                 </div>
               </form>
             )}
           </div>
 
           {autocompleteResults.length > 0 && (
-            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
-              <div className="mb-2 text-sm font-semibold text-gray-900">
+            <div className="rounded-2xl border border-border bg-surface-alt p-3">
+              <div className="mb-2 text-sm font-semibold text-foreground">
                 Suggestions
               </div>
               <div className="space-y-2">
@@ -951,7 +957,7 @@ function WorkLocationOptionsEditor({
                         setIsSearchingPlaces(false);
                       }
                     }}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100"
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-left text-sm text-foreground transition hover:bg-surface-alt"
                   >
                     {suggestion.description}
                   </button>
@@ -963,12 +969,12 @@ function WorkLocationOptionsEditor({
           {placeResults.length > 0 && (
             <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.95fr)]">
               <div className="space-y-2">
-                <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
+                <Card padding="sm">
                   <div className="mb-2 flex items-center justify-between">
-                    <div className="text-sm font-semibold text-gray-900">
+                    <div className="text-sm font-semibold text-foreground">
                       Places
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-muted-foreground">
                       {placeResults.length} results
                     </div>
                   </div>
@@ -976,15 +982,15 @@ function WorkLocationOptionsEditor({
                     {placeResults.map((place, resultIndex) => (
                       <div
                         key={resultIndex}
-                        className={`rounded-2xl border p-3 ${selectedPreviewPlace?.placeId === place.placeId ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-gray-50"}`}
+                        className={`rounded-2xl border p-3 ${selectedPreviewPlace?.placeId === place.placeId ? "border-primary bg-primary/10" : "border-border bg-surface-alt"}`}
                       >
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                           <div className="min-w-0">
-                            <div className="truncate font-medium text-gray-900">
+                            <div className="truncate font-medium text-foreground">
                               {place.name}
                             </div>
                             {place.formattedAddress && (
-                              <div className="truncate text-sm text-gray-500">
+                              <div className="truncate text-sm text-muted-foreground">
                                 {place.formattedAddress}
                               </div>
                             )}
@@ -993,61 +999,61 @@ function WorkLocationOptionsEditor({
                             <button
                               type="button"
                               onClick={() => previewPlaceInMap(place)}
-                              className="rounded-full border border-blue-200 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                              className="rounded-full border border-primary/30 bg-surface min-h-9 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
                             >
                               Preview
                             </button>
-                            <button
-                              type="button"
+                            <Button
+                              variant="primary"
+                              size="sm"
                               onClick={() =>
                                 handleAddLocationToGroup(
                                   selectedGroupIndex,
                                   place
                                 )
                               }
-                              className="rounded-full bg-blue-600 min-h-9 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                             >
                               Add
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </Card>
               </div>
 
-              <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
-                <div className="mb-2 text-sm font-semibold text-gray-900">
+              <Card padding="sm">
+                <div className="mb-2 text-sm font-semibold text-foreground">
                   Map preview
                 </div>
-                <div className="mb-2 text-xs text-gray-500">
+                <div className="mb-2 text-xs text-muted-foreground">
                   Click on map to drop a pin, then add it to the active group.
                 </div>
                 <div
                   ref={mapContainerRef}
-                  className="h-56 rounded-3xl border border-gray-200 bg-gray-100 sm:h-64"
+                  className="h-56 rounded-3xl border border-border bg-surface-alt sm:h-64"
                 />
                 {droppedPinPlace && (
-                  <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3">
-                    <div className="text-sm font-semibold text-blue-900">
+                  <div className="mt-3 rounded-2xl border border-primary/30 bg-primary/10 p-3">
+                    <div className="text-sm font-semibold text-primary">
                       Dropped pin
                     </div>
-                    <div className="text-sm text-blue-700">
+                    <div className="text-sm text-primary">
                       {droppedPinPlace.formattedAddress}
                     </div>
                     <div className="mt-2">
-                      <button
-                        type="button"
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={handleAddDroppedPinToGroup}
-                        className="rounded-full bg-blue-600 min-h-9 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                       >
                         Add dropped pin
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
-              </div>
+              </Card>
             </div>
           )}
 
@@ -1055,7 +1061,7 @@ function WorkLocationOptionsEditor({
             {locationOptionGroups.map((group, index) => (
               <div
                 key={index}
-                className={`rounded-3xl border p-4 ${selectedGroupIndex === index ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`}
+                className={`rounded-3xl border p-4 ${selectedGroupIndex === index ? "border-primary bg-primary/10" : "border-border bg-surface"}`}
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 flex-1">
@@ -1077,15 +1083,18 @@ function WorkLocationOptionsEditor({
                             ? "Existing group"
                             : "Option title (optional)"
                         }
-                        className="w-full max-w-[260px] rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+                        className="w-full max-w-[260px] rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary disabled:bg-surface-alt"
                       />
-                      <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                      <Badge
+                        tone="neutral"
+                        className="normal-case tracking-normal"
+                      >
                         {group.locations.length} place
                         {group.locations.length === 1 ? "" : "s"}
-                      </span>
+                      </Badge>
                     </div>
                     {group.locations.length > 0 && (
-                      <div className="mt-2 text-sm text-gray-500">
+                      <div className="mt-2 text-sm text-muted-foreground">
                         {group.locations.length === 1
                           ? "1 place added"
                           : `${group.locations.length} places added`}
@@ -1095,20 +1104,20 @@ function WorkLocationOptionsEditor({
                   <button
                     type="button"
                     onClick={() => setSelectedGroupIndex(index)}
-                    className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${selectedGroupIndex === index ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
+                    className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${selectedGroupIndex === index ? "border border-primary bg-primary text-primary-foreground" : "border border-border bg-surface text-foreground hover:bg-surface-alt"}`}
                   >
                     {selectedGroupIndex === index ? "Selected" : "Select"}
                   </button>
                 </div>
                 <div className="mt-3">
-                  <button
-                    type="button"
+                  <Button
+                    variant="danger-outline"
+                    size="sm"
                     onClick={() => handleRemoveGroup(index)}
                     disabled={isSaving}
-                    className="rounded-full border border-red-200 bg-red-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                   >
                     Remove group
-                  </button>
+                  </Button>
                 </div>
                 {group.locations.length > 0 && (
                   <div className="mt-3 space-y-2">
@@ -1120,8 +1129,9 @@ function WorkLocationOptionsEditor({
                         }
                         location={location}
                         actions={
-                          <button
-                            type="button"
+                          <Button
+                            variant="danger-outline"
+                            size="sm"
                             onClick={() =>
                               handleRemoveLocationFromGroup(
                                 index,
@@ -1129,10 +1139,9 @@ function WorkLocationOptionsEditor({
                               )
                             }
                             disabled={isSaving}
-                            className="rounded-full border border-red-200 bg-red-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50"
                           >
                             Remove place
-                          </button>
+                          </Button>
                         }
                       />
                     ))}
@@ -1143,32 +1152,32 @@ function WorkLocationOptionsEditor({
           </div>
 
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              pill={false}
               onClick={() => {
                 resetEditor();
                 onCancel?.();
               }}
-              className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
             >
               Cancel
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="primary"
+              pill={false}
               onClick={handleSubmit}
               disabled={isSaving || locationOptionGroups.length === 0}
-              className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
             >
               {isSaving
                 ? "Adding..."
                 : hasPendingNewGroups
                   ? "Add location option"
                   : "Done"}
-            </button>
+            </Button>
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -1462,11 +1471,13 @@ export default function IntentView() {
 
   if (loading)
     return (
-      <div className="p-8 text-center text-gray-500">Loading intent...</div>
+      <div className="p-8 text-center text-muted-foreground">
+        Loading intent...
+      </div>
     );
 
   if (!intent)
-    return <div className="p-8 text-center text-red-500">Intent not found</div>;
+    return <div className="p-8 text-center text-danger">Intent not found</div>;
 
   const workCount = intent.workItems?.length || 0;
   const completedCount =
@@ -1484,7 +1495,7 @@ export default function IntentView() {
     <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
       <Link
         to="/"
-        className="mb-3 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-gray-600 transition hover:text-gray-900"
+        className="mb-3 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-muted-foreground transition hover:text-foreground"
       >
         ← Back to Intents
       </Link>
@@ -1496,48 +1507,49 @@ export default function IntentView() {
       />
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:mb-6 sm:flex sm:w-auto">
-        <button
+        <Button
+          variant="primary"
+          size="lg"
           onClick={() => {
             const form = document.getElementById("new-work-form");
             form?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700"
         >
           + Add Work
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant="accent-outline"
+          size="lg"
           onClick={handleSuggestWork}
           disabled={isSuggestingWork}
-          className="inline-flex min-h-11 items-center justify-center rounded-full border border-purple-200 bg-purple-50 px-4 text-sm font-medium text-purple-700 transition hover:bg-purple-100 disabled:opacity-50"
         >
           {isSuggestingWork ? "Thinking…" : "✨ Suggest Work"}
-        </button>
+        </Button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(280px,1fr)]">
         <section>
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-gray-800 sm:text-2xl">
+              <h2 className="text-xl font-semibold text-foreground sm:text-2xl">
                 Work
               </h2>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-sm text-muted-foreground">
                 What needs to happen?
               </p>
             </div>
           </div>
 
           {aiSuggestions.length > 0 && (
-            <div className="mb-4 space-y-2 rounded-3xl border border-purple-200 bg-purple-50 p-4">
+            <div className="mb-4 space-y-2 rounded-3xl border border-accent/30 bg-accent/10 p-4">
               <div className="mb-1 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-purple-900">
+                <h3 className="text-sm font-semibold text-accent">
                   ✨ AI suggestions
                 </h3>
                 <button
                   type="button"
                   onClick={() => setAiSuggestions([])}
-                  className="min-h-8 text-xs font-semibold text-purple-700 hover:underline"
+                  className="min-h-8 text-xs font-semibold text-accent hover:underline"
                 >
                   Dismiss all
                 </button>
@@ -1545,35 +1557,35 @@ export default function IntentView() {
               {aiSuggestions.map((suggestion, index) => (
                 <div
                   key={`${suggestion.title}-${index}`}
-                  className="flex flex-col gap-2 rounded-2xl border border-purple-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 rounded-2xl border border-accent/20 bg-surface p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-foreground">
                       {suggestion.title}
                     </div>
-                    <div className="mt-0.5 text-xs text-gray-500">
+                    <div className="mt-0.5 text-xs text-muted-foreground">
                       {suggestion.durationMinutes} min
                       {suggestion.needsLocation ? " · might need a place" : ""}
                       {suggestion.notes ? ` · ${suggestion.notes}` : ""}
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => dismissSuggestion(index)}
                       disabled={addingSuggestionIndex === index}
-                      className="inline-flex min-h-9 items-center justify-center rounded-full border border-gray-300 bg-white px-3 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
                     >
                       Dismiss
-                    </button>
-                    <button
-                      type="button"
+                    </Button>
+                    <Button
+                      variant="accent"
+                      size="sm"
                       onClick={() => addSuggestionAsWork(index)}
                       disabled={addingSuggestionIndex === index}
-                      className="inline-flex min-h-9 items-center justify-center rounded-full bg-purple-600 px-3 text-xs font-semibold text-white transition hover:bg-purple-700 disabled:opacity-50"
                     >
                       {addingSuggestionIndex === index ? "Adding…" : "+ Add"}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -1583,28 +1595,25 @@ export default function IntentView() {
           {intent.workItems && intent.workItems.length > 0 ? (
             <div className="grid gap-3 sm:gap-4">
               {intent.workItems.map((work) => (
-                <div
-                  key={work.id}
-                  className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"
-                >
+                <Card key={work.id} padding="md">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="text-base font-semibold text-gray-900 sm:text-lg">
+                      <h3 className="text-base font-semibold text-foreground sm:text-lg">
                         {work.title}
                       </h3>
-                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500 sm:text-sm">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground sm:text-sm">
                         <span>{work.durationMinutes || 30} min</span>
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                        <Badge
+                          tone={
                             work.status === "done"
-                              ? "bg-emerald-100 text-emerald-800"
+                              ? "success"
                               : work.status === "in_progress"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-gray-100 text-gray-700"
-                          }`}
+                                ? "primary"
+                                : "neutral"
+                          }
                         >
                           {work.status.replace("_", " ")}
-                        </span>
+                        </Badge>
                       </div>
                     </div>
                     <button
@@ -1613,43 +1622,43 @@ export default function IntentView() {
                       disabled={deletingWorkId === work.id}
                       aria-label={`Delete ${work.title}`}
                       title="Delete work item"
-                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 disabled:opacity-50"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-danger/30 bg-danger/10 text-danger transition hover:bg-danger/20 disabled:opacity-50"
                     >
                       {deletingWorkId === work.id ? "…" : "✕"}
                     </button>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
                       onClick={() => startEditWork(work)}
                       disabled={updatingWorkId === work.id}
-                      className="rounded-full border border-gray-300 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
                     >
                       Edit
-                    </button>
-                    <span className="rounded-full bg-gray-100 px-3 py-1 text-center text-xs font-semibold uppercase text-gray-600">
+                    </Button>
+                    <Badge tone="neutral">
                       {work.locationOptions?.length > 0
                         ? `${work.locationOptions.length} option${work.locationOptions.length === 1 ? "" : "s"}`
                         : "No location"}
-                    </span>
+                    </Badge>
                     <button
                       type="button"
                       onClick={() => startAddLocationOption(work)}
-                      className="rounded-full border border-blue-200 bg-blue-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                      className="rounded-full border border-primary/30 bg-primary/10 min-h-9 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/20"
                     >
                       Edit locations
                     </button>
                   </div>
 
                   {editingWorkId === work.id && (
-                    <div className="mt-4 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-                      <div className="mb-3 text-sm font-semibold text-gray-900">
+                    <div className="mt-4 rounded-3xl border border-border bg-surface-alt p-4">
+                      <div className="mb-3 text-sm font-semibold text-foreground">
                         Edit Work
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <label className="space-y-2 sm:col-span-2">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium text-foreground">
                             What needs to happen?
                           </span>
                           <input
@@ -1657,12 +1666,12 @@ export default function IntentView() {
                             onChange={(e) =>
                               setEditingWorkTitle(e.target.value)
                             }
-                            className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                            className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
                           />
                         </label>
 
                         <label className="space-y-2">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium text-foreground">
                             Duration
                           </span>
                           <select
@@ -1670,7 +1679,7 @@ export default function IntentView() {
                             onChange={(e) =>
                               setEditingWorkDuration(Number(e.target.value))
                             }
-                            className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                            className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
                           >
                             {DURATION_OPTIONS.map((minutes) => (
                               <option key={minutes} value={minutes}>
@@ -1683,7 +1692,7 @@ export default function IntentView() {
                         </label>
 
                         <label className="space-y-2">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium text-foreground">
                             Status
                           </span>
                           <select
@@ -1691,7 +1700,7 @@ export default function IntentView() {
                             onChange={(e) =>
                               setEditingWorkStatus(e.target.value)
                             }
-                            className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                            className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
                           >
                             <option value="todo">Todo</option>
                             <option value="in_progress">In progress</option>
@@ -1700,7 +1709,7 @@ export default function IntentView() {
                         </label>
 
                         <label className="space-y-2 sm:col-span-2">
-                          <span className="text-sm font-medium text-gray-700">
+                          <span className="text-sm font-medium text-foreground">
                             Notes
                           </span>
                           <input
@@ -1708,32 +1717,32 @@ export default function IntentView() {
                             onChange={(e) =>
                               setEditingWorkNotes(e.target.value)
                             }
-                            className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                            className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
                             placeholder="Add context or details"
                           />
                         </label>
                       </div>
                       <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          pill={false}
                           onClick={cancelEditWork}
-                          className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
                         >
                           Cancel
-                        </button>
-                        <button
-                          type="button"
+                        </Button>
+                        <Button
+                          variant="primary"
+                          pill={false}
                           onClick={() => saveEditWork(work.id)}
                           disabled={
                             updatingWorkId === work.id ||
                             !editingWorkTitle.trim()
                           }
-                          className="rounded-full bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
                         >
                           {updatingWorkId === work.id
                             ? "Saving..."
                             : "Save changes"}
-                        </button>
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -1759,23 +1768,23 @@ export default function IntentView() {
                   )}
 
                   {work.notes && (
-                    <div className="mt-4 text-sm text-gray-600">
+                    <div className="mt-4 text-sm text-muted-foreground">
                       {work.notes}
                     </div>
                   )}
                   {work.locationOptions && work.locationOptions.length > 0 && (
                     <div className="mt-4 space-y-3">
-                      <div className="rounded-3xl border border-gray-200 bg-blue-50 p-4">
+                      <div className="rounded-3xl border border-border bg-primary/10 p-4">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                           <div>
-                            <div className="text-sm font-semibold text-blue-900">
+                            <div className="text-sm font-semibold text-primary">
                               Chosen location option
                             </div>
-                            <div className="text-sm text-blue-700">
+                            <div className="text-sm text-primary">
                               {getChosenOption(work)?.title || `Option 1`}
                             </div>
                             {getChosenOption(work)?.locations?.length > 0 && (
-                              <div className="mt-1 text-xs text-blue-700">
+                              <div className="mt-1 text-xs text-primary">
                                 {getChosenOption(work).locations.length} place
                                 {getChosenOption(work).locations.length === 1
                                   ? ""
@@ -1783,7 +1792,7 @@ export default function IntentView() {
                               </div>
                             )}
                           </div>
-                          <div className="self-start rounded-full border border-blue-200 bg-white px-3 py-1 text-xs text-blue-700">
+                          <div className="self-start rounded-full border border-primary/30 bg-surface px-3 py-1 text-xs text-primary">
                             {work.locationOptions.length} option
                             {work.locationOptions.length === 1 ? "" : "s"}
                           </div>
@@ -1796,14 +1805,14 @@ export default function IntentView() {
                         return (
                           <div
                             key={option.id}
-                            className={`rounded-3xl border p-4 ${isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-gray-50"}`}
+                            className={`rounded-3xl border p-4 ${isSelected ? "border-primary bg-primary/10" : "border-border bg-surface-alt"}`}
                           >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                               <div>
-                                <div className="text-sm font-semibold text-gray-900">
+                                <div className="text-sm font-semibold text-foreground">
                                   {option.title || `Option ${index + 1}`}
                                 </div>
-                                <div className="text-sm text-gray-500">
+                                <div className="text-sm text-muted-foreground">
                                   {option.locations.length} place
                                   {option.locations.length === 1 ? "" : "s"}
                                 </div>
@@ -1813,7 +1822,7 @@ export default function IntentView() {
                                 onClick={() =>
                                   handleSelectLocationOption(work.id, option.id)
                                 }
-                                className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${isSelected ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
+                                className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${isSelected ? "border border-primary bg-primary text-primary-foreground" : "border border-border bg-surface text-foreground hover:bg-surface-alt"}`}
                               >
                                 {isSelected ? "Selected" : "Select option"}
                               </button>
@@ -1831,13 +1840,15 @@ export default function IntentView() {
                       })}
                     </div>
                   )}
-                </div>
+                </Card>
               ))}
             </div>
           ) : (
-            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center sm:p-12">
-              <p className="text-gray-500 mb-4">No work has been added yet.</p>
-              <p className="text-sm text-gray-400">
+            <div className="rounded-xl border border-dashed border-border bg-surface-alt p-6 text-center sm:p-12">
+              <p className="text-muted-foreground mb-4">
+                No work has been added yet.
+              </p>
+              <p className="text-sm text-muted-foreground">
                 Add something that needs to happen and optionally describe where
                 it can be done.
               </p>
@@ -1847,43 +1858,49 @@ export default function IntentView() {
           <IntentWorkForm intentId={id} onWorkCreated={handleWorkCreated} />
         </section>
 
-        <aside className="order-first rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 lg:order-none">
+        <Card
+          as="aside"
+          padding="lg"
+          className="order-first sm:p-6 lg:order-none"
+        >
           <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Places</h2>
-              <p className="mt-1 text-sm text-gray-500">
+              <h2 className="text-xl font-semibold text-foreground">Places</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
                 Derived from your work options.
               </p>
             </div>
-            <button
+            <Button
+              variant="primary"
+              pill={false}
               onClick={() => (window.location.href = "/planner")}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800 sm:w-auto"
+              className="sm:w-auto"
             >
               Plan this Intent
-            </button>
+            </Button>
           </div>
 
           <div className="grid gap-3 sm:gap-4">
-            <div className="rounded-3xl border border-gray-200 p-4">
-              <div className="text-sm text-gray-500">Work</div>
-              <div className="mt-2 text-2xl font-semibold text-gray-900">
+            <div className="rounded-3xl border border-border p-4">
+              <div className="text-sm text-muted-foreground">Work</div>
+              <div className="mt-2 text-2xl font-semibold text-foreground">
                 {workCount}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-muted-foreground">
                 {completedCount} complete
               </div>
             </div>
-            <div className="rounded-3xl border border-gray-200 p-4">
-              <div className="text-sm text-gray-500">Places</div>
-              <div className="mt-2 text-2xl font-semibold text-gray-900">
+            <div className="rounded-3xl border border-border p-4">
+              <div className="text-sm text-muted-foreground">Places</div>
+              <div className="mt-2 text-2xl font-semibold text-foreground">
                 {placeCount}
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-muted-foreground">
                 Derived automatically from work options.
               </div>
             </div>
           </div>
-        </aside>
+        </Card>
       </div>
     </div>
   );

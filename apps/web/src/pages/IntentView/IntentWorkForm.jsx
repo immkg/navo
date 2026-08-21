@@ -9,6 +9,8 @@ import {
 } from "../../utils/googleMaps";
 import LocationCard from "./LocationCard";
 import { useNotifications } from "../../hooks/useNotifications";
+import Card from "../../components/ui/Card";
+import Button from "../../components/ui/Button";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
@@ -486,48 +488,45 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
   }, [newWorkPlaceResults, selectedPreviewPlace, droppedPinPlace, mapReady]);
 
   return (
-    <div
-      id="new-work-form"
-      className="mt-10 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6"
-    >
-      <h2 className="mb-4 text-lg font-semibold text-gray-900 sm:text-xl">
+    <Card id="new-work-form" padding="lg" rounded="lg" className="mt-10">
+      <h2 className="mb-4 text-lg font-semibold text-foreground sm:text-xl">
         Add Work
       </h2>
       <form onSubmit={handleCreateWork} className="space-y-4 sm:space-y-5">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-foreground">
             What needs to happen?
           </label>
           <input
             value={newWorkTitle}
             onChange={(e) => setNewWorkTitle(e.target.value)}
-            className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+            className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
             placeholder="Buy ingredients, call electrician, review document"
             required
           />
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-foreground">
             Notes (optional)
           </label>
           <input
             value={newWorkNotes}
             onChange={(e) => setNewWorkNotes(e.target.value)}
-            className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+            className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
             placeholder="Add context or details"
           />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
+            <label className="mb-1 block text-sm font-medium text-foreground">
               Duration (optional)
             </label>
             <select
               value={newWorkDuration}
               onChange={(e) => setNewWorkDuration(Number(e.target.value))}
-              className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+              className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
             >
               {DURATION_OPTIONS.map((minutes) => (
                 <option key={minutes} value={minutes}>
@@ -540,41 +539,43 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
           </div>
         </div>
 
-        <div className="space-y-4 rounded-3xl border border-gray-200 bg-gray-50 p-4">
-          <div className="text-sm font-medium text-gray-700">Work location</div>
+        <div className="space-y-4 rounded-3xl border border-border bg-surface-alt p-4">
+          <div className="text-sm font-medium text-foreground">
+            Work location
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-gray-200 bg-white p-4">
+            <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-border bg-surface p-4">
               <input
                 type="radio"
                 name="newWorkMode"
                 value="remote"
                 checked={newWorkMode === "remote"}
                 onChange={() => setNewWorkMode("remote")}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
               />
               <div>
-                <div className="font-semibold text-gray-900">
+                <div className="font-semibold text-foreground">
                   Remote (mobile / laptop)
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   No physical location required.
                 </div>
               </div>
             </label>
-            <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-gray-200 bg-white p-4">
+            <label className="flex cursor-pointer items-center gap-3 rounded-3xl border border-border bg-surface p-4">
               <input
                 type="radio"
                 name="newWorkMode"
                 value="place"
                 checked={newWorkMode === "place"}
                 onChange={() => setNewWorkMode("place")}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
               />
               <div>
-                <div className="font-semibold text-gray-900">
+                <div className="font-semibold text-foreground">
                   Requires one or more places
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-muted-foreground">
                   Add location option groups for route-aware work.
                 </div>
               </div>
@@ -583,12 +584,12 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         </div>
 
         {newWorkMode === "place" && (
-          <div className="space-y-4 rounded-3xl border border-blue-200 bg-blue-50 p-4">
+          <div className="space-y-4 rounded-3xl border border-primary/30 bg-primary/5 p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <button
                 type="button"
                 onClick={handleAddLocationOptionGroup}
-                className="rounded-full border border-blue-200 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                className="rounded-full border border-primary/30 bg-surface min-h-9 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
               >
                 {newWorkLocationOptionGroups.length === 0
                   ? "Edit Locations"
@@ -597,7 +598,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
             </div>
 
             {newWorkLocationOptionGroups.length > 0 && (
-              <div className="rounded-3xl border border-gray-200 bg-white p-4">
+              <div className="rounded-3xl border border-border bg-surface p-4">
                 <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
                   <input
                     value={newWorkPlaceQuery}
@@ -607,19 +608,20 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                       handleAutocomplete(nextQuery);
                     }}
                     placeholder="Search for a place"
-                    className="block w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                    className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
                   />
-                  <button
-                    type="button"
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={handleSearchPlaces}
                     disabled={isSearchingPlaces}
-                    className="rounded-full bg-blue-600 px-4 py-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4"
                   >
                     {isSearchingPlaces ? "Searching…" : "Search"}
-                  </button>
+                  </Button>
                 </div>
                 {newWorkPlaceSearchError && (
-                  <div className="mt-3 text-sm text-red-600">
+                  <div className="mt-3 text-sm text-danger">
                     {newWorkPlaceSearchError}
                   </div>
                 )}
@@ -629,17 +631,17 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                     <button
                       type="button"
                       onClick={() => setShowManualPlaceForm(true)}
-                      className="min-h-9 text-xs font-semibold text-blue-700 hover:underline"
+                      className="min-h-9 text-xs font-semibold text-primary hover:underline"
                     >
                       Can&apos;t find it? Add a place manually
                     </button>
                   ) : (
                     <form
                       onSubmit={handleAddManualPlace}
-                      className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-3"
+                      className="space-y-3 rounded-2xl border border-border bg-surface-alt p-3"
                     >
                       <label className="block space-y-1">
-                        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           Location name
                         </span>
                         <input
@@ -648,11 +650,11 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                           required
                           autoFocus
                           placeholder="e.g., Downtown Farmers Market"
-                          className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                          className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                         />
                       </label>
                       <label className="block space-y-1">
-                        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           Address (optional)
                         </span>
                         <input
@@ -660,36 +662,37 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                           onChange={(e) =>
                             setManualPlaceAddress(e.target.value)
                           }
-                          className="block w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                          className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                         />
                       </label>
                       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                        <button
-                          type="button"
+                        <Button
+                          variant="secondary"
+                          size="md"
                           onClick={() => {
                             setShowManualPlaceForm(false);
                             setManualPlaceName("");
                             setManualPlaceAddress("");
                           }}
-                          className="inline-flex min-h-10 items-center justify-center rounded-full border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition hover:border-gray-400"
                         >
                           Cancel
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="submit"
+                          variant="primary"
+                          size="md"
                           disabled={!manualPlaceName.trim()}
-                          className="inline-flex min-h-10 items-center justify-center rounded-full bg-blue-600 px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
                         >
                           Add place
-                        </button>
+                        </Button>
                       </div>
                     </form>
                   )}
                 </div>
 
                 {newWorkAutocompleteResults.length > 0 && (
-                  <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 p-3">
-                    <div className="mb-2 text-sm font-semibold text-gray-900">
+                  <div className="mt-3 rounded-2xl border border-border bg-surface-alt p-3">
+                    <div className="mb-2 text-sm font-semibold text-foreground">
                       Suggestions
                     </div>
                     <div className="space-y-2">
@@ -721,7 +724,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                               setIsSearchingPlaces(false);
                             }
                           }}
-                          className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100"
+                          className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-left text-sm text-foreground transition hover:bg-surface-alt"
                         >
                           {suggestion.description}
                         </button>
@@ -733,12 +736,12 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                 {newWorkPlaceResults.length > 0 && (
                   <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.95fr)]">
                     <div className="space-y-2">
-                      <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
+                      <div className="rounded-3xl border border-border bg-surface p-2.5 sm:p-3">
                         <div className="mb-2 flex items-center justify-between">
-                          <div className="text-sm font-semibold text-gray-900">
+                          <div className="text-sm font-semibold text-foreground">
                             Places
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-muted-foreground">
                             {newWorkPlaceResults.length} results
                           </div>
                         </div>
@@ -746,15 +749,15 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                           {newWorkPlaceResults.map((place, resultIndex) => (
                             <div
                               key={resultIndex}
-                              className={`rounded-2xl border p-3 ${selectedPreviewPlace?.placeId === place.placeId ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-gray-50"}`}
+                              className={`rounded-2xl border p-3 ${selectedPreviewPlace?.placeId === place.placeId ? "border-primary bg-primary/10" : "border-border bg-surface-alt"}`}
                             >
                               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                 <div className="min-w-0">
-                                  <div className="truncate font-medium text-gray-900">
+                                  <div className="truncate font-medium text-foreground">
                                     {place.name}
                                   </div>
                                   {place.formattedAddress && (
-                                    <div className="truncate text-sm text-gray-500">
+                                    <div className="truncate text-sm text-muted-foreground">
                                       {place.formattedAddress}
                                     </div>
                                   )}
@@ -763,22 +766,22 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                                   <button
                                     type="button"
                                     onClick={() => previewPlaceInMap(place)}
-                                    className="rounded-full border border-blue-200 bg-white min-h-9 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                                    className="rounded-full border border-primary/30 bg-surface min-h-9 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
                                   >
                                     Preview
                                   </button>
-                                  <button
-                                    type="button"
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
                                     onClick={() =>
                                       handleAddLocationResultToGroup(
                                         newWorkSelectedOptionGroupIndex,
                                         place
                                       )
                                     }
-                                    className="rounded-full bg-blue-600 min-h-9 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                                   >
                                     Add
-                                  </button>
+                                  </Button>
                                 </div>
                               </div>
                             </div>
@@ -786,34 +789,34 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-3xl border border-gray-200 bg-white p-2.5 sm:p-3">
-                      <div className="mb-2 text-sm font-semibold text-gray-900">
+                    <div className="rounded-3xl border border-border bg-surface p-2.5 sm:p-3">
+                      <div className="mb-2 text-sm font-semibold text-foreground">
                         Map preview
                       </div>
-                      <div className="mb-2 text-xs text-gray-500">
+                      <div className="mb-2 text-xs text-muted-foreground">
                         Click on map to drop a pin, then add it to the active
                         group.
                       </div>
                       <div
                         ref={mapContainerRef}
-                        className="h-56 rounded-3xl border border-gray-200 bg-gray-100 sm:h-64"
+                        className="h-56 rounded-3xl border border-border bg-surface-alt sm:h-64"
                       />
                       {droppedPinPlace && (
-                        <div className="mt-3 rounded-2xl border border-blue-200 bg-blue-50 p-3">
-                          <div className="text-sm font-semibold text-blue-900">
+                        <div className="mt-3 rounded-2xl border border-primary/30 bg-primary/10 p-3">
+                          <div className="text-sm font-semibold text-foreground">
                             Dropped pin
                           </div>
-                          <div className="text-sm text-blue-700">
+                          <div className="text-sm text-muted-foreground">
                             {droppedPinPlace.formattedAddress}
                           </div>
                           <div className="mt-2">
-                            <button
-                              type="button"
+                            <Button
+                              variant="primary"
+                              size="sm"
                               onClick={handleAddDroppedPinToGroup}
-                              className="rounded-full bg-blue-600 min-h-9 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
                             >
                               Add dropped pin
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       )}
@@ -822,7 +825,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                 )}
 
                 {newWorkLocationOptionGroups.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-blue-200 bg-blue-50 p-4 text-sm text-blue-700">
+                  <div className="rounded-3xl border border-dashed border-primary/30 bg-primary/5 p-4 text-sm text-primary">
                     Add a location option group first, then add one or more
                     places inside it.
                   </div>
@@ -831,7 +834,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                     {newWorkLocationOptionGroups.map((group, index) => (
                       <div
                         key={index}
-                        className={`rounded-3xl border p-4 ${newWorkSelectedOptionGroupIndex === index ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`}
+                        className={`rounded-3xl border p-4 ${newWorkSelectedOptionGroupIndex === index ? "border-primary bg-primary/10" : "border-border bg-surface"}`}
                       >
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0 flex-1">
@@ -847,15 +850,15 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                                   });
                                 }}
                                 placeholder="Option title (optional)"
-                                className="w-full max-w-[260px] rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:ring-blue-500"
+                                className="w-full max-w-[260px] rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
                               />
-                              <span className="rounded-full border border-gray-200 bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600">
+                              <span className="rounded-full border border-border bg-surface-alt px-3 py-1 text-xs font-medium text-muted-foreground">
                                 {group.locations.length} place
                                 {group.locations.length === 1 ? "" : "s"}
                               </span>
                             </div>
                             {group.locations.length > 0 && (
-                              <div className="mt-2 text-sm text-gray-500">
+                              <div className="mt-2 text-sm text-muted-foreground">
                                 {group.locations.length === 1
                                   ? "1 place added"
                                   : `${group.locations.length} places added`}
@@ -867,7 +870,7 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                             onClick={() =>
                               setNewWorkSelectedOptionGroupIndex(index)
                             }
-                            className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${newWorkSelectedOptionGroupIndex === index ? "border border-blue-500 bg-blue-500 text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-100"}`}
+                            className={`rounded-full min-h-9 px-3 py-1.5 text-xs font-semibold transition ${newWorkSelectedOptionGroupIndex === index ? "border border-primary bg-primary text-primary-foreground" : "border border-border bg-surface text-foreground hover:bg-surface-alt"}`}
                           >
                             {newWorkSelectedOptionGroupIndex === index
                               ? "Selected"
@@ -875,15 +878,15 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                           </button>
                         </div>
                         <div className="mt-3">
-                          <button
-                            type="button"
+                          <Button
+                            variant="danger-outline"
+                            size="sm"
                             onClick={() =>
                               handleRemoveLocationOptionGroup(index)
                             }
-                            className="rounded-full border border-red-200 bg-red-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                           >
                             Remove group
-                          </button>
+                          </Button>
                         </div>
                         {group.locations.length > 0 && (
                           <div className="mt-3 space-y-2">
@@ -892,18 +895,18 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
                                 key={`${location.placeId || location.name}-${locationIndex}`}
                                 location={location}
                                 actions={
-                                  <button
-                                    type="button"
+                                  <Button
+                                    variant="danger-outline"
+                                    size="sm"
                                     onClick={() =>
                                       handleRemoveLocationFromGroup(
                                         index,
                                         locationIndex
                                       )
                                     }
-                                    className="rounded-full border border-red-200 bg-red-50 min-h-9 px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-100"
                                   >
                                     Remove place
-                                  </button>
+                                  </Button>
                                 }
                               />
                             ))}
@@ -919,22 +922,19 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         )}
 
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
-          <button
-            type="button"
-            onClick={resetForm}
-            className="rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400"
-          >
+          <Button variant="secondary" size="md" onClick={resetForm}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
+            variant="primary"
+            size="md"
             disabled={isSubmitting || !newWorkTitle.trim()}
-            className="rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
           >
             {isSubmitting ? "Adding..." : "Add Work"}
-          </button>
+          </Button>
         </div>
       </form>
-    </div>
+    </Card>
   );
 }

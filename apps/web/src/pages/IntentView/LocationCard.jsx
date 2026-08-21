@@ -1,13 +1,15 @@
+import Card from "../../components/ui/Card";
+
 export default function LocationCard({ location, actions }) {
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-3 sm:p-4">
-      <div className="font-medium text-gray-900">{location.name}</div>
+    <Card padding="sm">
+      <div className="font-medium text-foreground">{location.name}</div>
       {location.address && (
-        <div className="text-sm text-gray-500">{location.address}</div>
+        <div className="text-sm text-muted-foreground">{location.address}</div>
       )}
       {actions ? (
         <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
       ) : null}
-    </div>
+    </Card>
   );
 }
