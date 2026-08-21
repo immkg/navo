@@ -354,3 +354,68 @@ test("POST /api/ai/optimize-route falls back to the original order if the model 
     restoreFetch();
   }
 });
+
+test("POST /api/ai/suggest-work returns 500 for a non-Groq failure", async () => {
+  const intent = await prisma.intent.create({ data: { title: "Plan a trip" } });
+  const restoreFetch = mockFetchOnce(() => {
+    throw new Error("network down");
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/suggest-work")
+      .send({ intentId: intent.id });
+
+    assert.equal(response.statusCode, 500);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/draft-intent returns 500 for a non-Groq failure", async () => {
+  const restoreFetch = mockFetchOnce(() => {
+    throw new Error("network down");
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/draft-intent")
+      .send({ title: "Renew passport" });
+
+    assert.equal(response.statusCode, 500);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/suggest-place-types returns 500 for a non-Groq failure", async () => {
+  const restoreFetch = mockFetchOnce(() => {
+    throw new Error("network down");
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/suggest-place-types")
+      .send({ title: "Pick up prescription" });
+
+    assert.equal(response.statusCode, 500);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/optimize-route returns 500 for a non-Groq failure", async () => {
+  const restoreFetch = mockFetchOnce(() => {
+    throw new Error("network down");
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/optimize-route")
+      .send({ stops: [{ id: "w1", title: "Stop 1" }] });
+
+    assert.equal(response.statusCode, 500);
+  } finally {
+    restoreFetch();
+  }
+});
