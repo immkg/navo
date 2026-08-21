@@ -17,8 +17,10 @@ app.get("/health", (req, res) => {
 
 const intentsRouter = require("./routes/intents");
 const workRouter = require("./routes/work");
+const aiRouter = require("./routes/ai");
 
 app.use("/api/intents", intentsRouter);
 app.use("/api/work", workRouter);
+app.use("/api/ai", aiRouter);
 
 module.exports = app;

@@ -15,6 +15,7 @@ coverage
 
 # Local environment files
 .env*
+!.env.example
 
 # Local database files
 **/*.db
