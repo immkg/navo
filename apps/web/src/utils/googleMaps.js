@@ -1,5 +1,31 @@
 const loadedGoogleMapsPromises = new Map();
 
+// Straight-line (haversine) distance from the search bias point to a
+// result, formatted for display. Good enough for "is this nearby" at a
+// glance — not routing distance.
+export function distanceLabel(originLat, originLng, lat, lng) {
+  if (originLat == null || originLng == null || lat == null || lng == null) {
+    return null;
+  }
+
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(lat - originLat);
+  const dLng = toRad(lng - originLng);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(originLat)) * Math.cos(toRad(lat)) * Math.sin(dLng / 2) ** 2;
+  const km = earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  const useMiles =
+    typeof navigator !== "undefined" && /^en-US/.test(navigator.language || "");
+  if (useMiles) {
+    const miles = km * 0.621371;
+    return `${miles < 10 ? miles.toFixed(1) : Math.round(miles)} mi away`;
+  }
+  return `${km < 10 ? km.toFixed(1) : Math.round(km)} km away`;
+}
+
 export function loadGoogleMaps(apiKey) {
   if (!apiKey) {
     return Promise.reject(new Error("Google Maps API key is required"));

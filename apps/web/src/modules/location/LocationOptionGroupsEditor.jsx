@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   autocompletePlaces,
+  distanceLabel,
   getPlaceDetails,
   loadGoogleMaps,
   reverseGeocodeLocation,
@@ -69,6 +70,7 @@ export default function LocationOptionGroupsEditor({
   const [locationPickerQuery, setLocationPickerQuery] = useState("");
   const [locationPickerResults, setLocationPickerResults] = useState([]);
   const [isPickingLocation, setIsPickingLocation] = useState(false);
+  const [resultsView, setResultsView] = useState("list");
 
   const handleAutocomplete = async (query) => {
     setSearchError(null);
@@ -487,16 +489,43 @@ export default function LocationOptionGroupsEditor({
       ) : (
         <div className="mt-4 space-y-4">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-            <input
-              value={placeQuery}
-              onChange={(e) => {
-                const nextQuery = e.target.value;
-                setPlaceQuery(nextQuery);
-                handleAutocomplete(nextQuery);
-              }}
-              placeholder="Search for a place"
-              className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
-            />
+            <div className="relative min-w-0">
+              <input
+                value={placeQuery}
+                onChange={(e) => {
+                  const nextQuery = e.target.value;
+                  setPlaceQuery(nextQuery);
+                  handleAutocomplete(nextQuery);
+                }}
+                placeholder="Search for a place"
+                className="block w-full rounded-xl border border-border bg-surface px-4 py-3 pr-11 text-sm text-foreground focus:border-primary focus:ring-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setShowLocationPicker((prev) => !prev)}
+                aria-label={
+                  currentLocation.status === "success" ||
+                  currentLocation.status === "manual"
+                    ? "Change search location"
+                    : "Detect my location"
+                }
+                title={
+                  currentLocation.status === "success"
+                    ? "Searching near your current location"
+                    : currentLocation.status === "manual"
+                      ? `Searching near ${currentLocation.label || "your set location"}`
+                      : "Detect my location"
+                }
+                className={`absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full transition ${
+                  currentLocation.status === "success" ||
+                  currentLocation.status === "manual"
+                    ? "bg-primary/15 text-primary"
+                    : "text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+                }`}
+              >
+                📍
+              </button>
+            </div>
             <Button
               variant="primary"
               pill={false}
@@ -524,28 +553,25 @@ export default function LocationOptionGroupsEditor({
             {currentLocation.status === "unsupported" && (
               <span>Searching everywhere.</span>
             )}
-            {currentLocation.status === "denied" && (
-              <button
-                type="button"
-                onClick={currentLocation.requestLocation}
-                className="font-semibold text-primary hover:underline"
-              >
-                Try detecting again
-              </button>
+            {currentLocation.status === "pending" && (
+              <span>Detecting your location…</span>
             )}
-            <button
-              type="button"
-              onClick={() => setShowLocationPicker((prev) => !prev)}
-              className="font-semibold text-primary hover:underline"
-            >
-              {currentLocation.status === "manual"
-                ? "Change"
-                : "Set a location"}
-            </button>
           </div>
 
           {showLocationPicker && (
             <div className="space-y-2 rounded-2xl border border-border bg-surface-alt p-3">
+              {currentLocation.status !== "success" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    currentLocation.requestLocation();
+                    setShowLocationPicker(false);
+                  }}
+                  className="block w-full rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-left text-sm font-semibold text-primary transition hover:bg-primary/20"
+                >
+                  📍 Use my current location
+                </button>
+              )}
               <form
                 onSubmit={handleSearchLocationPicker}
                 className="flex gap-2"
@@ -748,20 +774,41 @@ export default function LocationOptionGroupsEditor({
           )}
 
           {placeResults.length > 0 && (
-            // Stacked, not side-by-side: this editor only ever renders
-            // inside a modal now, which isn't wide enough for a results
-            // list and a map to share a row without both becoming
-            // unreadable.
-            <div className="space-y-4">
-              <Card padding="sm">
-                <div className="mb-2 flex items-center justify-between">
-                  <div className="text-sm font-semibold text-foreground">
-                    Places
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {placeResults.length} results
-                  </div>
-                </div>
+            // This editor only ever renders inside a modal now, which isn't
+            // wide enough for a results list and a map to share a row — a
+            // sticky List/Map tab bar instead of a side-by-side (or even a
+            // stacked) layout keeps each one fully readable, and switching
+            // back and forth is one tap.
+            <div className="space-y-3">
+              <div className="sticky top-0 z-10 flex gap-1 rounded-full bg-surface-alt p-1">
+                <button
+                  type="button"
+                  onClick={() => setResultsView("list")}
+                  className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${
+                    resultsView === "list"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  List ({placeResults.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResultsView("map")}
+                  className={`flex-1 rounded-full py-1.5 text-xs font-semibold transition ${
+                    resultsView === "map"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Map
+                </button>
+              </div>
+
+              <Card
+                padding="sm"
+                className={resultsView === "list" ? "" : "hidden"}
+              >
                 <div className="space-y-2">
                   {placeResults.map((place, resultIndex) => (
                     <div
@@ -778,6 +825,22 @@ export default function LocationOptionGroupsEditor({
                               {place.formattedAddress}
                             </div>
                           )}
+                          {nearLocation &&
+                            (() => {
+                              const distance = distanceLabel(
+                                nearLocation.latitude,
+                                nearLocation.longitude,
+                                place.latitude,
+                                place.longitude
+                              );
+                              return (
+                                distance && (
+                                  <div className="text-xs text-muted-foreground">
+                                    {distance}
+                                  </div>
+                                )
+                              );
+                            })()}
                           {place.openingHours && (
                             <details className="mt-1.5">
                               <summary className="cursor-pointer text-xs font-semibold text-primary">
@@ -794,7 +857,10 @@ export default function LocationOptionGroupsEditor({
                         <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
                           <button
                             type="button"
-                            onClick={() => previewPlaceInMap(place)}
+                            onClick={() => {
+                              previewPlaceInMap(place);
+                              setResultsView("map");
+                            }}
                             className="rounded-full border border-primary/30 bg-surface min-h-9 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
                           >
                             Preview
@@ -818,16 +884,16 @@ export default function LocationOptionGroupsEditor({
                 </div>
               </Card>
 
-              <Card padding="sm">
-                <div className="mb-2 text-sm font-semibold text-foreground">
-                  Map preview
-                </div>
+              <Card
+                padding="sm"
+                className={resultsView === "map" ? "" : "hidden"}
+              >
                 <div className="mb-2 text-xs text-muted-foreground">
                   Click on map to drop a pin, then add it to the active group.
                 </div>
                 <div
                   ref={mapContainerRef}
-                  className="h-56 rounded-3xl border border-border bg-surface-alt sm:h-64"
+                  className="h-56 rounded-3xl border border-border bg-surface-alt sm:h-72"
                 />
                 {droppedPinPlace && (
                   <div className="mt-3 rounded-2xl border border-primary/30 bg-primary/10 p-3">

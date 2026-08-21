@@ -87,6 +87,78 @@ describe("LocationOptionGroupsEditor — Suggest place types", () => {
   });
 });
 
+describe("LocationOptionGroupsEditor — results list and map tabs", () => {
+  beforeEach(() => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-maps-key");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    sessionStorage.clear();
+    delete navigator.geolocation;
+  });
+
+  it("shows distance and opening hours for each result, list tab active by default", async () => {
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 0, longitude: 0 } }),
+    };
+    vi.spyOn(googleMaps, "searchPlaces").mockResolvedValue([
+      {
+        name: "Corner Pharmacy",
+        formattedAddress: "123 Main St",
+        latitude: 0,
+        longitude: 1,
+        placeId: "place-1",
+        openingHours: ["Monday: 9:00 AM – 5:00 PM"],
+      },
+    ]);
+
+    renderWithProviders(<LocationOptionGroupsEditor {...baseProps()} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("📍 Showing results near your current location")
+      ).toBeInTheDocument()
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("Search for a place"), {
+      target: { value: "pharmacy" },
+    });
+    fireEvent.click(screen.getByText("Search", { selector: "button" }));
+
+    await screen.findByText("Corner Pharmacy");
+    expect(screen.getByText("List (1)")).toHaveClass("bg-primary");
+    expect(screen.getByText("Map")).not.toHaveClass("bg-primary");
+    expect(screen.getByText(/km away|mi away/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Hours"));
+    expect(screen.getByText("Monday: 9:00 AM – 5:00 PM")).toBeInTheDocument();
+  });
+
+  it("switches to the map tab when Preview is clicked", async () => {
+    vi.spyOn(googleMaps, "searchPlaces").mockResolvedValue([
+      {
+        name: "Corner Pharmacy",
+        formattedAddress: "123 Main St",
+        latitude: 1,
+        longitude: 1,
+        placeId: "place-1",
+      },
+    ]);
+
+    renderWithProviders(<LocationOptionGroupsEditor {...baseProps()} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Search for a place"), {
+      target: { value: "pharmacy" },
+    });
+    fireEvent.click(screen.getByText("Search", { selector: "button" }));
+
+    fireEvent.click(await screen.findByText("Preview"));
+    expect(screen.getByText("Map")).toHaveClass("bg-primary");
+  });
+});
+
 describe("LocationOptionGroupsEditor — search location picker", () => {
   beforeEach(() => {
     vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-maps-key");
@@ -112,7 +184,7 @@ describe("LocationOptionGroupsEditor — search location picker", () => {
 
     expect(screen.getByText("Searching everywhere.")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText("Set a location"));
+    fireEvent.click(screen.getByRole("button", { name: "Detect my location" }));
     const pickerInput = screen.getByPlaceholderText("Search a city or address");
     fireEvent.change(pickerInput, { target: { value: "Downtown" } });
     fireEvent.click(within(pickerInput.closest("form")).getByText("Search"));
@@ -122,7 +194,9 @@ describe("LocationOptionGroupsEditor — search location picker", () => {
     expect(
       await screen.findByText(/Showing results near Downtown/)
     ).toBeInTheDocument();
-    expect(screen.getByText("Change")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Change search location" })
+    ).toBeInTheDocument();
   });
 });
 
