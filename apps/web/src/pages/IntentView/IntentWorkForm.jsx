@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createWorkItem } from "../../api/work";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   searchPlaces,
   autocompletePlaces,
@@ -11,13 +11,17 @@ import LocationCard from "./LocationCard";
 import { useNotifications } from "../../hooks/useNotifications";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
+import { useCreateWorkItem, WORK_QUERY_KEY } from "../../modules/work/hooks";
+import { intentQueryKey } from "../../modules/intents/hooks";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
 ];
 
-export default function IntentWorkForm({ intentId, onWorkCreated }) {
+export default function IntentWorkForm({ intentId }) {
   const { notify } = useNotifications();
+  const queryClient = useQueryClient();
+  const createWorkItemMutation = useCreateWorkItem();
   const [newWorkTitle, setNewWorkTitle] = useState("");
   const [newWorkDuration, setNewWorkDuration] = useState(15);
   const [newWorkNotes, setNewWorkNotes] = useState("");
@@ -133,13 +137,35 @@ export default function IntentWorkForm({ intentId, onWorkCreated }) {
         }
       }
 
-      const newWork = await createWorkItem(payload);
+      const newWork = await createWorkItemMutation.mutateAsync(payload);
 
-      onWorkCreated({
-        ...newWork,
-        selectedLocationOptionId:
-          newWork.selectedLocationOptionId || newWork.locationOptions?.[0]?.id,
-      });
+      // The mutation's onSuccess already prepends the raw work item into the
+      // ["work"] and ["intent", intentId] caches. If it has location options
+      // but no selected one yet, default the selection to the first option
+      // here (a display-only default, never sent to the server) so it shows
+      // as "Selected" immediately instead of waiting for the user to pick.
+      if (!newWork.selectedLocationOptionId && newWork.locationOptions?.length) {
+        const defaultedWork = {
+          ...newWork,
+          selectedLocationOptionId: newWork.locationOptions[0].id,
+        };
+        queryClient.setQueryData(WORK_QUERY_KEY, (previous) =>
+          previous?.map((item) =>
+            item.id === defaultedWork.id ? defaultedWork : item
+          )
+        );
+        queryClient.setQueryData(
+          intentQueryKey(intentId),
+          (previous) =>
+            previous && {
+              ...previous,
+              workItems: previous.workItems?.map((item) =>
+                item.id === defaultedWork.id ? defaultedWork : item
+              ),
+            }
+        );
+      }
+
       resetForm();
     } catch (error) {
       console.error("Failed to create work", error);

@@ -1,117 +1,35 @@
 import { useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotifications } from "../../hooks/useNotifications";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Modal from "../../components/ui/Modal";
+import PrioritySelect from "../../modules/intents/PrioritySelect";
 import {
-  createIntent,
-  deleteIntent,
-  getIntents,
-  updateIntent,
-} from "../../api/intents";
-
-const PRIORITY_ORDER = {
-  high: 0,
-  medium: 1,
-  low: 2,
-};
-
-const BULK_STATUS_OPTIONS = [
-  { value: "active", label: "Active" },
-  { value: "completed", label: "Completed" },
-  { value: "not_required", label: "Not Required" },
-  { value: "archived", label: "Archived" },
-];
-
-function startOfToday() {
-  const value = new Date();
-  value.setHours(0, 0, 0, 0);
-  return value;
-}
-
-function formatDate(dateValue) {
-  if (!dateValue) return "-";
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return "-";
-  return new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  }).format(date);
-}
-
-function getDueMeta(dueDate) {
-  if (!dueDate) {
-    return { label: "No due", tone: "neutral" };
-  }
-
-  const today = startOfToday();
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0);
-  const dayMs = 24 * 60 * 60 * 1000;
-  const diffDays = Math.round((due.getTime() - today.getTime()) / dayMs);
-
-  if (diffDays < 0) {
-    return {
-      label: `${Math.abs(diffDays)}d overdue`,
-      tone: "danger",
-    };
-  }
-
-  if (diffDays === 0) {
-    return { label: "Due today", tone: "warning" };
-  }
-
-  return {
-    label: `${diffDays}d left`,
-    tone: "success",
-  };
-}
-
-function normalizeIntent(intent) {
-  return {
-    ...intent,
-    workCount: intent.workCount ?? 0,
-    completedWorkCount: intent.completedWorkCount ?? 0,
-    placeCount: intent.placeCount ?? 0,
-    priority: intent.priority ?? "medium",
-    status: intent.status ?? "active",
-  };
-}
-
-function toDateInputValue(dateValue) {
-  if (!dateValue) return "";
-  const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toISOString().slice(0, 10);
-}
+  useBulkDeleteIntents,
+  useBulkUpdateIntentStatus,
+  useCreateIntent,
+  useIntents,
+  usePatchIntent,
+} from "../../modules/intents/hooks";
+import {
+  BULK_STATUS_OPTIONS,
+  PRIORITY_ORDER,
+  formatDate,
+  getDueMeta,
+  startOfToday,
+  toDateInputValue,
+} from "../../modules/intents/utils";
 
 export default function Dashboard() {
   const { notify, confirm } = useNotifications();
-  const queryClient = useQueryClient();
 
-  const { data: intents = [], isLoading: loading } = useQuery({
-    queryKey: ["intents"],
-    queryFn: async () => {
-      const data = await getIntents();
-      return data.map(normalizeIntent);
-    },
-    retry: false,
-  });
+  const { data: intents = [], isLoading: loading } = useIntents();
 
-  const createIntentMutation = useMutation({ mutationFn: createIntent });
-  const patchIntentMutation = useMutation({
-    mutationFn: ({ intentId, patch }) => updateIntent(intentId, patch),
-  });
-  const bulkStatusMutation = useMutation({
-    mutationFn: ({ ids, status }) =>
-      Promise.allSettled(ids.map((id) => updateIntent(id, { status }))),
-  });
-  const bulkDeleteMutation = useMutation({
-    mutationFn: (ids) => Promise.allSettled(ids.map((id) => deleteIntent(id))),
-  });
+  const createIntentMutation = useCreateIntent();
+  const patchIntentMutation = usePatchIntent();
+  const bulkStatusMutation = useBulkUpdateIntentStatus();
+  const bulkDeleteMutation = useBulkDeleteIntents();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newIntentTitle, setNewIntentTitle] = useState("");
@@ -152,17 +70,13 @@ export default function Dashboard() {
     if (!newIntentTitle.trim()) return;
 
     try {
-      const newIntent = await createIntentMutation.mutateAsync({
+      await createIntentMutation.mutateAsync({
         title: newIntentTitle,
         description: newIntentDescription,
         priority: newIntentPriority,
         startDate: newIntentStartDate || null,
         dueDate: newIntentDueDate || null,
       });
-      queryClient.setQueryData(["intents"], (previous = []) => [
-        normalizeIntent(newIntent),
-        ...previous,
-      ]);
 
       setNewIntentTitle("");
       setNewIntentDescription("");
@@ -187,13 +101,6 @@ export default function Dashboard() {
     setUpdatingIntentId(intentId);
     try {
       await patchIntentMutation.mutateAsync({ intentId, patch });
-      queryClient.setQueryData(["intents"], (previous = []) =>
-        previous.map((intent) =>
-          intent.id === intentId
-            ? normalizeIntent({ ...intent, ...patch })
-            : intent
-        )
-      );
     } catch (error) {
       console.error("Failed to patch intent", error);
       notify(failureMessage);
@@ -278,20 +185,13 @@ export default function Dashboard() {
     setIsBulkWorking(true);
     const ids = Array.from(selectedIds);
     try {
-      const results = await bulkStatusMutation.mutateAsync({ ids, status });
+      const { results } = await bulkStatusMutation.mutateAsync({ ids, status });
 
       const succeededIds = ids.filter(
         (_, index) => results[index].status === "fulfilled"
       );
       const failedCount = ids.length - succeededIds.length;
 
-      queryClient.setQueryData(["intents"], (previous = []) =>
-        previous.map((intent) =>
-          succeededIds.includes(intent.id)
-            ? normalizeIntent({ ...intent, status })
-            : intent
-        )
-      );
       setSelectedIds(new Set());
 
       if (failedCount > 0) {
@@ -316,16 +216,13 @@ export default function Dashboard() {
     setIsBulkWorking(true);
     const ids = Array.from(selectedIds);
     try {
-      const results = await bulkDeleteMutation.mutateAsync(ids);
+      const { results } = await bulkDeleteMutation.mutateAsync(ids);
 
       const succeededIds = ids.filter(
         (_, index) => results[index].status === "fulfilled"
       );
       const failedCount = ids.length - succeededIds.length;
 
-      queryClient.setQueryData(["intents"], (previous = []) =>
-        previous.filter((intent) => !succeededIds.includes(intent.id))
-      );
       setSelectedIds(new Set());
 
       if (failedCount > 0) {
@@ -806,15 +703,11 @@ export default function Dashboard() {
             <label className="mb-1 block text-sm font-medium text-foreground">
               Priority
             </label>
-            <select
+            <PrioritySelect
               className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-foreground outline-none focus:ring focus:ring-primary/30"
               value={newIntentPriority}
               onChange={(e) => setNewIntentPriority(e.target.value)}
-            >
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
+            />
           </div>
           <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>

@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   loadGoogleMaps,
   buildGoogleMapsDirectionsUrl,
 } from "../../utils/googleMaps";
 import { useNotifications } from "../../hooks/useNotifications";
 import {
-  getWorkItems,
-  createLocationOption,
-  updateWorkItem,
-} from "../../api/work";
+  useWorkItems,
+  useCreateLocationOption,
+  useUpdateWorkItem,
+} from "../../modules/work/hooks";
 import Card from "../../components/ui/Card";
 import Button from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -130,11 +129,7 @@ function getChosenOption(work) {
 
 export default function PlannerView() {
   const { notify } = useNotifications();
-  const queryClient = useQueryClient();
-  const { data: workItems = [], isLoading: loading } = useQuery({
-    queryKey: ["work"],
-    queryFn: getWorkItems,
-  });
+  const { data: workItems = [], isLoading: loading } = useWorkItems();
   const [currentLocation, setCurrentLocation] = useState(null);
   const [locationStatus, setLocationStatus] = useState(
     typeof navigator !== "undefined" && navigator.geolocation
@@ -151,51 +146,10 @@ export default function PlannerView() {
   const [addLocationName, setAddLocationName] = useState("");
   const [addLocationAddress, setAddLocationAddress] = useState("");
 
-  const addLocationOptionMutation = useMutation({
-    mutationFn: ({ workId, data }) => createLocationOption(workId, data),
-    onSuccess: (createdOption, { workId }) => {
-      queryClient.setQueryData(["work"], (prev) =>
-        (prev || []).map((item) =>
-          item.id === workId
-            ? {
-                ...item,
-                locationOptions: [
-                  ...(item.locationOptions || []),
-                  createdOption,
-                ],
-              }
-            : item
-        )
-      );
-      closeAddLocationForm();
-    },
-    onError: (error) => {
-      console.error("Failed to add location option", error);
-      notify("Failed to add location option");
-    },
-  });
+  const addLocationOptionMutation = useCreateLocationOption();
   const isSavingLocation = addLocationOptionMutation.isPending;
 
-  const selectLocationOptionMutation = useMutation({
-    mutationFn: ({ workId, optionId }) =>
-      updateWorkItem(workId, { selectedLocationOptionId: optionId }),
-    onSuccess: (updated, { workId }) => {
-      queryClient.setQueryData(["work"], (prev) =>
-        (prev || []).map((item) =>
-          item.id === workId
-            ? {
-                ...item,
-                selectedLocationOptionId: updated.selectedLocationOptionId,
-              }
-            : item
-        )
-      );
-    },
-    onError: (error) => {
-      console.error("Failed to select location option", error);
-      notify("Failed to choose location option");
-    },
-  });
+  const selectLocationOptionMutation = useUpdateWorkItem();
 
   const openAddLocationForm = (work) => {
     setAddLocationFormWorkId(work.id);
@@ -222,22 +176,41 @@ export default function PlannerView() {
       return;
     }
 
-    addLocationOptionMutation.mutate({
-      workId: work.id,
-      data: {
-        title: addLocationTitle.trim() || undefined,
-        locations: [
-          {
-            name: addLocationName.trim(),
-            address: addLocationAddress.trim() || undefined,
-          },
-        ],
+    addLocationOptionMutation.mutate(
+      {
+        workId: work.id,
+        data: {
+          title: addLocationTitle.trim() || undefined,
+          locations: [
+            {
+              name: addLocationName.trim(),
+              address: addLocationAddress.trim() || undefined,
+            },
+          ],
+        },
       },
-    });
+      {
+        onSuccess: () => {
+          closeAddLocationForm();
+        },
+        onError: (error) => {
+          console.error("Failed to add location option", error);
+          notify("Failed to add location option");
+        },
+      }
+    );
   };
 
   const handleSelectLocationOption = (workId, optionId) => {
-    selectLocationOptionMutation.mutate({ workId, optionId });
+    selectLocationOptionMutation.mutate(
+      { workId, patch: { selectedLocationOptionId: optionId } },
+      {
+        onError: (error) => {
+          console.error("Failed to select location option", error);
+          notify("Failed to choose location option");
+        },
+      }
+    );
   };
 
   useEffect(() => {
