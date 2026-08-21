@@ -187,11 +187,11 @@ does. Each candidate stop's duration = sum of its work items'
 1. For every not-yet-included candidate stop, find its cheapest insertion
    position in the current route (the position that adds the least travel
    time — i.e. `travel(prev, candidate) + travel(candidate, next) -
-   travel(prev, next)`).
+travel(prev, next)`).
 2. Insertion cost = that added travel time + the stop's total work duration.
 3. Check feasibility: would the route's total elapsed time (all travel legs
-   + all stop durations, start to end) still fit within `endAt - startAt` if
-   this stop were inserted at its best position?
+   - all stop durations, start to end) still fit within `endAt - startAt` if
+     this stop were inserted at its best position?
 4. Among all feasible candidates, insert the one with the best
    value-per-insertion-cost ratio. Repeat until no remaining candidate is
    feasible.
@@ -236,7 +236,7 @@ sets (dropping anything invented or already gone, same defensive pattern as
 those items force-included/excluded to produce a concrete, trustworthy
 schedule for that variation. At most 2 variations, one sentence of reasoning
 each. Each variation is independent and always expressed relative to the
-*current* deterministic baseline — never cumulative with another variation.
+_current_ deterministic baseline — never cumulative with another variation.
 
 Applying a variation (§7) is just calling `PATCH /api/plans/:id` with that
 variation's `addWorkIds`/`removeWorkIds` passed through as
