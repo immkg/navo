@@ -7,6 +7,12 @@ const prisma = require("../src/db/client");
 const { cleanDatabase } = require("../test-support/helpers");
 
 beforeEach(cleanDatabase);
+// GROQ_API_KEY isn't guaranteed to be set in every environment these tests
+// run in (e.g. CI has no such secret configured), so give every test a
+// consistent fake key up front rather than depending on ambient env state.
+beforeEach(() => {
+  process.env.GROQ_API_KEY = "test-groq-key";
+});
 after(cleanDatabase);
 
 function mockFetchOnce(implementation) {
@@ -18,21 +24,13 @@ function mockFetchOnce(implementation) {
 }
 
 test("POST /api/ai/suggest-work returns 503 when GROQ_API_KEY is not configured", async () => {
-  const originalKey = process.env.GROQ_API_KEY;
   delete process.env.GROQ_API_KEY;
-  try {
-    const response = await request(app)
-      .post("/api/ai/suggest-work")
-      .send({ intentId: "any-id" });
 
-    assert.equal(response.statusCode, 503);
-  } finally {
-    if (originalKey === undefined) {
-      delete process.env.GROQ_API_KEY;
-    } else {
-      process.env.GROQ_API_KEY = originalKey;
-    }
-  }
+  const response = await request(app)
+    .post("/api/ai/suggest-work")
+    .send({ intentId: "any-id" });
+
+  assert.equal(response.statusCode, 503);
 });
 
 test("POST /api/ai/suggest-work requires an intentId", async () => {
