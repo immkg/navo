@@ -310,4 +310,70 @@ router.post("/optimize-route", async (req, res) => {
   }
 });
 
+const SPLIT_INTENT_SYSTEM_PROMPT = `You help someone turn a freeform note into one or more personal goals ("intents").
+
+Rules:
+- If the text describes ONE goal, return exactly one intent for it — do not invent extra ones.
+- If the text describes SEVERAL distinct goals (e.g. separated by commas, "and", or line breaks), return one intent per distinct goal.
+- Each intent's title should be short and action-oriented (e.g. "Renew passport", not "I need to renew my passport soon").
+- description is optional — only include it if the text has extra detail worth keeping beyond the title; otherwise null.
+- priority must be exactly one of: "low", "medium", "high" — guess "medium" if unclear.
+- Never invent goals that aren't implied by the text. Suggest at most 8 intents.
+
+Respond with ONLY a JSON object of this exact shape, no other text:
+{"intents": [{"title": string, "description": string or null, "priority": "low"|"medium"|"high"}]}`;
+
+const VALID_SPLIT_PRIORITIES = new Set(["low", "medium", "high"]);
+
+function sanitizeSplitIntents(parsed) {
+  if (!Array.isArray(parsed?.intents)) return [];
+
+  return parsed.intents
+    .filter(
+      (item) => item && typeof item.title === "string" && item.title.trim()
+    )
+    .slice(0, 8)
+    .map((item) => ({
+      title: item.title.trim().slice(0, 200),
+      description:
+        typeof item.description === "string" && item.description.trim()
+          ? item.description.trim().slice(0, 1000)
+          : null,
+      priority: VALID_SPLIT_PRIORITIES.has(item.priority)
+        ? item.priority
+        : "medium",
+    }));
+}
+
+// Ask an LLM to split a freeform blob of text into one or more candidate
+// intents. Purely advisory — the client reviews the list and decides which,
+// if any, to actually create via the existing POST /api/intents endpoint.
+router.post("/split-intent", async (req, res) => {
+  if (!isGroqConfigured()) {
+    return res
+      .status(503)
+      .json({ error: "AI features are not configured on this server." });
+  }
+
+  const { text } = req.body;
+  if (!text || !text.trim()) {
+    return res.status(400).json({ error: "text is required" });
+  }
+
+  try {
+    const parsed = await callGroqJson({
+      systemPrompt: SPLIT_INTENT_SYSTEM_PROMPT,
+      userPrompt: text.trim(),
+    });
+
+    res.json({ intents: sanitizeSplitIntents(parsed) });
+  } catch (error) {
+    const handled = sendGroqError(res, error);
+    if (handled) return handled;
+
+    console.error("Failed to split intent", error);
+    res.status(500).json({ error: "Failed to split intent" });
+  }
+});
+
 module.exports = router;
