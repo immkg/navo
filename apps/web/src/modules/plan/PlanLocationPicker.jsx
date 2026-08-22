@@ -81,8 +81,7 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
     );
   };
 
-  const handleSearch = async (event) => {
-    event.preventDefault();
+  const handleSearch = async () => {
     if (!googleKey || !searchQuery.trim()) return;
 
     setIsSearching(true);
@@ -144,22 +143,32 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
         )}
       </div>
 
-      <form onSubmit={handleSearch} className="flex gap-2">
+      {/* A plain div, not a <form> — this picker is itself rendered inside
+          the caller's own <form> (create-plan, edit-window), and a nested
+          <form> is invalid HTML that React warns about at hydration. */}
+      <div className="flex gap-2">
         <input
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              handleSearch();
+            }
+          }}
           placeholder="Search a city or address"
           className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
         />
         <Button
-          type="submit"
+          type="button"
           variant="secondary"
           size="sm"
+          onClick={handleSearch}
           disabled={isSearching}
         >
           {isSearching ? "Searching…" : "Search"}
         </Button>
-      </form>
+      </div>
 
       {searchError && <p className="text-sm text-danger">{searchError}</p>}
 

@@ -228,6 +228,42 @@ describe("PlanDetailPage", () => {
     );
   });
 
+  it("links to a single Maps route covering start, every stop, and end", async () => {
+    vi.spyOn(plansApi, "getPlan").mockResolvedValue(
+      basePlan({
+        status: "active",
+        endLatitude: 2,
+        endLongitude: 2,
+        stops: [
+          {
+            id: "stop-1",
+            status: "planned",
+            plannedArrivalAt: "2026-08-22T09:10:00.000Z",
+            plannedDepartureAt: "2026-08-22T09:20:00.000Z",
+            location: { id: "loc-1", name: "Pharmacy", latitude: 1, longitude: 1 },
+            works: [],
+          },
+        ],
+      })
+    );
+
+    renderPage();
+
+    const link = await screen.findByText("Open full route in Maps");
+    expect(link.closest("a")).toHaveAttribute(
+      "href",
+      expect.stringContaining("origin=0,0")
+    );
+    expect(link.closest("a")).toHaveAttribute(
+      "href",
+      expect.stringContaining("destination=2,2")
+    );
+    expect(link.closest("a")).toHaveAttribute(
+      "href",
+      expect.stringContaining("waypoints=1,1")
+    );
+  });
+
   it("asks for confirmation before skipping a work item", async () => {
     const plan = basePlan({
       status: "active",

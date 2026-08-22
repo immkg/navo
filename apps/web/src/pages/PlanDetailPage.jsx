@@ -113,6 +113,34 @@ export default function PlanDetailPage() {
     (plan?.startLatitude != null && plan?.startLongitude != null) ||
     (plan?.endLatitude != null && plan?.endLongitude != null);
 
+  // One shareable link covering the whole plan (start -> every stop -> end)
+  // rather than the per-stop "Open in Maps" links below, which each cover
+  // only a single leg. buildGoogleMapsDirectionsUrl's `stops` param treats
+  // the last entry as the destination and the rest as waypoints, so the
+  // plan's own end point is appended as a synthetic last "stop".
+  const fullRouteUrl = useMemo(() => {
+    if (!plan) return null;
+    const hasEnd = plan.endLatitude != null && plan.endLongitude != null;
+    const routeStops = hasEnd
+      ? [
+          ...stops,
+          {
+            location: {
+              latitude: plan.endLatitude,
+              longitude: plan.endLongitude,
+              name: plan.endLabel || "End",
+            },
+          },
+        ]
+      : stops;
+    if (routeStops.length === 0) return null;
+
+    return buildGoogleMapsDirectionsUrl(
+      { latitude: plan.startLatitude, longitude: plan.startLongitude },
+      routeStops
+    );
+  }, [plan, stops]);
+
   useEffect(() => {
     if (!googleKey || !mapRef.current || !plan || !hasMapPoint) return;
 
@@ -501,6 +529,18 @@ export default function PlanDetailPage() {
       )}
 
       <Card padding="lg" className="mb-6">
+        {fullRouteUrl && (
+          <div className="mb-3 flex justify-end">
+            <a
+              href={fullRouteUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-semibold text-primary hover:underline"
+            >
+              Open full route in Maps
+            </a>
+          </div>
+        )}
         {!googleKey ? (
           <div className="rounded-3xl border border-dashed border-border bg-surface-alt p-8 text-center text-muted-foreground">
             Configure VITE_GOOGLE_MAPS_API_KEY to see a map preview.

@@ -96,6 +96,54 @@ describe("PlanLocationPicker", () => {
     );
   });
 
+  it("searches when Enter is pressed in the search field", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    vi.spyOn(googleMaps, "searchPlaces").mockResolvedValue([
+      { name: "Downtown", formattedAddress: "Downtown, Some City" },
+    ]);
+
+    render(
+      <PlanLocationPicker
+        legend="Start"
+        value={{
+          dateTime: "2026-08-22T09:00",
+          label: "",
+          latitude: null,
+          longitude: null,
+        }}
+        onChange={vi.fn()}
+      />
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("Search a city or address"), {
+      target: { value: "Downtown" },
+    });
+    fireEvent.keyDown(screen.getByPlaceholderText("Search a city or address"), {
+      key: "Enter",
+    });
+
+    expect(await screen.findByText("Downtown")).toBeInTheDocument();
+  });
+
+  it("renders no nested <form> when used inside the caller's own form", () => {
+    const { container } = render(
+      <form>
+        <PlanLocationPicker
+          legend="Start"
+          value={{
+            dateTime: "2026-08-22T09:00",
+            label: "",
+            latitude: null,
+            longitude: null,
+          }}
+          onChange={vi.fn()}
+        />
+      </form>
+    );
+
+    expect(container.querySelectorAll("form")).toHaveLength(1);
+  });
+
   it("accepts a valid manually-entered latitude/longitude", () => {
     const onChange = vi.fn();
     render(
