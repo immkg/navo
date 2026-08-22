@@ -8,6 +8,43 @@ const { buildPlanVariations } = require("../services/planVariations");
 
 const router = express.Router();
 
+const COORDINATE_FIELDS = [
+  "startLatitude",
+  "startLongitude",
+  "endLatitude",
+  "endLongitude",
+];
+
+// Prisma writes whatever it is handed straight into a Float? column, so a
+// coordinate arriving as a string (a form field, a query param) surfaces as
+// a 500 instead of a clean 400. Coerce every provided coordinate up front
+// and reject anything that isn't a real number. An explicit null is kept as
+// null — that's how a caller clears a coordinate, and Number(null) would
+// silently turn it into 0.
+function coerceCoordinates(body) {
+  const coordinates = {};
+
+  for (const field of COORDINATE_FIELDS) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (value === null) {
+      coordinates[field] = null;
+      continue;
+    }
+    if (typeof value === "string" && value.trim() === "") {
+      return { error: `${field} must be a number` };
+    }
+
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return { error: `${field} must be a number` };
+    }
+    coordinates[field] = numeric;
+  }
+
+  return { coordinates };
+}
+
 // Create a new plan and immediately build its stops.
 router.post("/", async (req, res) => {
   try {
@@ -15,12 +52,8 @@ router.post("/", async (req, res) => {
       title,
       startAt,
       startLabel,
-      startLatitude,
-      startLongitude,
       endAt,
       endLabel,
-      endLatitude,
-      endLongitude,
       useAccurateTravelTime,
     } = req.body;
 
@@ -31,30 +64,40 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ error: "endAt must be after startAt" });
     }
 
+    const { coordinates, error: coordinateError } = coerceCoordinates(req.body);
+    if (coordinateError) {
+      return res.status(400).json({ error: coordinateError });
+    }
+
     const plan = await prisma.plan.create({
       data: {
         title,
         startAt: new Date(startAt),
         startLabel,
-        startLatitude,
-        startLongitude,
         endAt: new Date(endAt),
         endLabel,
-        endLatitude,
-        endLongitude,
         useAccurateTravelTime: Boolean(useAccurateTravelTime),
+        ...coordinates,
       },
     });
 
-    const { plan: builtPlan } = await rebuildPlanStops(prisma, plan.id, {
-      asOfAt: plan.startAt,
-      asOfLocation: {
-        latitude: plan.startLatitude,
-        longitude: plan.startLongitude,
-      },
-    });
+    const { plan: builtPlan, unselectedWork } = await rebuildPlanStops(
+      prisma,
+      plan.id,
+      {
+        asOfAt: plan.startAt,
+        asOfLocation: {
+          latitude: plan.startLatitude,
+          longitude: plan.startLongitude,
+        },
+      }
+    );
 
-    res.status(201).json(builtPlan);
+    // unselectedWork rides alongside the plan's own fields rather than
+    // nesting the plan under a key: the flat shape is what's already shipped
+    // and tested, and a client needs the leftover pool to be able to call
+    // POST /api/ai/plan-variations itself right after a build.
+    res.status(201).json({ ...builtPlan, unselectedWork });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to create plan" });
@@ -103,10 +146,10 @@ const VALID_PLAN_STATUSES = new Set([
   "abandoned",
 ]);
 
-// Update a plan's fields. Changing the time window or activating it
-// triggers a rebuild of every not-yet-resolved stop; so does passing
-// forceIncludeWorkIds/forceExcludeWorkIds (used when applying an
-// AI-suggested variation, or a manual add/exclude from the UI).
+// Update a plan's fields. Changing the time window, moving the start point,
+// or activating it triggers a rebuild of every not-yet-resolved stop; so
+// does passing forceIncludeWorkIds/forceExcludeWorkIds (used when applying
+// an AI-suggested variation, or a manual add/exclude from the UI).
 router.patch("/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -118,8 +161,6 @@ router.patch("/:id", async (req, res) => {
       startLongitude,
       endAt,
       endLabel,
-      endLatitude,
-      endLongitude,
       useAccurateTravelTime,
       status,
       forceIncludeWorkIds,
@@ -129,16 +170,52 @@ router.patch("/:id", async (req, res) => {
     if (status !== undefined && !VALID_PLAN_STATUSES.has(status)) {
       return res.status(400).json({ error: "Invalid plan status" });
     }
+    for (const [field, value] of [
+      ["forceIncludeWorkIds", forceIncludeWorkIds],
+      ["forceExcludeWorkIds", forceExcludeWorkIds],
+    ]) {
+      // Without this a string flows into new Set(...) and silently iterates
+      // its characters, force-including a pile of one-character work ids.
+      if (value !== undefined && !Array.isArray(value)) {
+        return res.status(400).json({ error: `${field} must be an array` });
+      }
+    }
 
     const existingPlan = await prisma.plan.findUnique({ where: { id } });
     if (!existingPlan) {
       return res.status(404).json({ error: "Plan not found" });
     }
 
+    // Patching one end of the window has to be validated against the other
+    // end as it will be *after* the write, not in isolation — otherwise
+    // moving endAt behind the existing startAt is accepted and the plan
+    // quietly ends up with zero stops.
+    const effectiveStartAt =
+      startAt !== undefined ? new Date(startAt) : existingPlan.startAt;
+    const effectiveEndAt =
+      endAt !== undefined ? new Date(endAt) : existingPlan.endAt;
+    if (!(effectiveEndAt.getTime() > effectiveStartAt.getTime())) {
+      return res.status(400).json({ error: "endAt must be after startAt" });
+    }
+
+    const { coordinates, error: coordinateError } = coerceCoordinates(req.body);
+    if (coordinateError) {
+      return res.status(400).json({ error: coordinateError });
+    }
+
     const timingChanged = startAt !== undefined || endAt !== undefined;
+    // Moving the start point changes the route just as much as changing the
+    // window does; without this the new coordinates were persisted but the
+    // stops stayed computed from the old origin.
+    const startLocationChanged =
+      startLatitude !== undefined || startLongitude !== undefined;
     const activating = status === "active" && existingPlan.status !== "active";
     const shouldRebuild =
-      timingChanged || activating || forceIncludeWorkIds || forceExcludeWorkIds;
+      timingChanged ||
+      startLocationChanged ||
+      activating ||
+      forceIncludeWorkIds ||
+      forceExcludeWorkIds;
 
     await prisma.plan.update({
       where: { id },
@@ -146,14 +223,14 @@ router.patch("/:id", async (req, res) => {
         title,
         startAt: startAt !== undefined ? new Date(startAt) : undefined,
         startLabel,
-        startLatitude,
-        startLongitude,
         endAt: endAt !== undefined ? new Date(endAt) : undefined,
         endLabel,
-        endLatitude,
-        endLongitude,
-        useAccurateTravelTime,
+        useAccurateTravelTime:
+          useAccurateTravelTime !== undefined
+            ? Boolean(useAccurateTravelTime)
+            : undefined,
         status,
+        ...coordinates,
       },
     });
 
@@ -168,17 +245,24 @@ router.patch("/:id", async (req, res) => {
     }
 
     const refreshedPlan = await prisma.plan.findUnique({ where: { id } });
-    const { plan: rebuiltPlan } = await rebuildPlanStops(prisma, id, {
-      asOfAt: refreshedPlan.startAt,
-      asOfLocation: {
-        latitude: refreshedPlan.startLatitude,
-        longitude: refreshedPlan.startLongitude,
-      },
-      forceIncludeWorkIds: forceIncludeWorkIds || [],
-      forceExcludeWorkIds: forceExcludeWorkIds || [],
-    });
+    const { plan: rebuiltPlan, unselectedWork } = await rebuildPlanStops(
+      prisma,
+      id,
+      {
+        asOfAt: refreshedPlan.startAt,
+        asOfLocation: {
+          latitude: refreshedPlan.startLatitude,
+          longitude: refreshedPlan.startLongitude,
+        },
+        forceIncludeWorkIds: forceIncludeWorkIds || [],
+        forceExcludeWorkIds: forceExcludeWorkIds || [],
+      }
+    );
 
-    res.json(rebuiltPlan);
+    // Only the rebuild path can report a leftover pool. The no-rebuild path
+    // above deliberately omits the field rather than claiming an empty one:
+    // nothing was recomputed, so there's nothing to say about it.
+    res.json({ ...rebuiltPlan, unselectedWork });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to update plan" });

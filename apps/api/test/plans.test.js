@@ -84,6 +84,32 @@ test("POST /api/plans creates a draft plan and builds its stops", async () => {
   assert.equal(response.body.status, "draft");
   assert.equal(response.body.stops.length, 1);
   assert.equal(response.body.stops[0].works[0].work.id, work.id);
+  // The leftover pool rides alongside the plan's own fields, so a client can
+  // ask for AI variations straight after a build.
+  assert.deepEqual(response.body.unselectedWork, []);
+});
+
+test("POST /api/plans rejects a non-numeric coordinate", async () => {
+  const response = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+    startLatitude: "not-a-number",
+  });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("POST /api/plans coerces numeric-string coordinates", async () => {
+  const response = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+    startLatitude: "0",
+    startLongitude: "1.5",
+  });
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.startLatitude, 0);
+  assert.equal(response.body.startLongitude, 1.5);
 });
 
 test("GET /api/plans lists plans with stops expanded", async () => {
@@ -180,6 +206,11 @@ test("PATCH /api/plans/:id rebuilds stops when the time window widens", async ()
     endLongitude: 0,
   });
   assert.equal(created.body.stops.length, 0);
+  // Budget-constrained build: the one thing that didn't fit is reported.
+  assert.deepEqual(
+    created.body.unselectedWork.map((item) => item.id),
+    [work.id]
+  );
 
   const response = await request(app)
     .patch(`/api/plans/${created.body.id}`)
@@ -188,6 +219,99 @@ test("PATCH /api/plans/:id rebuilds stops when the time window widens", async ()
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.stops.length, 1);
   assert.equal(response.body.stops[0].works[0].work.id, work.id);
+  assert.deepEqual(response.body.unselectedWork, []);
+});
+
+test("PATCH /api/plans/:id rebuilds stops when only the start location moves", async () => {
+  const work = await prisma.work.create({
+    data: {
+      title: "Far errand",
+      durationMinutes: 10,
+      locationOptions: {
+        create: {
+          locations: {
+            create: { name: "Far shop", latitude: 0.05, longitude: 0 },
+          },
+        },
+      },
+    },
+  });
+  // Start at the origin, end next door to the shop, with a 30-minute window:
+  // reaching the shop from the origin costs ~44 minutes, so nothing fits.
+  const created = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    startLatitude: 0,
+    startLongitude: 0,
+    endAt: "2026-08-22T09:30:00.000Z",
+    endLatitude: 0.05,
+    endLongitude: 0,
+  });
+  assert.equal(created.body.stops.length, 0);
+
+  // Moving the start point next to the shop — no change to the window, the
+  // status, or the force lists — has to trigger a rebuild, or the plan keeps
+  // routing from an origin it no longer has.
+  const response = await request(app)
+    .patch(`/api/plans/${created.body.id}`)
+    .send({ startLatitude: 0.05, startLongitude: 0 });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.startLatitude, 0.05);
+  assert.equal(response.body.stops.length, 1);
+  assert.equal(response.body.stops[0].works[0].work.id, work.id);
+});
+
+test("PATCH /api/plans/:id coerces useAccurateTravelTime", async () => {
+  const created = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+  });
+
+  const response = await request(app)
+    .patch(`/api/plans/${created.body.id}`)
+    .send({ useAccurateTravelTime: "true" });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.useAccurateTravelTime, true);
+});
+
+test("PATCH /api/plans/:id rejects a non-numeric coordinate", async () => {
+  const created = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+  });
+
+  const response = await request(app)
+    .patch(`/api/plans/${created.body.id}`)
+    .send({ endLatitude: "not-a-number" });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("PATCH /api/plans/:id rejects an endAt that falls before the existing startAt", async () => {
+  const created = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+  });
+
+  const response = await request(app)
+    .patch(`/api/plans/${created.body.id}`)
+    .send({ endAt: "2026-08-22T08:00:00.000Z" });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("PATCH /api/plans/:id rejects a non-array forceIncludeWorkIds", async () => {
+  const created = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+  });
+
+  const response = await request(app)
+    .patch(`/api/plans/${created.body.id}`)
+    .send({ forceIncludeWorkIds: "some-work-id" });
+
+  assert.equal(response.statusCode, 400);
 });
 
 test("PATCH /api/plans/:id freezes already-resolved stops during a rebuild", async () => {
