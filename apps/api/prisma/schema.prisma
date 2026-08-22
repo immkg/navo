@@ -151,7 +151,10 @@ model PlanStopWork {
   planStop    PlanStop @relation(fields: [planStopId], references: [id], onDelete: Cascade)
 
   workId      String
-  work        Work     @relation(fields: [workId], references: [id])
+  // Cascades for the same reason WorkDependency's relations do: deleting a
+  // work item (directly, or via its intent) must not be blocked by a
+  // historical plan-stop assignment.
+  work        Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
 
   status      String   @default("planned") // planned, done, skipped
 
