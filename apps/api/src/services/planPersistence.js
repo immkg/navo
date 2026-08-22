@@ -37,18 +37,24 @@ function isFrozen(stop) {
   );
 }
 
-// "${workId}:${locationId}" for every already-resolved assignment in the
-// plan. This is the granularity that matters for a work item whose chosen
-// option lists several locations: finishing it at branch A must stop it
-// being re-proposed at branch A without also abandoning branch B.
-function collectResolvedAssignmentKeys(stops) {
+// "${workId}:${locationId}" for every assignment sitting on a frozen stop.
+// This is the granularity that matters for a work item whose chosen option
+// lists several locations: finishing it at branch A must stop it being
+// re-proposed at branch A without also abandoning branch B.
+//
+// Keyed off the *stop* being frozen, not off each assignment's own status: a
+// frozen stop is kept verbatim, so everything it holds is settled for this
+// rebuild and must never be proposed again at a second stop. Assignment
+// status alone missed two ways that happens — a stop marked done while its
+// assignment stayed "planned" (PATCH /:id/stops/:stopId doesn't cascade), and
+// a still-"planned" work bundled onto a stop that another work froze. Both
+// used to produce a duplicate stop at the same location.
+function collectFrozenAssignmentKeys(frozenStops) {
   const keys = new Set();
 
-  for (const stop of stops) {
+  for (const stop of frozenStops) {
     for (const assignment of stop.works) {
-      if (RESOLVED_STATUSES.has(assignment.status)) {
-        keys.add(`${assignment.workId}:${stop.locationId}`);
-      }
+      keys.add(`${assignment.workId}:${stop.locationId}`);
     }
   }
 
@@ -115,10 +121,14 @@ async function rebuildPlanStops(
     if (!plan) return null;
 
     const frozenStops = plan.stops.filter(isFrozen);
-    // Both of these scan *every* stop, not just the frozen ones: an
-    // unresolved assignment sitting on a stop that is about to be rebuilt is
-    // exactly what keeps its work item eligible.
-    const resolvedAssignmentKeys = collectResolvedAssignmentKeys(plan.stops);
+    // Deliberately two different inputs. The per-(work, location) keys follow
+    // the frozen stops, because a kept stop's whole contents are off the
+    // table. The full work-item exclusion has to keep scanning *every* stop
+    // and judging each assignment's own status: an unresolved assignment
+    // sitting on a stop that is about to be rebuilt is exactly what keeps its
+    // work item eligible, and tying this to frozen-stop membership instead
+    // would force-exclude a work item from the branch it hasn't reached yet.
+    const resolvedAssignmentKeys = collectFrozenAssignmentKeys(frozenStops);
     const resolvedWorkIds = collectFullyResolvedWorkIds(plan.stops);
 
     const frozenStopIds = new Set(frozenStops.map((stop) => stop.id));

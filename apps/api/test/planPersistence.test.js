@@ -406,6 +406,209 @@ test("rebuildPlanStops never schedules a new stop before the last frozen stop de
   );
 });
 
+// A frozen stop is immutable *in its entirety*, so nothing sitting on it may
+// be re-proposed elsewhere. Marking the stop itself done (PATCH
+// /:id/stops/:stopId) never cascades down to its PlanStopWork rows, so the
+// assignment stays "planned" — which used to leave its (work, location) pair
+// out of the resolved set and get a second stop built at the same place.
+test("rebuildPlanStops does not duplicate a stop whose own status is resolved while its assignment stays planned", async () => {
+  const location = await prisma.location.create({
+    data: { name: "Pharmacy", latitude: 0.001, longitude: 0 },
+  });
+  const work = await prisma.work.create({
+    data: {
+      title: "Pick up prescription",
+      durationMinutes: 10,
+      locationOptions: {
+        create: { locations: { connect: [{ id: location.id }] } },
+      },
+    },
+  });
+  const plan = await prisma.plan.create({
+    data: {
+      status: "active",
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 0,
+      startLongitude: 0,
+      endAt: new Date("2026-08-22T12:00:00Z"),
+      endLatitude: 0,
+      endLongitude: 0,
+    },
+  });
+  // Exactly what PATCH /:id/stops/:stopId writes: the stop resolves, the
+  // assignment underneath it is left alone.
+  const doneStop = await prisma.planStop.create({
+    data: {
+      planId: plan.id,
+      locationId: location.id,
+      order: 0,
+      status: "done",
+      plannedArrivalAt: new Date("2026-08-22T09:05:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T09:15:00Z"),
+      works: { create: { workId: work.id, status: "planned" } },
+    },
+  });
+
+  const result = await rebuildPlanStops(prisma, plan.id, {
+    asOfAt: plan.startAt,
+    asOfLocation: { latitude: 0, longitude: 0 },
+  });
+
+  const stopsAtLocation = result.plan.stops.filter(
+    (stop) => stop.locationId === location.id
+  );
+  assert.equal(
+    stopsAtLocation.length,
+    1,
+    `expected the frozen stop only, got ${stopsAtLocation.length} stops at the same location`
+  );
+  assert.equal(stopsAtLocation[0].id, doneStop.id);
+  assert.equal(stopsAtLocation[0].status, "done");
+});
+
+// Same rule, the bundled-stop case: one work item at a shared stop resolves
+// through the work-item route, which freezes the stop. The *other* work item
+// there is still "planned", but it may not be re-proposed either — the whole
+// frozen stop is settled.
+test("rebuildPlanStops does not duplicate a still-planned work bundled onto a frozen stop", async () => {
+  const location = await prisma.location.create({
+    data: { name: "Mall", latitude: 0.001, longitude: 0 },
+  });
+  const doneWork = await prisma.work.create({
+    data: {
+      title: "Collect parcel",
+      durationMinutes: 10,
+      locationOptions: {
+        create: { locations: { connect: [{ id: location.id }] } },
+      },
+    },
+  });
+  const plannedWork = await prisma.work.create({
+    data: {
+      title: "Buy socks",
+      durationMinutes: 10,
+      locationOptions: {
+        create: { locations: { connect: [{ id: location.id }] } },
+      },
+    },
+  });
+  const plan = await prisma.plan.create({
+    data: {
+      status: "active",
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 0,
+      startLongitude: 0,
+      endAt: new Date("2026-08-22T12:00:00Z"),
+      endLatitude: 0,
+      endLongitude: 0,
+    },
+  });
+  const bundledStop = await prisma.planStop.create({
+    data: {
+      planId: plan.id,
+      locationId: location.id,
+      order: 0,
+      status: "planned",
+      plannedArrivalAt: new Date("2026-08-22T09:05:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T09:25:00Z"),
+      works: {
+        create: [{ workId: doneWork.id }, { workId: plannedWork.id }],
+      },
+    },
+  });
+  // The work-item route only ever writes PlanStopWork.status.
+  await prisma.planStopWork.updateMany({
+    where: { planStopId: bundledStop.id, workId: doneWork.id },
+    data: { status: "done" },
+  });
+
+  const result = await rebuildPlanStops(prisma, plan.id, {
+    asOfAt: plan.startAt,
+    asOfLocation: { latitude: 0, longitude: 0 },
+  });
+
+  const stopsAtLocation = result.plan.stops.filter(
+    (stop) => stop.locationId === location.id
+  );
+  assert.equal(
+    stopsAtLocation.length,
+    1,
+    `expected the frozen stop only, got ${stopsAtLocation.length} stops at the same location`
+  );
+  assert.equal(stopsAtLocation[0].id, bundledStop.id);
+
+  const statusByWorkId = new Map(
+    stopsAtLocation[0].works.map((assignment) => [
+      assignment.workId,
+      assignment.status,
+    ])
+  );
+  assert.equal(statusByWorkId.size, 2);
+  assert.equal(statusByWorkId.get(doneWork.id), "done");
+  assert.equal(statusByWorkId.get(plannedWork.id), "planned");
+});
+
+// plannedDepartureAt is a *scheduled* time, not a thing that happened. A stop
+// skipped at 09:30 but scheduled to leave at 15:10 must not drag the
+// rebuild's clock to 15:10 and burn the whole remaining day's budget.
+test("rebuildPlanStops ignores a frozen stop's future planned departure when clamping", async () => {
+  const frozenLocation = await prisma.location.create({
+    data: { name: "Skipped errand", latitude: 0.001, longitude: 0 },
+  });
+  const skippedWork = await prisma.work.create({
+    data: { title: "Abandoned", durationMinutes: 10, status: "done" },
+  });
+  await prisma.work.create({
+    data: {
+      title: "Nearby errand",
+      durationMinutes: 10,
+      locationOptions: {
+        create: {
+          locations: {
+            create: { name: "Corner shop", latitude: 0.002, longitude: 0 },
+          },
+        },
+      },
+    },
+  });
+  const plan = await prisma.plan.create({
+    data: {
+      status: "active",
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 0,
+      startLongitude: 0,
+      endAt: new Date("2026-08-22T18:00:00Z"),
+      endLatitude: 0,
+      endLongitude: 0,
+    },
+  });
+  await prisma.planStop.create({
+    data: {
+      planId: plan.id,
+      locationId: frozenLocation.id,
+      order: 0,
+      status: "skipped",
+      plannedArrivalAt: new Date("2026-08-22T15:00:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T15:10:00Z"),
+      actualDepartureAt: null,
+      works: { create: { workId: skippedWork.id, status: "skipped" } },
+    },
+  });
+
+  const asOfAt = new Date("2026-08-22T09:30:00Z");
+  const result = await rebuildPlanStops(prisma, plan.id, {
+    asOfAt,
+    asOfLocation: { latitude: 0.001, longitude: 0 },
+  });
+
+  const newStop = result.plan.stops.find((stop) => stop.status === "planned");
+  assert.ok(newStop, "expected the nearby errand to be scheduled");
+  assert.ok(
+    newStop.plannedArrivalAt.getTime() < asOfAt.getTime() + 30 * 60000,
+    `expected arrival shortly after ${asOfAt.toISOString()}, got ${newStop.plannedArrivalAt.toISOString()}`
+  );
+});
+
 test("rebuildPlanStops replaces not-yet-resolved stops when called again", async () => {
   const workA = await prisma.work.create({
     data: {
