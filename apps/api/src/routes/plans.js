@@ -315,9 +315,16 @@ router.post("/:id/recheck", async (req, res) => {
 
     let variations = [];
     if (result.unselectedWork.length > 0) {
-      const selectedWork = result.plan.stops.flatMap((stop) =>
-        stop.works.map((assignment) => assignment.work)
-      );
+      // Deduped by id: a work item whose chosen option lists two locations
+      // has an assignment at each stop, and listing it twice in the prompt
+      // just invites the model to reason about it as two separate errands.
+      const selectedWork = [
+        ...new Map(
+          result.plan.stops
+            .flatMap((stop) => stop.works.map((assignment) => assignment.work))
+            .map((work) => [work.id, work])
+        ).values(),
+      ];
       const budgetMinutes = Math.max(
         0,
         Math.round(

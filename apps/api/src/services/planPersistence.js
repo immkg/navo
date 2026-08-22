@@ -4,9 +4,14 @@ const { buildPlan } = require("./planBuilder");
 // same vocabulary for "this is settled, stop reconsidering it".
 const RESOLVED_STATUSES = new Set(["done", "skipped"]);
 
+// The nested intent isn't decoration: recheck feeds these work items to the
+// AI variations prompt, which reads intent priority and due date. Without it
+// every *selected* work item looked like a default medium/no-due-date item
+// while unselected ones (loaded separately, with their intent) showed real
+// values — systematically biasing the model toward dropping urgent work.
 const PLAN_STOP_INCLUDE = {
   location: true,
-  works: { include: { work: true } },
+  works: { include: { work: { include: { intent: true } } } },
 };
 
 function loadEligibleWork(client) {

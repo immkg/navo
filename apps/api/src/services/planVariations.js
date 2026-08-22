@@ -13,7 +13,16 @@ Respond with ONLY a JSON object of this exact shape, no other text:
 {"variations": [{"addWorkIds": [string], "removeWorkIds": [string], "reasoning": string}]}`;
 
 function summarizeWork(work) {
-  return `- id: ${work.id}, title: ${work.title}, priority: ${work.priority}, intentPriority: ${work.intent?.priority || "medium"}, dueDate: ${work.intent?.dueDate || "none"}`;
+  // Formatted explicitly rather than left to string coercion: a Prisma
+  // DateTime arrives as a Date, whose toString() is a verbose local-timezone
+  // sentence, while POST /api/ai/plan-variations receives plain date strings
+  // straight from a client. YYYY-MM-DD matches ai.js's existing convention
+  // and keeps both entry points feeding the model the same shape.
+  const dueDate = work.intent?.dueDate
+    ? new Date(work.intent.dueDate).toISOString().slice(0, 10)
+    : "none";
+
+  return `- id: ${work.id}, title: ${work.title}, priority: ${work.priority}, intentPriority: ${work.intent?.priority || "medium"}, dueDate: ${dueDate}`;
 }
 
 function buildPlanVariationsUserPrompt(

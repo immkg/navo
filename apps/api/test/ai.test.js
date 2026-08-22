@@ -616,6 +616,78 @@ test("POST /api/ai/plan-variations caps variations at 2", async () => {
   }
 });
 
+test("POST /api/ai/plan-variations renders a due date as YYYY-MM-DD, not a verbose date string", async () => {
+  let capturedBody;
+  const restoreFetch = mockFetchOnce(async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify({ variations: [] }) } }],
+      }),
+    };
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [],
+        unselectedWork: [
+          {
+            id: "u1",
+            title: "Renew passport",
+            priority: "high",
+            intent: { priority: "high", dueDate: "2026-09-01T00:00:00.000Z" },
+          },
+        ],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    const userMessage = capturedBody.messages.find(
+      (message) => message.role === "user"
+    );
+    assert.match(userMessage.content, /dueDate: 2026-09-01$/m);
+    // No timezone-suffixed Date#toString() leaking into the prompt.
+    assert.doesNotMatch(userMessage.content, /GMT|00:00:00/);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/plan-variations renders a missing due date as none", async () => {
+  let capturedBody;
+  const restoreFetch = mockFetchOnce(async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify({ variations: [] }) } }],
+      }),
+    };
+  });
+
+  try {
+    await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [],
+        unselectedWork: [
+          { id: "u1", title: "Renew passport", priority: "low" },
+        ],
+        budgetMinutes: 60,
+      });
+
+    const userMessage = capturedBody.messages.find(
+      (message) => message.role === "user"
+    );
+    assert.match(userMessage.content, /dueDate: none$/m);
+  } finally {
+    restoreFetch();
+  }
+});
+
 test("POST /api/ai/plan-variations makes no Groq call when there is nothing unselected", async () => {
   const restoreFetch = mockFetchOnce(async () => {
     throw new Error("fetch should not have been called");

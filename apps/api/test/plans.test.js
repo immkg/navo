@@ -558,6 +558,116 @@ test("POST /api/plans/:id/recheck calls buildPlanVariations when something is le
   });
 });
 
+// Guards the data quality of what recheck hands the AI: a work item split
+// across two stops used to be listed twice in the prompt, and every selected
+// work item's intent was missing from PLAN_STOP_INCLUDE, so it always looked
+// like a default medium-priority, no-due-date item next to unselected work
+// that showed real values.
+test("POST /api/plans/:id/recheck lists a multi-stop work item once, with its real intent data", async () => {
+  await withGroqConfigured(async () => {
+    const intent = await prisma.intent.create({
+      data: {
+        title: "Sort out the paperwork",
+        priority: "high",
+        dueDate: new Date("2026-09-01T00:00:00Z"),
+      },
+    });
+    const branchA = await prisma.location.create({
+      data: { name: "Branch A", latitude: 0.001, longitude: 0 },
+    });
+    const branchB = await prisma.location.create({
+      data: { name: "Branch B", latitude: 0.002, longitude: 0 },
+    });
+    // One chosen option listing two locations — the legitimate "visit both
+    // of these places for this one work item" case, which produces two
+    // stops and therefore two PlanStopWork rows.
+    const twoStopWork = await prisma.work.create({
+      data: {
+        title: "Visit two branches",
+        intentId: intent.id,
+        durationMinutes: 10,
+        locationOptions: {
+          create: {
+            locations: { connect: [{ id: branchA.id }, { id: branchB.id }] },
+          },
+        },
+      },
+    });
+    // Guarantees unselectedWork is non-empty, so recheck actually calls out
+    // to the AI rather than short-circuiting.
+    await prisma.work.create({
+      data: {
+        title: "Cross-country errand",
+        durationMinutes: 10,
+        locationOptions: {
+          create: {
+            locations: {
+              create: { name: "Distant shop", latitude: 5, longitude: 0 },
+            },
+          },
+        },
+      },
+    });
+    const plan = await prisma.plan.create({
+      data: {
+        status: "active",
+        startAt: new Date("2026-08-22T09:00:00Z"),
+        startLatitude: 0,
+        startLongitude: 0,
+        endAt: new Date("2026-08-22T18:00:00Z"),
+        endLatitude: 0,
+        endLongitude: 0,
+      },
+    });
+
+    let capturedBody;
+    const restoreFetch = mockFetchOnce(async (url, options) => {
+      capturedBody = JSON.parse(options.body);
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [
+            { message: { content: JSON.stringify({ variations: [] }) } },
+          ],
+        }),
+      };
+    });
+
+    let response;
+    try {
+      response = await request(app).post(`/api/plans/${plan.id}/recheck`).send({
+        asOfAt: "2026-08-22T09:00:00.000Z",
+        latitude: 0,
+        longitude: 0,
+      });
+    } finally {
+      restoreFetch();
+    }
+
+    assert.equal(response.statusCode, 200);
+    // Both branches really did get their own stop, so the dedupe is doing
+    // something rather than passing vacuously.
+    const assignments = response.body.plan.stops.flatMap((stop) =>
+      stop.works.filter((assignment) => assignment.workId === twoStopWork.id)
+    );
+    assert.equal(assignments.length, 2);
+
+    const userMessage = capturedBody.messages.find(
+      (message) => message.role === "user"
+    );
+    const occurrences = userMessage.content.split(twoStopWork.id).length - 1;
+    assert.equal(
+      occurrences,
+      1,
+      `expected the work id once in the prompt, saw it ${occurrences} times`
+    );
+    // The selected item's real intent came through, and the due date is a
+    // plain calendar date rather than a verbose Date#toString().
+    assert.match(userMessage.content, /intentPriority: high/);
+    assert.match(userMessage.content, /dueDate: 2026-09-01\b/);
+  });
+});
+
 test("POST /api/plans/:id/recheck still returns the rebuilt plan when buildPlanVariations fails", async () => {
   await withGroqConfigured(async () => {
     const near = await prisma.work.create({
