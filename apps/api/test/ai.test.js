@@ -616,6 +616,29 @@ test("POST /api/ai/plan-variations caps variations at 2", async () => {
   }
 });
 
+test("POST /api/ai/plan-variations makes no Groq call when there is nothing unselected", async () => {
+  const restoreFetch = mockFetchOnce(async () => {
+    throw new Error("fetch should not have been called");
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [
+          { id: "selected-1", title: "Buy groceries", priority: "low" },
+        ],
+        unselectedWork: [],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body.variations, []);
+  } finally {
+    restoreFetch();
+  }
+});
+
 test("POST /api/ai/suggest-work returns 500 for a non-Groq failure", async () => {
   const intent = await prisma.intent.create({ data: { title: "Plan a trip" } });
   const restoreFetch = mockFetchOnce(() => {
