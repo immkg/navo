@@ -106,4 +106,119 @@ describe("PlanDetailPage", () => {
     expect(screen.getByText("Abandon")).toBeInTheDocument();
     expect(screen.queryByText("Start")).not.toBeInTheDocument();
   });
+
+  it("marks a work item done", async () => {
+    const plan = basePlan({
+      status: "active",
+      stops: [
+        {
+          id: "stop-1",
+          status: "planned",
+          plannedArrivalAt: "2026-08-22T09:10:00.000Z",
+          plannedDepartureAt: "2026-08-22T09:20:00.000Z",
+          location: { id: "loc-1", name: "Pharmacy" },
+          works: [
+            {
+              id: "psw-1",
+              status: "planned",
+              work: {
+                id: "w1",
+                title: "Pick up prescription",
+                priority: "medium",
+                durationMinutes: 10,
+              },
+            },
+          ],
+        },
+      ],
+    });
+    vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+    vi.spyOn(plansApi, "updatePlanStopWork").mockResolvedValue({
+      id: "psw-1",
+      status: "done",
+      work: plan.stops[0].works[0].work,
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByText("Done"));
+
+    await waitFor(() =>
+      expect(plansApi.updatePlanStopWork).toHaveBeenCalledWith(
+        "plan-1",
+        "stop-1",
+        "w1",
+        { status: "done" }
+      )
+    );
+  });
+
+  it("re-checks the plan using the device's current location and shows AI variations", async () => {
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 1, longitude: 1 } }),
+    };
+    vi.spyOn(plansApi, "getPlan").mockResolvedValue(
+      basePlan({ status: "active" })
+    );
+    vi.spyOn(plansApi, "recheckPlan").mockResolvedValue({
+      plan: basePlan({ status: "active" }),
+      variations: [
+        {
+          addWorkIds: ["w2"],
+          removeWorkIds: ["w1"],
+          reasoning: "Swap in the overdue errand.",
+        },
+      ],
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByText("Re-check plan"));
+
+    await waitFor(() =>
+      expect(plansApi.recheckPlan).toHaveBeenCalledWith("plan-1", {
+        latitude: 1,
+        longitude: 1,
+      })
+    );
+    expect(
+      await screen.findByText("Swap in the overdue errand.")
+    ).toBeInTheDocument();
+  });
+
+  it("applies an AI-suggested variation", async () => {
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 1, longitude: 1 } }),
+    };
+    vi.spyOn(plansApi, "getPlan").mockResolvedValue(
+      basePlan({ status: "active" })
+    );
+    vi.spyOn(plansApi, "recheckPlan").mockResolvedValue({
+      plan: basePlan({ status: "active" }),
+      variations: [
+        {
+          addWorkIds: ["w2"],
+          removeWorkIds: ["w1"],
+          reasoning: "Swap in the overdue errand.",
+        },
+      ],
+    });
+    vi.spyOn(plansApi, "updatePlan").mockResolvedValue(
+      basePlan({ status: "active" })
+    );
+
+    renderPage();
+
+    fireEvent.click(await screen.findByText("Re-check plan"));
+    fireEvent.click(await screen.findByText("Apply"));
+
+    await waitFor(() =>
+      expect(plansApi.updatePlan).toHaveBeenCalledWith("plan-1", {
+        forceIncludeWorkIds: ["w2"],
+        forceExcludeWorkIds: ["w1"],
+      })
+    );
+  });
 });

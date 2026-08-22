@@ -4,8 +4,16 @@ import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import { useNotifications } from "../hooks/useNotifications";
-import { usePlan, useUpdatePlan } from "../modules/plan/hooks";
-import { loadGoogleMaps } from "../utils/googleMaps";
+import {
+  usePlan,
+  useUpdatePlan,
+  useUpdatePlanStopWork,
+  useRecheckPlan,
+} from "../modules/plan/hooks";
+import {
+  buildGoogleMapsDirectionsUrl,
+  loadGoogleMaps,
+} from "../utils/googleMaps";
 
 const STATUS_TONE = {
   draft: "neutral",
@@ -34,6 +42,9 @@ export default function PlanDetailPage() {
   const { notify } = useNotifications();
   const { data: plan, isLoading } = usePlan(id);
   const updatePlanMutation = useUpdatePlan();
+  const updatePlanStopWorkMutation = useUpdatePlanStopWork();
+  const recheckPlanMutation = useRecheckPlan();
+  const [variations, setVariations] = useState([]);
   const mapRef = useRef(null);
   const [mapError, setMapError] = useState(null);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -96,6 +107,68 @@ export default function PlanDetailPage() {
     }
   };
 
+  const handleWorkStatusChange = async (stopId, workId, status) => {
+    try {
+      await updatePlanStopWorkMutation.mutateAsync({
+        planId: id,
+        stopId,
+        workId,
+        patch: { status },
+      });
+    } catch (error) {
+      console.error("Failed to update work item", error);
+      notify(error.response?.data?.error || "Failed to update work item");
+    }
+  };
+
+  const handleRecheck = () => {
+    if (!navigator.geolocation) {
+      notify("Your device doesn't support location detection.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const result = await recheckPlanMutation.mutateAsync({
+            planId: id,
+            data: {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            },
+          });
+          setVariations(result.variations || []);
+        } catch (error) {
+          console.error("Failed to recheck plan", error);
+          notify(error.response?.data?.error || "Failed to recheck plan");
+        }
+      },
+      () => notify("Couldn't get your current location.")
+    );
+  };
+
+  const handleApplyVariation = async (variation) => {
+    try {
+      await updatePlanMutation.mutateAsync({
+        planId: id,
+        patch: {
+          forceIncludeWorkIds: variation.addWorkIds,
+          forceExcludeWorkIds: variation.removeWorkIds,
+        },
+      });
+      setVariations([]);
+    } catch (error) {
+      console.error("Failed to apply plan variation", error);
+      notify(error.response?.data?.error || "Failed to apply plan variation");
+    }
+  };
+
+  function legStartPoint(stopIndex) {
+    if (stopIndex === 0) {
+      return { latitude: plan.startLatitude, longitude: plan.startLongitude };
+    }
+    return stops[stopIndex - 1].location;
+  }
+
   if (isLoading) {
     return (
       <div className="py-8 text-center text-muted-foreground">
@@ -139,6 +212,13 @@ export default function PlanDetailPage() {
             <>
               <Button
                 variant="secondary"
+                onClick={handleRecheck}
+                disabled={recheckPlanMutation.isPending}
+              >
+                {recheckPlanMutation.isPending ? "Checking…" : "Re-check plan"}
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={() => handleStatusChange("completed")}
               >
                 Complete
@@ -177,6 +257,29 @@ export default function PlanDetailPage() {
         )}
       </Card>
 
+      {variations.length > 0 && (
+        <div className="mb-6 grid gap-3">
+          {variations.map((variation, index) => (
+            <Card
+              key={index}
+              padding="md"
+              className="border-accent/30 bg-accent/5"
+            >
+              <p className="text-sm text-foreground">{variation.reasoning}</p>
+              <div className="mt-2 flex justify-end">
+                <Button
+                  variant="accent"
+                  size="sm"
+                  onClick={() => handleApplyVariation(variation)}
+                >
+                  Apply
+                </Button>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
       <div className="grid gap-4">
         {stops.map((stop, index) => (
           <Card key={stop.id} padding="lg">
@@ -200,6 +303,19 @@ export default function PlanDetailPage() {
               </Badge>
             </div>
 
+            <div className="mt-3">
+              <a
+                href={buildGoogleMapsDirectionsUrl(legStartPoint(index), [
+                  stop,
+                ])}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-semibold text-primary hover:underline"
+              >
+                Open in Maps
+              </a>
+            </div>
+
             <div className="mt-4 grid gap-2">
               {stop.works.map((assignment) => (
                 <div
@@ -215,11 +331,42 @@ export default function PlanDetailPage() {
                       {assignment.work.durationMinutes} min
                     </div>
                   </div>
-                  <Badge
-                    tone={ITEM_STATUS_TONE[assignment.status] || "neutral"}
-                  >
-                    {assignment.status}
-                  </Badge>
+                  {assignment.status === "planned" ? (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          handleWorkStatusChange(
+                            stop.id,
+                            assignment.work.id,
+                            "skipped"
+                          )
+                        }
+                      >
+                        Skip
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() =>
+                          handleWorkStatusChange(
+                            stop.id,
+                            assignment.work.id,
+                            "done"
+                          )
+                        }
+                      >
+                        Done
+                      </Button>
+                    </div>
+                  ) : (
+                    <Badge
+                      tone={ITEM_STATUS_TONE[assignment.status] || "neutral"}
+                    >
+                      {assignment.status}
+                    </Badge>
+                  )}
                 </div>
               ))}
             </div>
