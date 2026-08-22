@@ -5,6 +5,7 @@ const {
   callGroqJson,
   sendGroqError,
 } = require("../services/groqClient");
+const { buildPlanVariations } = require("../services/planVariations");
 
 const router = express.Router();
 
@@ -393,6 +394,39 @@ router.post("/split-intent", async (req, res) => {
 
     console.error("Failed to split intent", error);
     res.status(500).json({ error: "Failed to split intent" });
+  }
+});
+
+// Ask an LLM for alternative work-item swaps when a plan is short on time.
+// Purely advisory — applying one is a separate PATCH /api/plans/:id call
+// that reruns the real deterministic scheduler.
+router.post("/plan-variations", async (req, res) => {
+  if (!isGroqConfigured()) {
+    return res
+      .status(503)
+      .json({ error: "AI features are not configured on this server." });
+  }
+
+  const { selectedWork, unselectedWork, budgetMinutes } = req.body;
+  if (!Array.isArray(selectedWork) || !Array.isArray(unselectedWork)) {
+    return res
+      .status(400)
+      .json({ error: "selectedWork and unselectedWork are required" });
+  }
+
+  try {
+    const variations = await buildPlanVariations({
+      selectedWork,
+      unselectedWork,
+      budgetMinutes: Number(budgetMinutes) || 0,
+    });
+    res.json({ variations });
+  } catch (error) {
+    const handled = sendGroqError(res, error);
+    if (handled) return handled;
+
+    console.error("Failed to build plan variations", error);
+    res.status(500).json({ error: "Failed to build plan variations" });
   }
 });
 

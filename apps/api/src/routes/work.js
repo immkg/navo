@@ -5,6 +5,7 @@ const { isRecordNotFoundError } = require("../utils/prismaErrors");
 
 const router = express.Router();
 const VALID_STATUSES = new Set(["todo", "in_progress", "done"]);
+const VALID_PRIORITIES = new Set(["low", "medium", "high"]);
 
 // Get all work items
 router.get("/", async (req, res) => {
@@ -55,11 +56,24 @@ router.get("/:id", async (req, res) => {
 // Create a new piece of work
 router.post("/", async (req, res) => {
   try {
-    const { title, type, intentId, durationMinutes, notes, locationOptions } =
-      req.body;
+    const {
+      title,
+      type,
+      intentId,
+      durationMinutes,
+      notes,
+      locationOptions,
+      priority,
+    } = req.body;
 
     if (!title) {
       return res.status(400).json({ error: "Title is required" });
+    }
+
+    if (priority !== undefined && !VALID_PRIORITIES.has(priority)) {
+      return res
+        .status(400)
+        .json({ error: "Priority must be low, medium, or high" });
     }
 
     const createLocationOption = (option) => {
@@ -119,6 +133,7 @@ router.post("/", async (req, res) => {
     const data = {
       title,
       type: type || "task",
+      priority: priority || "medium",
       durationMinutes:
         typeof durationMinutes === "number" ? durationMinutes : 30,
       notes,
@@ -157,6 +172,7 @@ router.patch("/:id", async (req, res) => {
       title,
       type,
       status,
+      priority,
       durationMinutes,
       notes,
       selectedLocationOptionId,
@@ -166,6 +182,12 @@ router.patch("/:id", async (req, res) => {
       return res
         .status(400)
         .json({ error: "Status must be todo, in_progress, or done" });
+    }
+
+    if (priority !== undefined && !VALID_PRIORITIES.has(priority)) {
+      return res
+        .status(400)
+        .json({ error: "Priority must be low, medium, or high" });
     }
 
     const existingWork = await prisma.work.findUnique({ where: { id } });
@@ -179,6 +201,7 @@ router.patch("/:id", async (req, res) => {
         title,
         type,
         status,
+        priority,
         durationMinutes,
         notes,
         selectedLocationOptionId,

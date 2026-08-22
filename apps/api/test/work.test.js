@@ -124,6 +124,44 @@ test("DELETE /api/work/:id returns 404 for a missing work item", async () => {
   assert.equal(response.statusCode, 404);
 });
 
+// PlanStopWork.work used to default to Prisma's RESTRICT, so deleting any
+// work item that had ever appeared in a plan stop failed with P2003 (a 500).
+// The relation cascades now — deleting the work item takes its plan-stop
+// assignments with it.
+test("DELETE /api/work/:id also removes the work item's plan stop assignments", async () => {
+  const work = await prisma.work.create({ data: { title: "Book a hotel" } });
+  const location = await prisma.location.create({
+    data: { name: "Grand Hotel", latitude: 0, longitude: 0 },
+  });
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      endAt: new Date("2026-08-22T12:00:00Z"),
+    },
+  });
+  const stop = await prisma.planStop.create({
+    data: {
+      planId: plan.id,
+      locationId: location.id,
+      order: 0,
+      plannedArrivalAt: new Date("2026-08-22T09:10:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T09:20:00Z"),
+      works: { create: { workId: work.id } },
+    },
+  });
+
+  const response = await request(app).delete(`/api/work/${work.id}`);
+
+  assert.equal(response.statusCode, 204);
+  assert.equal(await prisma.work.findUnique({ where: { id: work.id } }), null);
+  const remainingAssignments = await prisma.planStopWork.findMany({
+    where: { planStopId: stop.id },
+  });
+  assert.equal(remainingAssignments.length, 0);
+  // The stop itself is untouched — only the assignment goes away.
+  assert.ok(await prisma.planStop.findUnique({ where: { id: stop.id } }));
+});
+
 test("POST /api/work/:id/link requires intentId", async () => {
   const work = await prisma.work.create({ data: { title: "Book flights" } });
 
@@ -451,4 +489,51 @@ test("DELETE /api/work/:id/location-option/:optionId clears selectedLocationOpti
 
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.selectedLocationOptionId, null);
+});
+
+test("POST /api/work defaults priority to medium", async () => {
+  const response = await request(app)
+    .post("/api/work")
+    .send({ title: "Book flights" });
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.priority, "medium");
+});
+
+test("POST /api/work accepts an explicit priority", async () => {
+  const response = await request(app)
+    .post("/api/work")
+    .send({ title: "Book flights", priority: "high" });
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.priority, "high");
+});
+
+test("POST /api/work rejects an invalid priority", async () => {
+  const response = await request(app)
+    .post("/api/work")
+    .send({ title: "Book flights", priority: "urgent" });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("PATCH /api/work/:id updates priority", async () => {
+  const work = await prisma.work.create({ data: { title: "Book flights" } });
+
+  const response = await request(app)
+    .patch(`/api/work/${work.id}`)
+    .send({ priority: "high" });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.priority, "high");
+});
+
+test("PATCH /api/work/:id rejects an invalid priority", async () => {
+  const work = await prisma.work.create({ data: { title: "Book flights" } });
+
+  const response = await request(app)
+    .patch(`/api/work/${work.id}`)
+    .send({ priority: "urgent" });
+
+  assert.equal(response.statusCode, 400);
 });

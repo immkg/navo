@@ -474,6 +474,243 @@ test("POST /api/ai/optimize-route falls back to the original order if the model 
   }
 });
 
+test("POST /api/ai/plan-variations returns 503 when GROQ_API_KEY is not configured", async () => {
+  delete process.env.GROQ_API_KEY;
+
+  const response = await request(app)
+    .post("/api/ai/plan-variations")
+    .send({ selectedWork: [], unselectedWork: [], budgetMinutes: 60 });
+
+  assert.equal(response.statusCode, 503);
+});
+
+test("POST /api/ai/plan-variations requires selectedWork and unselectedWork arrays", async () => {
+  const response = await request(app).post("/api/ai/plan-variations").send({});
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("POST /api/ai/plan-variations sanitizes ids the model invented or that aren't in the given pools", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: true,
+    json: async () => ({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              variations: [
+                {
+                  addWorkIds: ["unselected-1", "invented-id"],
+                  removeWorkIds: ["selected-1", "invented-id-2"],
+                  reasoning: "Swap in the overdue errand.",
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    }),
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [
+          { id: "selected-1", title: "Buy groceries", priority: "low" },
+        ],
+        unselectedWork: [
+          { id: "unselected-1", title: "Renew passport", priority: "high" },
+        ],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.variations.length, 1);
+    assert.deepEqual(response.body.variations[0].addWorkIds, ["unselected-1"]);
+    assert.deepEqual(response.body.variations[0].removeWorkIds, ["selected-1"]);
+    assert.equal(
+      response.body.variations[0].reasoning,
+      "Swap in the overdue errand."
+    );
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/plan-variations drops a variation that ends up with nothing to add", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: true,
+    json: async () => ({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              variations: [
+                {
+                  addWorkIds: ["invented"],
+                  removeWorkIds: [],
+                  reasoning: "n/a",
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    }),
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [],
+        unselectedWork: [
+          { id: "real-1", title: "Renew passport", priority: "high" },
+        ],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body.variations, []);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/plan-variations caps variations at 2", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: true,
+    json: async () => ({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              variations: [
+                { addWorkIds: ["u1"], removeWorkIds: [], reasoning: "one" },
+                { addWorkIds: ["u1"], removeWorkIds: [], reasoning: "two" },
+                { addWorkIds: ["u1"], removeWorkIds: [], reasoning: "three" },
+              ],
+            }),
+          },
+        },
+      ],
+    }),
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [],
+        unselectedWork: [
+          { id: "u1", title: "Renew passport", priority: "high" },
+        ],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.variations.length, 2);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/plan-variations renders a due date as YYYY-MM-DD, not a verbose date string", async () => {
+  let capturedBody;
+  const restoreFetch = mockFetchOnce(async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify({ variations: [] }) } }],
+      }),
+    };
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [],
+        unselectedWork: [
+          {
+            id: "u1",
+            title: "Renew passport",
+            priority: "high",
+            intent: { priority: "high", dueDate: "2026-09-01T00:00:00.000Z" },
+          },
+        ],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    const userMessage = capturedBody.messages.find(
+      (message) => message.role === "user"
+    );
+    assert.match(userMessage.content, /dueDate: 2026-09-01$/m);
+    // No timezone-suffixed Date#toString() leaking into the prompt.
+    assert.doesNotMatch(userMessage.content, /GMT|00:00:00/);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/plan-variations renders a missing due date as none", async () => {
+  let capturedBody;
+  const restoreFetch = mockFetchOnce(async (url, options) => {
+    capturedBody = JSON.parse(options.body);
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: JSON.stringify({ variations: [] }) } }],
+      }),
+    };
+  });
+
+  try {
+    await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [],
+        unselectedWork: [
+          { id: "u1", title: "Renew passport", priority: "low" },
+        ],
+        budgetMinutes: 60,
+      });
+
+    const userMessage = capturedBody.messages.find(
+      (message) => message.role === "user"
+    );
+    assert.match(userMessage.content, /dueDate: none$/m);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/plan-variations makes no Groq call when there is nothing unselected", async () => {
+  const restoreFetch = mockFetchOnce(async () => {
+    throw new Error("fetch should not have been called");
+  });
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [
+          { id: "selected-1", title: "Buy groceries", priority: "low" },
+        ],
+        unselectedWork: [],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body.variations, []);
+  } finally {
+    restoreFetch();
+  }
+});
+
 test("POST /api/ai/suggest-work returns 500 for a non-Groq failure", async () => {
   const intent = await prisma.intent.create({ data: { title: "Plan a trip" } });
   const restoreFetch = mockFetchOnce(() => {
