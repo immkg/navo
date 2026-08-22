@@ -6,6 +6,8 @@ const {
   urgencyScore,
   haversineKm,
   estimateTravelMinutes,
+  buildEligibleEntries,
+  groupEntriesByLocation,
 } = require("../src/services/planBuilder");
 
 test("urgencyScore returns 0 when there is no due date", () => {
@@ -90,4 +92,96 @@ test("estimateTravelMinutes scales with distance", () => {
     { latitude: 37.8044, longitude: -122.2712 }
   );
   assert.ok(minutes >= 80 && minutes <= 130, `expected 80-130, got ${minutes}`);
+});
+
+function makeWork(overrides = {}) {
+  return {
+    id: "w1",
+    status: "todo",
+    durationMinutes: 30,
+    priority: "medium",
+    intent: { priority: "medium", dueDate: null },
+    selectedLocationOptionId: null,
+    locationOptions: [],
+    ...overrides,
+  };
+}
+
+test("buildEligibleEntries uses the selected location option, or the first when none is selected", () => {
+  const location = { id: "loc1", latitude: 1, longitude: 1 };
+  const work = makeWork({
+    locationOptions: [{ id: "opt1", locations: [location] }],
+  });
+
+  const entries = buildEligibleEntries([work], new Date(), new Set());
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].location.id, "loc1");
+  assert.equal(entries[0].work.id, "w1");
+});
+
+test("buildEligibleEntries produces one entry per location when a work item's chosen option lists several", () => {
+  const work = makeWork({
+    locationOptions: [
+      {
+        id: "opt1",
+        locations: [
+          { id: "loc1", latitude: 1, longitude: 1 },
+          { id: "loc2", latitude: 2, longitude: 2 },
+        ],
+      },
+    ],
+  });
+
+  const entries = buildEligibleEntries([work], new Date(), new Set());
+
+  assert.equal(entries.length, 2);
+});
+
+test("buildEligibleEntries boosts value for force-included work ids", () => {
+  const work = makeWork({
+    priority: "low",
+    intent: { priority: "low", dueDate: null },
+    locationOptions: [
+      { id: "opt1", locations: [{ id: "loc1", latitude: 1, longitude: 1 }] },
+    ],
+  });
+
+  const normal = buildEligibleEntries([work], new Date(), new Set());
+  const forced = buildEligibleEntries([work], new Date(), new Set(["w1"]));
+
+  assert.ok(forced[0].value > normal[0].value);
+});
+
+test("groupEntriesByLocation bundles work items that share a location and sums duration/value", () => {
+  const location = { id: "loc1", latitude: 1, longitude: 1 };
+  const entries = [
+    { work: makeWork({ id: "w1", durationMinutes: 20 }), location, value: 4 },
+    { work: makeWork({ id: "w2", durationMinutes: 10 }), location, value: 3 },
+  ];
+
+  const [stop] = groupEntriesByLocation(entries);
+
+  assert.equal(stop.durationMinutes, 30);
+  assert.equal(stop.value, 7);
+  assert.equal(stop.entries.length, 2);
+});
+
+test("groupEntriesByLocation produces one candidate stop per distinct location", () => {
+  const entries = [
+    {
+      work: makeWork({ id: "w1" }),
+      location: { id: "loc1", latitude: 1, longitude: 1 },
+      value: 4,
+    },
+    {
+      work: makeWork({ id: "w2" }),
+      location: { id: "loc2", latitude: 2, longitude: 2 },
+      value: 3,
+    },
+  ];
+
+  const stops = groupEntriesByLocation(entries);
+
+  assert.equal(stops.length, 2);
 });

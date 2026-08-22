@@ -81,10 +81,69 @@ function estimateTravelMinutes(a, b) {
   return Math.max(3, Math.round(km * DEFAULT_TRAVEL_MIN_PER_KM));
 }
 
+// Work items that are force-included (e.g. applying an AI-suggested
+// variation) always win the greedy insertion's value-per-cost comparison,
+// as long as they fit within the time budget at all — there's no sane way
+// to "force" something into a schedule that has no room for it.
+const FORCE_INCLUDE_VALUE_BOOST = 1_000_000;
+
+// One entry per (work item, location) pair — a work item whose chosen
+// option lists several locations produces several entries, one per
+// location, matching how PlannerPage.jsx's routeStops grouping already
+// treats "visit each of these places for this work" cases.
+function buildEligibleEntries(workItems, now, forceIncludeSet) {
+  const entries = [];
+
+  for (const work of workItems) {
+    const chosenOption =
+      work.locationOptions?.find(
+        (option) => option.id === work.selectedLocationOptionId
+      ) || work.locationOptions?.[0];
+    const locations = chosenOption?.locations || [];
+    const value = forceIncludeSet.has(work.id)
+      ? FORCE_INCLUDE_VALUE_BOOST
+      : scoreWork(work, work.intent, now);
+
+    for (const location of locations) {
+      entries.push({ work, location, value });
+    }
+  }
+
+  return entries;
+}
+
+// Groups entries by location — a stop's total duration/value is the sum
+// across every work item bundled there.
+function groupEntriesByLocation(entries) {
+  const byLocationId = new Map();
+
+  for (const entry of entries) {
+    const existing = byLocationId.get(entry.location.id);
+    const duration = entry.work.durationMinutes || 30;
+
+    if (existing) {
+      existing.entries.push(entry);
+      existing.durationMinutes += duration;
+      existing.value += entry.value;
+    } else {
+      byLocationId.set(entry.location.id, {
+        location: entry.location,
+        entries: [entry],
+        durationMinutes: duration,
+        value: entry.value,
+      });
+    }
+  }
+
+  return Array.from(byLocationId.values());
+}
+
 module.exports = {
   PRIORITY_POINTS,
   scoreWork,
   urgencyScore,
   haversineKm,
   estimateTravelMinutes,
+  buildEligibleEntries,
+  groupEntriesByLocation,
 };
