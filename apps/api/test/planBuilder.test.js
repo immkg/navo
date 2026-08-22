@@ -9,6 +9,8 @@ const {
   buildEligibleEntries,
   groupEntriesByLocation,
   buildRoute,
+  computeStopTimings,
+  buildPlan,
 } = require("../src/services/planBuilder");
 
 test("urgencyScore returns 0 when there is no due date", () => {
@@ -265,4 +267,126 @@ test("buildRoute prefers the higher value-per-cost stop when the budget allows o
 
   assert.equal(route.length, 1);
   assert.equal(route[0], highValue);
+});
+
+test("computeStopTimings computes cumulative arrival/departure times from the plan's start", () => {
+  const start = { latitude: 0, longitude: 0 };
+  const startAt = new Date("2026-08-22T09:00:00Z");
+  const stop = {
+    location: { latitude: 0.001, longitude: 0 },
+    durationMinutes: 15,
+    value: 1,
+    entries: [],
+  };
+
+  const [timed] = computeStopTimings([stop], start, startAt);
+
+  assert.equal(
+    timed.plannedArrivalAt.toISOString(),
+    "2026-08-22T09:03:00.000Z"
+  );
+  assert.equal(
+    timed.plannedDepartureAt.toISOString(),
+    "2026-08-22T09:18:00.000Z"
+  );
+});
+
+test("buildPlan selects eligible work within budget and reports the rest as unselected", () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const near = makeWork({
+    id: "near",
+    durationMinutes: 10,
+    locationOptions: [
+      {
+        id: "o1",
+        locations: [{ id: "loc-near", latitude: 0.001, longitude: 0 }],
+      },
+    ],
+  });
+  const far = makeWork({
+    id: "far",
+    durationMinutes: 10,
+    locationOptions: [
+      { id: "o2", locations: [{ id: "loc-far", latitude: 5, longitude: 0 }] },
+    ],
+  });
+
+  const result = buildPlan({
+    workItems: [near, far],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 20 * 60000),
+    now,
+  });
+
+  assert.equal(result.stops.length, 1);
+  assert.equal(result.stops[0].location.id, "loc-near");
+  assert.equal(result.unselectedWork.length, 1);
+  assert.equal(result.unselectedWork[0].id, "far");
+});
+
+test("buildPlan excludes done work and force-excluded work ids from the candidate pool entirely", () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const done = makeWork({
+    id: "done1",
+    status: "done",
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.001, longitude: 0 }] },
+    ],
+  });
+  const excluded = makeWork({
+    id: "excl1",
+    locationOptions: [
+      { id: "o2", locations: [{ id: "l2", latitude: 0.001, longitude: 0 }] },
+    ],
+  });
+
+  const result = buildPlan({
+    workItems: [done, excluded],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 60 * 60000),
+    forceExcludeWorkIds: ["excl1"],
+    now,
+  });
+
+  assert.equal(result.stops.length, 0);
+  assert.equal(result.unselectedWork.length, 0);
+});
+
+test("buildPlan lets a force-included work item win over a higher-scoring competitor when only one fits", () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const highScore = makeWork({
+    id: "high",
+    durationMinutes: 10,
+    priority: "high",
+    intent: { priority: "high", dueDate: "2026-08-20" }, // overdue
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.001, longitude: 0 }] },
+    ],
+  });
+  const forced = makeWork({
+    id: "forced",
+    durationMinutes: 10,
+    priority: "low",
+    intent: { priority: "low", dueDate: null },
+    locationOptions: [
+      { id: "o2", locations: [{ id: "l2", latitude: 0.002, longitude: 0 }] },
+    ],
+  });
+
+  const result = buildPlan({
+    workItems: [highScore, forced],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 20 * 60000),
+    forceIncludeWorkIds: ["forced"],
+    now,
+  });
+
+  assert.equal(result.stops.length, 1);
+  assert.equal(result.stops[0].location.id, "l2");
 });

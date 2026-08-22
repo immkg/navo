@@ -198,6 +198,68 @@ function buildRoute(candidateStops, start, end, budgetMinutes) {
   return route;
 }
 
+const MINUTE_MS = 60000;
+
+function computeStopTimings(route, start, startAt) {
+  let previous = start;
+  let cursor = new Date(startAt);
+
+  return route.map((stop) => {
+    const travelMinutes = estimateTravelMinutes(previous, stop.location);
+    const plannedArrivalAt = new Date(
+      cursor.getTime() + travelMinutes * MINUTE_MS
+    );
+    const plannedDepartureAt = new Date(
+      plannedArrivalAt.getTime() + stop.durationMinutes * MINUTE_MS
+    );
+
+    previous = stop.location;
+    cursor = plannedDepartureAt;
+
+    return { ...stop, plannedArrivalAt, plannedDepartureAt };
+  });
+}
+
+// The single entry point: scores eligible work, groups it into candidate
+// stops, greedily fits as much as possible into the start->end time budget,
+// and returns the selected+timed stops plus whatever didn't make the cut.
+function buildPlan({
+  workItems,
+  start,
+  end,
+  startAt,
+  endAt,
+  forceIncludeWorkIds = [],
+  forceExcludeWorkIds = [],
+  now = new Date(),
+}) {
+  const budgetMinutes = Math.max(
+    0,
+    Math.round(
+      (new Date(endAt).getTime() - new Date(startAt).getTime()) / MINUTE_MS
+    )
+  );
+  const excludeSet = new Set(forceExcludeWorkIds);
+  const includeSet = new Set(forceIncludeWorkIds);
+
+  const eligibleWork = workItems.filter(
+    (work) => work.status !== "done" && !excludeSet.has(work.id)
+  );
+  const entries = buildEligibleEntries(eligibleWork, now, includeSet);
+  const candidateStops = groupEntriesByLocation(entries);
+  const route = buildRoute(candidateStops, start, end, budgetMinutes);
+  const stops = computeStopTimings(route, start, startAt);
+
+  const selectedWorkIds = new Set(
+    stops.flatMap((stop) => stop.entries.map((entry) => entry.work.id))
+  );
+  const unselectedWork = eligibleWork.filter(
+    (work) => !selectedWorkIds.has(work.id)
+  );
+
+  return { stops, unselectedWork };
+}
+
 module.exports = {
   PRIORITY_POINTS,
   scoreWork,
@@ -207,4 +269,6 @@ module.exports = {
   buildEligibleEntries,
   groupEntriesByLocation,
   buildRoute,
+  computeStopTimings,
+  buildPlan,
 };
