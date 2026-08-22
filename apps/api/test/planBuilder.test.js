@@ -141,6 +141,68 @@ test("buildEligibleEntries produces one entry per location when a work item's ch
   assert.equal(entries.length, 2);
 });
 
+test("buildEligibleEntries skips a location whose (work, location) pair is already resolved", () => {
+  const work = makeWork({
+    locationOptions: [
+      {
+        id: "opt1",
+        locations: [
+          { id: "loc1", latitude: 1, longitude: 1 },
+          { id: "loc2", latitude: 2, longitude: 2 },
+        ],
+      },
+    ],
+  });
+
+  const entries = buildEligibleEntries(
+    [work],
+    new Date(),
+    new Set(),
+    new Set(["w1:loc1"])
+  );
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].location.id, "loc2");
+});
+
+test("buildEligibleEntries only skips the resolved work item's own pair, not another work item at the same location", () => {
+  const locations = [{ id: "loc1", latitude: 1, longitude: 1 }];
+  const resolved = makeWork({
+    id: "w1",
+    locationOptions: [{ id: "opt1", locations }],
+  });
+  const other = makeWork({
+    id: "w2",
+    locationOptions: [{ id: "opt2", locations }],
+  });
+
+  const entries = buildEligibleEntries(
+    [resolved, other],
+    new Date(),
+    new Set(),
+    new Set(["w1:loc1"])
+  );
+
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].work.id, "w2");
+});
+
+test("buildEligibleEntries proposes every location when resolvedAssignmentKeys is omitted", () => {
+  const work = makeWork({
+    locationOptions: [
+      {
+        id: "opt1",
+        locations: [
+          { id: "loc1", latitude: 1, longitude: 1 },
+          { id: "loc2", latitude: 2, longitude: 2 },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(buildEligibleEntries([work], new Date(), new Set()).length, 2);
+});
+
 test("buildEligibleEntries boosts value for force-included work ids", () => {
   const work = makeWork({
     priority: "low",
@@ -354,6 +416,38 @@ test("buildPlan excludes done work and force-excluded work ids from the candidat
 
   assert.equal(result.stops.length, 0);
   assert.equal(result.unselectedWork.length, 0);
+});
+
+test("buildPlan threads resolvedAssignmentKeys through, routing only to the unresolved location", () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const twoBranches = makeWork({
+    id: "w1",
+    durationMinutes: 10,
+    locationOptions: [
+      {
+        id: "o1",
+        locations: [
+          { id: "branch-a", latitude: 0.001, longitude: 0 },
+          { id: "branch-b", latitude: 0.002, longitude: 0 },
+        ],
+      },
+    ],
+  });
+
+  const result = buildPlan({
+    workItems: [twoBranches],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 120 * 60000),
+    resolvedAssignmentKeys: new Set(["w1:branch-a"]),
+    now,
+  });
+
+  assert.equal(result.stops.length, 1);
+  assert.equal(result.stops[0].location.id, "branch-b");
+  // Still counted as selected — it made it into the route somewhere.
+  assert.deepEqual(result.unselectedWork, []);
 });
 
 test("buildPlan lets a force-included work item win over a higher-scoring competitor when only one fits", () => {

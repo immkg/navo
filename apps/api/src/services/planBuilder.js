@@ -91,7 +91,19 @@ const FORCE_INCLUDE_VALUE_BOOST = 1_000_000;
 // option lists several locations produces several entries, one per
 // location, matching how PlannerPage.jsx's routeStops grouping already
 // treats "visit each of these places for this work" cases.
-function buildEligibleEntries(workItems, now, forceIncludeSet) {
+//
+// resolvedAssignmentKeys holds "${workId}:${locationId}" strings for
+// (work, location) pairs the caller has already settled elsewhere in the
+// plan. Those pairs are skipped, but the work item's *other* locations
+// still get entries — a work item half-done across two branches must not
+// be re-proposed at the branch it already finished, nor dropped from the
+// branch it hasn't reached yet.
+function buildEligibleEntries(
+  workItems,
+  now,
+  forceIncludeSet,
+  resolvedAssignmentKeys = new Set()
+) {
   const entries = [];
 
   for (const work of workItems) {
@@ -105,6 +117,7 @@ function buildEligibleEntries(workItems, now, forceIncludeSet) {
       : scoreWork(work, work.intent, now);
 
     for (const location of locations) {
+      if (resolvedAssignmentKeys.has(`${work.id}:${location.id}`)) continue;
       entries.push({ work, location, value });
     }
   }
@@ -223,6 +236,10 @@ function computeStopTimings(route, start, startAt) {
 // The single entry point: scores eligible work, groups it into candidate
 // stops, greedily fits as much as possible into the start->end time budget,
 // and returns the selected+timed stops plus whatever didn't make the cut.
+//
+// forceExcludeWorkIds drops a work item from consideration outright;
+// resolvedAssignmentKeys is the finer-grained sibling that drops only
+// specific (work, location) pairs — see buildEligibleEntries.
 function buildPlan({
   workItems,
   start,
@@ -231,6 +248,7 @@ function buildPlan({
   endAt,
   forceIncludeWorkIds = [],
   forceExcludeWorkIds = [],
+  resolvedAssignmentKeys = new Set(),
   now = new Date(),
 }) {
   const budgetMinutes = Math.max(
@@ -245,7 +263,12 @@ function buildPlan({
   const eligibleWork = workItems.filter(
     (work) => work.status !== "done" && !excludeSet.has(work.id)
   );
-  const entries = buildEligibleEntries(eligibleWork, now, includeSet);
+  const entries = buildEligibleEntries(
+    eligibleWork,
+    now,
+    includeSet,
+    resolvedAssignmentKeys
+  );
   const candidateStops = groupEntriesByLocation(entries);
   const route = buildRoute(candidateStops, start, end, budgetMinutes);
   const stops = computeStopTimings(route, start, startAt);
