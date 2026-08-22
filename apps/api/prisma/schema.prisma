@@ -45,6 +45,7 @@ model Work {
   // Self-relations for dependencies (DAG)
   dependsOn               WorkDependency[] @relation("DependsOn")
   dependedBy              WorkDependency[] @relation("DependedBy")
+  planStopWorks           PlanStopWork[]
 }
 
 model Location {
@@ -69,6 +70,7 @@ model Location {
   updatedAt   DateTime @updatedAt
 
   locationOptions LocationOption[] @relation("LocationOptionLocations")
+  planStops       PlanStop[]
 }
 
 model LocationOption {
@@ -97,6 +99,61 @@ model Context {
   id          String   @id @default(uuid())
   name        String
   type        String   // time, location, people, etc.
-  
+
   workItems   Work[]
+}
+
+model Plan {
+  id                     String   @id @default(uuid())
+  title                  String?
+  status                 String   @default("draft") // draft, active, completed, abandoned
+
+  startAt                DateTime
+  startLabel             String?
+  startLatitude          Float?
+  startLongitude         Float?
+
+  endAt                  DateTime
+  endLabel               String?
+  endLatitude            Float?
+  endLongitude           Float?
+
+  useAccurateTravelTime  Boolean  @default(false)
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  stops                  PlanStop[]
+}
+
+model PlanStop {
+  id                  String    @id @default(uuid())
+  planId              String
+  plan                Plan      @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  locationId          String
+  location            Location  @relation(fields: [locationId], references: [id])
+
+  order               Int
+  status              String    @default("planned") // planned, in_progress, done, skipped
+
+  plannedArrivalAt    DateTime
+  plannedDepartureAt  DateTime
+  actualArrivalAt     DateTime?
+  actualDepartureAt   DateTime?
+
+  works               PlanStopWork[]
+}
+
+model PlanStopWork {
+  id          String   @id @default(uuid())
+  planStopId  String
+  planStop    PlanStop @relation(fields: [planStopId], references: [id], onDelete: Cascade)
+
+  workId      String
+  work        Work     @relation(fields: [workId], references: [id])
+
+  status      String   @default("planned") // planned, done, skipped
+
+  @@unique([planStopId, workId])
 }
