@@ -9,6 +9,36 @@ const { cleanDatabase } = require("../test-support/helpers");
 beforeEach(cleanDatabase);
 after(cleanDatabase);
 
+// Mirrors the helper in test/ai.test.js — swaps global.fetch for the
+// duration of one test (recheck's AI call goes through the same
+// callGroqJson -> fetch path) and returns a restorer to call in a finally
+// block.
+function mockFetchOnce(implementation) {
+  const originalFetch = global.fetch;
+  global.fetch = implementation;
+  return () => {
+    global.fetch = originalFetch;
+  };
+}
+
+// Runs fn with GROQ_API_KEY set to a fake key, restoring whatever value (or
+// absence) it had beforehand — buildPlanVariations short-circuits to []
+// whenever isGroqConfigured() is false, so any test that needs to actually
+// exercise the AI call needs the key present.
+async function withGroqConfigured(fn) {
+  const originalGroqKey = process.env.GROQ_API_KEY;
+  process.env.GROQ_API_KEY = "test-groq-key";
+  try {
+    await fn();
+  } finally {
+    if (originalGroqKey === undefined) {
+      delete process.env.GROQ_API_KEY;
+    } else {
+      process.env.GROQ_API_KEY = originalGroqKey;
+    }
+  }
+}
+
 test("POST /api/plans requires startAt and endAt", async () => {
   const response = await request(app).post("/api/plans").send({});
 
@@ -437,4 +467,155 @@ test("POST /api/plans/:id/recheck omits variations when nothing is left unselect
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.body.variations, []);
+});
+
+test("POST /api/plans/:id/recheck calls buildPlanVariations when something is left unselected", async () => {
+  await withGroqConfigured(async () => {
+    // "near" easily fits the 30-minute budget; "far" is 5 degrees away
+    // (~550km), so no plausible budget lets it fit — it is guaranteed to
+    // land in unselectedWork, mirroring the same near/far setup used in
+    // planBuilder.test.js's "reports the rest as unselected" case.
+    const near = await prisma.work.create({
+      data: {
+        title: "Nearby errand",
+        durationMinutes: 10,
+        locationOptions: {
+          create: {
+            locations: {
+              create: { name: "Corner shop", latitude: 0.001, longitude: 0 },
+            },
+          },
+        },
+      },
+    });
+    const far = await prisma.work.create({
+      data: {
+        title: "Cross-country errand",
+        durationMinutes: 10,
+        locationOptions: {
+          create: {
+            locations: {
+              create: { name: "Distant shop", latitude: 5, longitude: 0 },
+            },
+          },
+        },
+      },
+    });
+    const plan = await prisma.plan.create({
+      data: {
+        status: "active",
+        startAt: new Date("2026-08-22T09:00:00Z"),
+        startLatitude: 0,
+        startLongitude: 0,
+        endAt: new Date("2026-08-22T09:30:00Z"),
+        endLatitude: 0,
+        endLongitude: 0,
+      },
+    });
+
+    const restoreFetch = mockFetchOnce(async () => ({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                variations: [
+                  {
+                    addWorkIds: [far.id],
+                    removeWorkIds: [near.id],
+                    reasoning: "Swap in the overdue distant errand.",
+                  },
+                ],
+              }),
+            },
+          },
+        ],
+      }),
+    }));
+
+    let response;
+    try {
+      response = await request(app).post(`/api/plans/${plan.id}/recheck`).send({
+        asOfAt: "2026-08-22T09:00:00.000Z",
+        latitude: 0,
+        longitude: 0,
+      });
+    } finally {
+      restoreFetch();
+    }
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.plan.stops.length, 1);
+    assert.equal(response.body.plan.stops[0].works[0].work.id, near.id);
+    assert.equal(response.body.variations.length, 1);
+    assert.deepEqual(response.body.variations[0].addWorkIds, [far.id]);
+    assert.deepEqual(response.body.variations[0].removeWorkIds, [near.id]);
+    assert.equal(
+      response.body.variations[0].reasoning,
+      "Swap in the overdue distant errand."
+    );
+  });
+});
+
+test("POST /api/plans/:id/recheck still returns the rebuilt plan when buildPlanVariations fails", async () => {
+  await withGroqConfigured(async () => {
+    const near = await prisma.work.create({
+      data: {
+        title: "Nearby errand",
+        durationMinutes: 10,
+        locationOptions: {
+          create: {
+            locations: {
+              create: { name: "Corner shop", latitude: 0.001, longitude: 0 },
+            },
+          },
+        },
+      },
+    });
+    await prisma.work.create({
+      data: {
+        title: "Cross-country errand",
+        durationMinutes: 10,
+        locationOptions: {
+          create: {
+            locations: {
+              create: { name: "Distant shop", latitude: 5, longitude: 0 },
+            },
+          },
+        },
+      },
+    });
+    const plan = await prisma.plan.create({
+      data: {
+        status: "active",
+        startAt: new Date("2026-08-22T09:00:00Z"),
+        startLatitude: 0,
+        startLongitude: 0,
+        endAt: new Date("2026-08-22T09:30:00Z"),
+        endLatitude: 0,
+        endLongitude: 0,
+      },
+    });
+
+    const restoreFetch = mockFetchOnce(async () => {
+      throw new Error("network down");
+    });
+
+    let response;
+    try {
+      response = await request(app).post(`/api/plans/${plan.id}/recheck`).send({
+        asOfAt: "2026-08-22T09:00:00.000Z",
+        latitude: 0,
+        longitude: 0,
+      });
+    } finally {
+      restoreFetch();
+    }
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.plan.stops.length, 1);
+    assert.equal(response.body.plan.stops[0].works[0].work.id, near.id);
+    assert.deepEqual(response.body.variations, []);
+  });
 });
