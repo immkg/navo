@@ -86,13 +86,17 @@ function collectFullyResolvedWorkIds(stops) {
 }
 
 // The latest point in time the plan has demonstrably already reached, plus
-// where it left the traveller. Prefers a stop's real departure over its
-// planned one.
+// where it left the traveller. Only actualDepartureAt counts:
+// plannedDepartureAt is a *scheduled* time, not something that happened, so
+// falling back to it would let a stop skipped at 09:30 but scheduled to leave
+// at 15:10 drag the clock to 15:10 and throw away the rest of the day's real
+// budget. A frozen stop with no recorded departure gives us nothing to clamp
+// against, and the caller's own asOfAt is left alone.
 function latestFrozenDeparture(frozenStops) {
   let latest = null;
 
   for (const stop of frozenStops) {
-    const departure = stop.actualDepartureAt || stop.plannedDepartureAt;
+    const departure = stop.actualDepartureAt;
     if (!departure) continue;
     if (!latest || departure.getTime() > latest.departure.getTime()) {
       latest = { departure, location: stop.location };
