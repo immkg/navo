@@ -51,6 +51,42 @@ test("rebuildPlanStops builds and persists stops for eligible work", async () =>
   assert.equal(result.unselectedWork.length, 0);
 });
 
+test("rebuildPlanStops still builds stops when useAccurateTravelTime is on but no routing API key is configured (falls back to haversine)", async () => {
+  delete process.env.GOOGLE_MAPS_API_KEY;
+  const work = await prisma.work.create({
+    data: {
+      title: "Pick up prescription",
+      durationMinutes: 10,
+      locationOptions: {
+        create: {
+          locations: {
+            create: { name: "Pharmacy", latitude: 0.001, longitude: 0 },
+          },
+        },
+      },
+    },
+  });
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 0,
+      startLongitude: 0,
+      endAt: new Date("2026-08-22T10:00:00Z"),
+      endLatitude: 0,
+      endLongitude: 0,
+      useAccurateTravelTime: true,
+    },
+  });
+
+  const result = await rebuildPlanStops(prisma, plan.id, {
+    asOfAt: plan.startAt,
+    asOfLocation: { latitude: 0, longitude: 0 },
+  });
+
+  assert.equal(result.plan.stops.length, 1);
+  assert.equal(result.plan.stops[0].works[0].work.id, work.id);
+});
+
 test("rebuildPlanStops leaves already-resolved stops untouched and excludes their work from reconsideration", async () => {
   const work = await prisma.work.create({
     data: { title: "Pick up prescription", durationMinutes: 10 },

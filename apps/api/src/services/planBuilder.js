@@ -1,3 +1,9 @@
+const {
+  isGoogleRoutingConfigured,
+  fetchTravelTimeMatrixMinutes,
+  locationKey,
+} = require("./googleRouting");
+
 const PRIORITY_POINTS = { low: 1, medium: 2, high: 3 };
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -81,6 +87,64 @@ function estimateTravelMinutes(a, b) {
   return Math.max(3, Math.round(km * DEFAULT_TRAVEL_MIN_PER_KM));
 }
 
+// Every distinct (lat, lng) point a route might travel between: the start,
+// the end, and each candidate stop's location. Deduplicated so the matrix
+// request is O(distinct points²), not O(candidate stops²).
+function collectDistinctPoints(candidateStops, start, end) {
+  const points = new Map();
+
+  const add = (point) => {
+    if (!point || point.latitude == null || point.longitude == null) return;
+    const key = locationKey(point);
+    if (!points.has(key)) {
+      points.set(key, { latitude: point.latitude, longitude: point.longitude });
+    }
+  };
+
+  add(start);
+  add(end);
+  candidateStops.forEach((stop) => add(stop.location));
+
+  return [...points.values()];
+}
+
+// Resolves to a (a, b) => minutes function. Real routing is opt-in per plan
+// (useAccurateTravelTime) and only attempted when a server-side key is
+// configured; any failure — missing key, network error, non-OK API status —
+// falls back to the plain haversine estimate rather than blocking plan
+// building on an external service being up.
+async function resolveTravelTimeMinutesFn({
+  candidateStops,
+  start,
+  end,
+  useAccurateTravelTime,
+  fetchMatrix = fetchTravelTimeMatrixMinutes,
+}) {
+  if (!useAccurateTravelTime || !isGoogleRoutingConfigured()) {
+    return estimateTravelMinutes;
+  }
+
+  const points = collectDistinctPoints(candidateStops, start, end);
+  let matrix;
+  try {
+    matrix = await fetchMatrix(points);
+  } catch (error) {
+    console.error("Falling back to haversine travel estimate", error);
+    return estimateTravelMinutes;
+  }
+
+  if (!matrix || matrix.size === 0) return estimateTravelMinutes;
+
+  return function travelTimeMinutes(a, b) {
+    if (!a || !b || a.latitude == null || b.latitude == null) {
+      return estimateTravelMinutes(a, b);
+    }
+    const key = `${locationKey(a)}:${locationKey(b)}`;
+    const minutes = matrix.get(key);
+    return minutes ?? estimateTravelMinutes(a, b);
+  };
+}
+
 // Work items that are force-included (e.g. applying an AI-suggested
 // variation) always win the greedy insertion's value-per-cost comparison,
 // as long as they fit within the time budget at all — there's no sane way
@@ -151,17 +215,22 @@ function groupEntriesByLocation(entries) {
   return Array.from(byLocationId.values());
 }
 
-function routeTotalMinutes(route, start, end) {
+function routeTotalMinutes(
+  route,
+  start,
+  end,
+  travelTimeMinutesFn = estimateTravelMinutes
+) {
   let total = 0;
   let previous = start;
 
   for (const stop of route) {
     total +=
-      estimateTravelMinutes(previous, stop.location) + stop.durationMinutes;
+      travelTimeMinutesFn(previous, stop.location) + stop.durationMinutes;
     previous = stop.location;
   }
 
-  return total + estimateTravelMinutes(previous, end);
+  return total + travelTimeMinutesFn(previous, end);
 }
 
 // Greedy cheapest-insertion heuristic for the "orienteering problem"
@@ -171,7 +240,13 @@ function routeTotalMinutes(route, start, end) {
 // time, as long as the whole route still fits the budget. Not optimal, but
 // fast, deterministic, and easy to reason about — acceptable at the scale
 // of a personal day-planner (tens of stops, not thousands).
-function buildRoute(candidateStops, start, end, budgetMinutes) {
+function buildRoute(
+  candidateStops,
+  start,
+  end,
+  budgetMinutes,
+  travelTimeMinutesFn = estimateTravelMinutes
+) {
   let route = [];
   let remaining = [...candidateStops];
 
@@ -185,11 +260,17 @@ function buildRoute(candidateStops, start, end, budgetMinutes) {
           candidate,
           ...route.slice(position),
         ];
-        const totalMinutes = routeTotalMinutes(trialRoute, start, end);
+        const totalMinutes = routeTotalMinutes(
+          trialRoute,
+          start,
+          end,
+          travelTimeMinutesFn
+        );
         if (totalMinutes > budgetMinutes) continue;
 
         const insertionCost =
-          totalMinutes - routeTotalMinutes(route, start, end);
+          totalMinutes -
+          routeTotalMinutes(route, start, end, travelTimeMinutesFn);
         const ratio = candidate.value / Math.max(1, insertionCost);
 
         if (!best || ratio > best.ratio) {
@@ -213,12 +294,17 @@ function buildRoute(candidateStops, start, end, budgetMinutes) {
 
 const MINUTE_MS = 60000;
 
-function computeStopTimings(route, start, startAt) {
+function computeStopTimings(
+  route,
+  start,
+  startAt,
+  travelTimeMinutesFn = estimateTravelMinutes
+) {
   let previous = start;
   let cursor = new Date(startAt);
 
   return route.map((stop) => {
-    const travelMinutes = estimateTravelMinutes(previous, stop.location);
+    const travelMinutes = travelTimeMinutesFn(previous, stop.location);
     const plannedArrivalAt = new Date(
       cursor.getTime() + travelMinutes * MINUTE_MS
     );
@@ -240,7 +326,7 @@ function computeStopTimings(route, start, startAt) {
 // forceExcludeWorkIds drops a work item from consideration outright;
 // resolvedAssignmentKeys is the finer-grained sibling that drops only
 // specific (work, location) pairs — see buildEligibleEntries.
-function buildPlan({
+async function buildPlan({
   workItems,
   start,
   end,
@@ -250,6 +336,8 @@ function buildPlan({
   forceExcludeWorkIds = [],
   resolvedAssignmentKeys = new Set(),
   now = new Date(),
+  useAccurateTravelTime = false,
+  fetchTravelTimeMatrix,
 }) {
   const budgetMinutes = Math.max(
     0,
@@ -270,8 +358,21 @@ function buildPlan({
     resolvedAssignmentKeys
   );
   const candidateStops = groupEntriesByLocation(entries);
-  const route = buildRoute(candidateStops, start, end, budgetMinutes);
-  const stops = computeStopTimings(route, start, startAt);
+  const travelTimeMinutesFn = await resolveTravelTimeMinutesFn({
+    candidateStops,
+    start,
+    end,
+    useAccurateTravelTime,
+    ...(fetchTravelTimeMatrix ? { fetchMatrix: fetchTravelTimeMatrix } : {}),
+  });
+  const route = buildRoute(
+    candidateStops,
+    start,
+    end,
+    budgetMinutes,
+    travelTimeMinutesFn
+  );
+  const stops = computeStopTimings(route, start, startAt, travelTimeMinutesFn);
 
   const selectedWorkIds = new Set(
     stops.flatMap((stop) => stop.entries.map((entry) => entry.work.id))
@@ -289,6 +390,8 @@ module.exports = {
   urgencyScore,
   haversineKm,
   estimateTravelMinutes,
+  collectDistinctPoints,
+  resolveTravelTimeMinutesFn,
   buildEligibleEntries,
   groupEntriesByLocation,
   buildRoute,

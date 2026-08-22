@@ -398,6 +398,7 @@ router.post("/:id/recheck", async (req, res) => {
     });
 
     let variations = [];
+    let variationsError = null;
     if (result.unselectedWork.length > 0) {
       // Deduped by id: a work item whose chosen option lists two locations
       // has an assignment at each stop, and listing it twice in the prompt
@@ -424,10 +425,11 @@ router.post("/:id/recheck", async (req, res) => {
         });
       } catch (error) {
         console.error("Failed to fetch plan variations during recheck", error);
+        variationsError = "Failed to get AI suggestions for this recheck.";
       }
     }
 
-    res.json({ plan: result.plan, variations });
+    res.json({ plan: result.plan, variations, variationsError });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to recheck plan" });

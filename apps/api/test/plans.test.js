@@ -591,6 +591,7 @@ test("POST /api/plans/:id/recheck omits variations when nothing is left unselect
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(response.body.variations, []);
+  assert.equal(response.body.variationsError, null);
 });
 
 test("POST /api/plans/:id/recheck calls buildPlanVariations when something is left unselected", async () => {
@@ -851,5 +852,9 @@ test("POST /api/plans/:id/recheck still returns the rebuilt plan when buildPlanV
     assert.equal(response.body.plan.stops.length, 1);
     assert.equal(response.body.plan.stops[0].works[0].work.id, near.id);
     assert.deepEqual(response.body.variations, []);
+    assert.equal(
+      response.body.variationsError,
+      "Failed to get AI suggestions for this recheck."
+    );
   });
 });

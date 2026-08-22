@@ -1,11 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import { useNotifications } from "../hooks/useNotifications";
-import { useCreatePlan, usePlans } from "../modules/plan/hooks";
+import { useCreatePlan, useDeletePlan, usePlans } from "../modules/plan/hooks";
+import { useWorkItems } from "../modules/work/hooks";
 import PlanLocationPicker from "../modules/plan/PlanLocationPicker";
+import {
+  getPlanDisplayTitle,
+  toDateTimeLocalValue,
+} from "../modules/plan/utils";
 
 const STATUS_TONE = {
   draft: "neutral",
@@ -14,36 +19,50 @@ const STATUS_TONE = {
   abandoned: "danger",
 };
 
-// `<input type="datetime-local">` reads/writes local wall-clock time with no
-// timezone info, but toISOString() always renders UTC — so the naive
-// approach shifts the displayed default by the viewer's UTC offset. Shifting
-// the Date by that same offset before formatting cancels it out.
-function defaultDateTime(hoursFromNow) {
-  const date = new Date(Date.now() + hoursFromNow * 3600000);
-  date.setSeconds(0, 0);
-  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localTime.toISOString().slice(0, 16);
-}
-
 function emptyLocation(hoursFromNow) {
   return {
-    dateTime: defaultDateTime(hoursFromNow),
+    dateTime: toDateTimeLocalValue(Date.now() + hoursFromNow * 3600000),
     label: "",
     latitude: null,
     longitude: null,
   };
 }
 
+function formatPlanDuration(startDateTime, endDateTime) {
+  if (!startDateTime || !endDateTime) return null;
+  const minutes = Math.round(
+    (new Date(endDateTime).getTime() - new Date(startDateTime).getTime()) /
+      60000
+  );
+  if (!Number.isFinite(minutes) || minutes <= 0) return null;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (hours === 0) return `${remainder} min`;
+  if (remainder === 0) return `${hours} hr${hours === 1 ? "" : "s"}`;
+  return `${hours} hr${hours === 1 ? "" : "s"} ${remainder} min`;
+}
+
 export default function PlansListPage() {
-  const { notify } = useNotifications();
+  const { notify, confirm } = useNotifications();
   const navigate = useNavigate();
   const { data: plans = [], isLoading } = usePlans();
+  const { data: workItems = [] } = useWorkItems();
   const createPlanMutation = useCreatePlan();
+  const deletePlanMutation = useDeletePlan();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [title, setTitle] = useState("");
   const [start, setStart] = useState(emptyLocation(0));
   const [end, setEnd] = useState(emptyLocation(8));
+
+  const eligibleWorkCount = useMemo(
+    () => workItems.filter((item) => item.status !== "done").length,
+    [workItems]
+  );
+  const planDuration = useMemo(
+    () => formatPlanDuration(start.dateTime, end.dateTime),
+    [start.dateTime, end.dateTime]
+  );
 
   const resetForm = () => {
     setTitle("");
@@ -52,10 +71,38 @@ export default function PlansListPage() {
     setShowCreateForm(false);
   };
 
+  const handleDelete = async (event, plan) => {
+    event.stopPropagation();
+    const confirmed = await confirm(
+      `Delete "${getPlanDisplayTitle(plan)}"? This can't be undone.`,
+      { title: "Delete plan?", confirmLabel: "Delete", danger: true }
+    );
+    if (!confirmed) return;
+
+    try {
+      await deletePlanMutation.mutateAsync(plan.id);
+    } catch (error) {
+      console.error("Failed to delete plan", error);
+      notify(error.response?.data?.error || "Failed to delete plan");
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!start.dateTime || !end.dateTime) {
       notify("Start and end date/time are required.");
+      return;
+    }
+    if (start.latitude == null || start.longitude == null) {
+      notify(
+        "Pick a start location (use current location, search, or enter coordinates)."
+      );
+      return;
+    }
+    if (end.latitude == null || end.longitude == null) {
+      notify(
+        "Pick an end location (use current location, search, or enter coordinates)."
+      );
       return;
     }
 
@@ -121,6 +168,14 @@ export default function PlansListPage() {
             />
             <PlanLocationPicker legend="End" value={end} onChange={setEnd} />
 
+            {(planDuration || eligibleWorkCount > 0) && (
+              <p className="text-sm text-muted-foreground">
+                {planDuration && <>Window: {planDuration}. </>}
+                {eligibleWorkCount} eligible work item
+                {eligibleWorkCount === 1 ? "" : "s"} to fit in.
+              </p>
+            )}
+
             <div className="flex justify-end gap-2">
               <Button type="button" variant="secondary" onClick={resetForm}>
                 Cancel
@@ -150,14 +205,16 @@ export default function PlansListPage() {
           {plans.map((plan) => (
             <Card
               key={plan.id}
-              as="button"
-              onClick={() => navigate(`/plan/${plan.id}`)}
               className="text-left transition hover:bg-surface-alt"
             >
               <div className="flex items-center justify-between gap-4">
-                <div>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/plan/${plan.id}`)}
+                  className="min-w-0 flex-1 text-left"
+                >
                   <div className="font-semibold text-foreground">
-                    {plan.title || new Date(plan.startAt).toLocaleDateString()}
+                    {getPlanDisplayTitle(plan)}
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
                     {new Date(plan.startAt).toLocaleString()} →{" "}
@@ -166,10 +223,20 @@ export default function PlansListPage() {
                   <div className="mt-1 text-sm text-muted-foreground">
                     {plan.stops.length} stop{plan.stops.length === 1 ? "" : "s"}
                   </div>
+                </button>
+                <div className="flex flex-col items-end gap-2">
+                  <Badge tone={STATUS_TONE[plan.status] || "neutral"}>
+                    {plan.status}
+                  </Badge>
+                  <Button
+                    variant="danger-outline"
+                    size="sm"
+                    onClick={(event) => handleDelete(event, plan)}
+                    disabled={deletePlanMutation.isPending}
+                  >
+                    Delete
+                  </Button>
                 </div>
-                <Badge tone={STATUS_TONE[plan.status] || "neutral"}>
-                  {plan.status}
-                </Badge>
               </div>
             </Card>
           ))}

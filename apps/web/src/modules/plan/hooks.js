@@ -9,6 +9,7 @@ import {
   updatePlanStop,
   updatePlanStopWork,
 } from "../../api/plans";
+import { planVariations } from "../../api/ai";
 import { WORK_QUERY_KEY } from "../work/hooks";
 
 export const PLANS_QUERY_KEY = ["plans"];
@@ -73,6 +74,15 @@ export function useRecheckPlan() {
     onSuccess: (result, { planId }) => {
       queryClient.setQueryData(planQueryKey(planId), result.plan);
     },
+  });
+}
+
+// Independent of recheck — no geolocation required. Used for a manual
+// "Suggest variations" action on a plan the user hasn't started walking yet.
+export function usePlanVariationsSuggestion() {
+  return useMutation({
+    mutationFn: ({ selectedWork, unselectedWork, budgetMinutes }) =>
+      planVariations(selectedWork, unselectedWork, budgetMinutes),
   });
 }
 

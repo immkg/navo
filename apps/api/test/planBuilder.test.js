@@ -1,4 +1,4 @@
-const { test } = require("node:test");
+const { test, beforeEach, afterEach } = require("node:test");
 const assert = require("node:assert/strict");
 const {
   PRIORITY_POINTS,
@@ -353,7 +353,7 @@ test("computeStopTimings computes cumulative arrival/departure times from the pl
   );
 });
 
-test("buildPlan selects eligible work within budget and reports the rest as unselected", () => {
+test("buildPlan selects eligible work within budget and reports the rest as unselected", async () => {
   const now = new Date("2026-08-22T09:00:00Z");
   const near = makeWork({
     id: "near",
@@ -373,7 +373,7 @@ test("buildPlan selects eligible work within budget and reports the rest as unse
     ],
   });
 
-  const result = buildPlan({
+  const result = await buildPlan({
     workItems: [near, far],
     start: { latitude: 0, longitude: 0 },
     end: { latitude: 0, longitude: 0 },
@@ -388,7 +388,7 @@ test("buildPlan selects eligible work within budget and reports the rest as unse
   assert.equal(result.unselectedWork[0].id, "far");
 });
 
-test("buildPlan excludes done work and force-excluded work ids from the candidate pool entirely", () => {
+test("buildPlan excludes done work and force-excluded work ids from the candidate pool entirely", async () => {
   const now = new Date("2026-08-22T09:00:00Z");
   const done = makeWork({
     id: "done1",
@@ -404,7 +404,7 @@ test("buildPlan excludes done work and force-excluded work ids from the candidat
     ],
   });
 
-  const result = buildPlan({
+  const result = await buildPlan({
     workItems: [done, excluded],
     start: { latitude: 0, longitude: 0 },
     end: { latitude: 0, longitude: 0 },
@@ -418,7 +418,7 @@ test("buildPlan excludes done work and force-excluded work ids from the candidat
   assert.equal(result.unselectedWork.length, 0);
 });
 
-test("buildPlan threads resolvedAssignmentKeys through, routing only to the unresolved location", () => {
+test("buildPlan threads resolvedAssignmentKeys through, routing only to the unresolved location", async () => {
   const now = new Date("2026-08-22T09:00:00Z");
   const twoBranches = makeWork({
     id: "w1",
@@ -434,7 +434,7 @@ test("buildPlan threads resolvedAssignmentKeys through, routing only to the unre
     ],
   });
 
-  const result = buildPlan({
+  const result = await buildPlan({
     workItems: [twoBranches],
     start: { latitude: 0, longitude: 0 },
     end: { latitude: 0, longitude: 0 },
@@ -450,7 +450,7 @@ test("buildPlan threads resolvedAssignmentKeys through, routing only to the unre
   assert.deepEqual(result.unselectedWork, []);
 });
 
-test("buildPlan lets a force-included work item win over a higher-scoring competitor when only one fits", () => {
+test("buildPlan lets a force-included work item win over a higher-scoring competitor when only one fits", async () => {
   const now = new Date("2026-08-22T09:00:00Z");
   const highScore = makeWork({
     id: "high",
@@ -471,7 +471,7 @@ test("buildPlan lets a force-included work item win over a higher-scoring compet
     ],
   });
 
-  const result = buildPlan({
+  const result = await buildPlan({
     workItems: [highScore, forced],
     start: { latitude: 0, longitude: 0 },
     end: { latitude: 0, longitude: 0 },
@@ -483,4 +483,151 @@ test("buildPlan lets a force-included work item win over a higher-scoring compet
 
   assert.equal(result.stops.length, 1);
   assert.equal(result.stops[0].location.id, "l2");
+});
+
+let originalGoogleMapsKey;
+
+beforeEach(() => {
+  originalGoogleMapsKey = process.env.GOOGLE_MAPS_API_KEY;
+});
+
+afterEach(() => {
+  if (originalGoogleMapsKey === undefined) {
+    delete process.env.GOOGLE_MAPS_API_KEY;
+  } else {
+    process.env.GOOGLE_MAPS_API_KEY = originalGoogleMapsKey;
+  }
+});
+
+test("buildPlan never calls the routing matrix when useAccurateTravelTime is false", async () => {
+  delete process.env.GOOGLE_MAPS_API_KEY;
+  const now = new Date("2026-08-22T09:00:00Z");
+  const work = makeWork({
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.01, longitude: 0 }] },
+    ],
+  });
+
+  const result = await buildPlan({
+    workItems: [work],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 60 * 60000),
+    now,
+    useAccurateTravelTime: false,
+    fetchTravelTimeMatrix: async () => {
+      throw new Error("should not be called");
+    },
+  });
+
+  assert.equal(result.stops.length, 1);
+});
+
+test("buildPlan never calls the routing matrix when GOOGLE_MAPS_API_KEY is not configured, even if useAccurateTravelTime is true", async () => {
+  delete process.env.GOOGLE_MAPS_API_KEY;
+  const now = new Date("2026-08-22T09:00:00Z");
+  const work = makeWork({
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.01, longitude: 0 }] },
+    ],
+  });
+
+  const result = await buildPlan({
+    workItems: [work],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 60 * 60000),
+    now,
+    useAccurateTravelTime: true,
+    fetchTravelTimeMatrix: async () => {
+      throw new Error("should not be called");
+    },
+  });
+
+  assert.equal(result.stops.length, 1);
+});
+
+test("buildPlan uses real routing minutes from the matrix over the haversine estimate", async () => {
+  process.env.GOOGLE_MAPS_API_KEY = "test-key";
+  const now = new Date("2026-08-22T09:00:00Z");
+  // Haversine would estimate this hop as a few minutes (tiny lat/lng delta),
+  // comfortably inside the 20-minute budget. The mocked matrix instead says
+  // it's a 45-minute real drive each way — over budget — proving the stop
+  // gets excluded because the matrix value was actually used, not haversine.
+  const work = makeWork({
+    durationMinutes: 5,
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.001, longitude: 0 }] },
+    ],
+  });
+
+  const result = await buildPlan({
+    workItems: [work],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 20 * 60000),
+    now,
+    useAccurateTravelTime: true,
+    fetchTravelTimeMatrix: async () =>
+      new Map([
+        ["0,0:0.001,0", 45],
+        ["0.001,0:0,0", 45],
+      ]),
+  });
+
+  assert.equal(result.stops.length, 0);
+  assert.equal(result.unselectedWork.length, 1);
+});
+
+test("buildPlan falls back to haversine per-pair when the matrix is missing that pair", async () => {
+  process.env.GOOGLE_MAPS_API_KEY = "test-key";
+  const now = new Date("2026-08-22T09:00:00Z");
+  const work = makeWork({
+    durationMinutes: 5,
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.001, longitude: 0 }] },
+    ],
+  });
+
+  const result = await buildPlan({
+    workItems: [work],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 20 * 60000),
+    now,
+    useAccurateTravelTime: true,
+    fetchTravelTimeMatrix: async () => new Map(),
+  });
+
+  assert.equal(result.stops.length, 1);
+});
+
+test("buildPlan falls back to haversine entirely when the matrix fetch throws", async () => {
+  process.env.GOOGLE_MAPS_API_KEY = "test-key";
+  const now = new Date("2026-08-22T09:00:00Z");
+  const work = makeWork({
+    durationMinutes: 5,
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.001, longitude: 0 }] },
+    ],
+  });
+
+  const result = await buildPlan({
+    workItems: [work],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 20 * 60000),
+    now,
+    useAccurateTravelTime: true,
+    fetchTravelTimeMatrix: async () => {
+      throw new Error("network error");
+    },
+  });
+
+  assert.equal(result.stops.length, 1);
 });
