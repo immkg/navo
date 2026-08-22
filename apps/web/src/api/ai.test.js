@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import apiClient from "./client";
 import {
   draftIntent,
-  optimizeRoute,
+  planVariations,
   splitIntent,
   suggestPlaceTypes,
   suggestWork,
@@ -58,24 +58,6 @@ describe("suggestPlaceTypes", () => {
   });
 });
 
-describe("optimizeRoute", () => {
-  it("posts the startPoint and stops and returns the response body", async () => {
-    apiClient.post.mockResolvedValue({
-      data: { order: ["w2", "w1"], reasoning: "closer first" },
-    });
-    const startPoint = { latitude: 1, longitude: 1 };
-    const stops = [{ id: "w1" }, { id: "w2" }];
-
-    const result = await optimizeRoute(startPoint, stops);
-
-    expect(apiClient.post).toHaveBeenCalledWith("/api/ai/optimize-route", {
-      startPoint,
-      stops,
-    });
-    expect(result.order).toEqual(["w2", "w1"]);
-  });
-});
-
 describe("splitIntent", () => {
   it("posts the text and returns the response body", async () => {
     apiClient.post.mockResolvedValue({
@@ -90,5 +72,22 @@ describe("splitIntent", () => {
     expect(result.intents).toEqual([
       { title: "Renew passport", priority: "high" },
     ]);
+  });
+});
+
+describe("planVariations", () => {
+  it("posts the selected/unselected work and budget, and returns the response body", async () => {
+    apiClient.post.mockResolvedValue({
+      data: { variations: [{ addWorkIds: ["w2"], removeWorkIds: ["w1"] }] },
+    });
+
+    const result = await planVariations([{ id: "w1" }], [{ id: "w2" }], 60);
+
+    expect(apiClient.post).toHaveBeenCalledWith("/api/ai/plan-variations", {
+      selectedWork: [{ id: "w1" }],
+      unselectedWork: [{ id: "w2" }],
+      budgetMinutes: 60,
+    });
+    expect(result.variations.length).toBe(1);
   });
 });

@@ -22,15 +22,20 @@ export async function suggestPlaceTypes(title, notes, location) {
   return response.data;
 }
 
-export async function optimizeRoute(startPoint, stops) {
-  const response = await apiClient.post("/api/ai/optimize-route", {
-    startPoint,
-    stops,
-  });
+export async function splitIntent(text) {
+  const response = await apiClient.post("/api/ai/split-intent", { text });
   return response.data;
 }
 
-export async function splitIntent(text) {
-  const response = await apiClient.post("/api/ai/split-intent", { text });
+export async function planVariations(
+  selectedWork,
+  unselectedWork,
+  budgetMinutes
+) {
+  const response = await apiClient.post("/api/ai/plan-variations", {
+    selectedWork,
+    unselectedWork,
+    budgetMinutes,
+  });
   return response.data;
 }

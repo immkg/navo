@@ -773,13 +773,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as googleMaps from "../../utils/googleMaps";
 import PlanLocationPicker from "./PlanLocationPicker";
 
-function Wrapper({ initialValue }) {
-  const [value, setValue] = require("react").useState(initialValue);
-  return (
-    <PlanLocationPicker legend="Start" value={value} onChange={setValue} />
-  );
-}
-
 describe("PlanLocationPicker", () => {
   afterEach(() => {
     delete navigator.geolocation;
