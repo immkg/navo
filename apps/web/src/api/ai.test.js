@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import apiClient from "./client";
 import {
   draftIntent,
-  optimizeRoute,
   planVariations,
   splitIntent,
   suggestPlaceTypes,
@@ -56,24 +55,6 @@ describe("suggestPlaceTypes", () => {
       notes: "ask for generic",
     });
     expect(result.suggestions).toEqual(["pharmacy"]);
-  });
-});
-
-describe("optimizeRoute", () => {
-  it("posts the startPoint and stops and returns the response body", async () => {
-    apiClient.post.mockResolvedValue({
-      data: { order: ["w2", "w1"], reasoning: "closer first" },
-    });
-    const startPoint = { latitude: 1, longitude: 1 };
-    const stops = [{ id: "w1" }, { id: "w2" }];
-
-    const result = await optimizeRoute(startPoint, stops);
-
-    expect(apiClient.post).toHaveBeenCalledWith("/api/ai/optimize-route", {
-      startPoint,
-      stops,
-    });
-    expect(result.order).toEqual(["w2", "w1"]);
   });
 });
 

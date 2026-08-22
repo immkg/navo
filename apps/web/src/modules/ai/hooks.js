@@ -1,7 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import {
   draftIntent,
-  optimizeRoute,
   splitIntent,
   suggestPlaceTypes,
   suggestWork,
@@ -23,12 +22,6 @@ export function useSuggestPlaceTypes() {
   return useMutation({
     mutationFn: ({ title, notes, location }) =>
       suggestPlaceTypes(title, notes, location),
-  });
-}
-
-export function useOptimizeRoute() {
-  return useMutation({
-    mutationFn: ({ startPoint, stops }) => optimizeRoute(startPoint, stops),
   });
 }
 

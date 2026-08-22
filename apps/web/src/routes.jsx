@@ -2,7 +2,8 @@ import { BrowserRouter, Routes, Route, NavLink } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Dashboard from "./pages/Dashboard";
 import IntentPage from "./pages/IntentPage";
-import PlannerPage from "./pages/PlannerPage";
+import PlansListPage from "./pages/PlansListPage";
+import PlanDetailPage from "./pages/PlanDetailPage";
 import { NotificationProvider } from "./components/NotificationProvider";
 import { ThemeProvider } from "./components/ThemeProvider";
 import ThemeToggle from "./components/ThemeToggle";
@@ -58,7 +59,8 @@ export default function AppRoutes() {
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/intent/:id" element={<IntentPage />} />
-                  <Route path="/planner" element={<PlannerPage />} />
+                  <Route path="/planner" element={<PlansListPage />} />
+                  <Route path="/plan/:id" element={<PlanDetailPage />} />
                 </Routes>
               </main>
 

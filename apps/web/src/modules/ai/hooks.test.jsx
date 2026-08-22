@@ -5,7 +5,6 @@ import { createTestQueryClient } from "../../test/renderWithProviders";
 import * as aiApi from "../../api/ai";
 import {
   useDraftIntent,
-  useOptimizeRoute,
   useSplitIntent,
   useSuggestPlaceTypes,
   useSuggestWork,
@@ -89,31 +88,6 @@ describe("useSuggestPlaceTypes", () => {
       undefined
     );
     expect(resolved.suggestions).toEqual(["pharmacy"]);
-  });
-});
-
-describe("useOptimizeRoute", () => {
-  it("calls optimizeRoute with the start point and stops", async () => {
-    vi.spyOn(aiApi, "optimizeRoute").mockResolvedValue({
-      order: ["w2", "w1"],
-      reasoning: "closer first",
-    });
-    const queryClient = createTestQueryClient();
-
-    const { result } = renderHook(() => useOptimizeRoute(), {
-      wrapper: withQueryClient(queryClient),
-    });
-
-    const startPoint = { latitude: 1, longitude: 1 };
-    const stops = [{ id: "w1" }, { id: "w2" }];
-
-    let resolved;
-    await act(async () => {
-      resolved = await result.current.mutateAsync({ startPoint, stops });
-    });
-
-    expect(aiApi.optimizeRoute).toHaveBeenCalledWith(startPoint, stops);
-    expect(resolved.order).toEqual(["w2", "w1"]);
   });
 });
 
