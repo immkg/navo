@@ -4,6 +4,8 @@ const {
   PRIORITY_POINTS,
   scoreWork,
   urgencyScore,
+  haversineKm,
+  estimateTravelMinutes,
 } = require("../src/services/planBuilder");
 
 test("urgencyScore returns 0 when there is no due date", () => {
@@ -43,4 +45,49 @@ test("scoreWork defaults to medium priority when work or intent priority is miss
   const now = new Date("2026-08-22T09:00:00Z");
   const expected = 2 * PRIORITY_POINTS.medium + PRIORITY_POINTS.medium;
   assert.equal(scoreWork({}, null, now), expected);
+});
+
+test("haversineKm returns null when any coordinate is missing", () => {
+  assert.equal(
+    haversineKm(
+      { latitude: 1, longitude: 1 },
+      { latitude: null, longitude: 2 }
+    ),
+    null
+  );
+});
+
+test("haversineKm computes a plausible distance between two known points", () => {
+  // San Francisco to Oakland is roughly 13km apart.
+  const km = haversineKm(
+    { latitude: 37.7749, longitude: -122.4194 },
+    { latitude: 37.8044, longitude: -122.2712 }
+  );
+  assert.ok(km > 10 && km < 16, `expected ~13km, got ${km}`);
+});
+
+test("estimateTravelMinutes falls back to a flat 8 minutes when coordinates are missing", () => {
+  assert.equal(
+    estimateTravelMinutes(
+      { latitude: null, longitude: null },
+      { latitude: 1, longitude: 1 }
+    ),
+    8
+  );
+});
+
+test("estimateTravelMinutes has a 3-minute floor for very short hops", () => {
+  const minutes = estimateTravelMinutes(
+    { latitude: 1, longitude: 1 },
+    { latitude: 1.0001, longitude: 1.0001 }
+  );
+  assert.equal(minutes, 3);
+});
+
+test("estimateTravelMinutes scales with distance", () => {
+  const minutes = estimateTravelMinutes(
+    { latitude: 37.7749, longitude: -122.4194 },
+    { latitude: 37.8044, longitude: -122.2712 }
+  );
+  assert.ok(minutes >= 80 && minutes <= 130, `expected 80-130, got ${minutes}`);
 });

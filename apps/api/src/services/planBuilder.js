@@ -41,4 +41,50 @@ function scoreWork(work, intent, now) {
   );
 }
 
-module.exports = { PRIORITY_POINTS, scoreWork, urgencyScore };
+const EARTH_RADIUS_KM = 6371;
+const DEFAULT_TRAVEL_MIN_PER_KM = 8;
+
+function toRadians(degrees) {
+  return (degrees * Math.PI) / 180;
+}
+
+// Straight-line distance — a deliberately rough estimate. Real road/traffic
+// time is an explicit per-plan opt-in (Plan.useAccurateTravelTime), not
+// implemented here; see the design spec's "Open items" section.
+function haversineKm(a, b) {
+  if (
+    !a ||
+    !b ||
+    a.latitude == null ||
+    a.longitude == null ||
+    b.latitude == null ||
+    b.longitude == null
+  ) {
+    return null;
+  }
+
+  const dLat = toRadians(b.latitude - a.latitude);
+  const dLng = toRadians(b.longitude - a.longitude);
+  const radLatA = toRadians(a.latitude);
+  const radLatB = toRadians(b.latitude);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+
+  const h =
+    sinLat * sinLat + Math.cos(radLatA) * Math.cos(radLatB) * sinLng * sinLng;
+  return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+function estimateTravelMinutes(a, b) {
+  const km = haversineKm(a, b);
+  if (km === null) return 8;
+  return Math.max(3, Math.round(km * DEFAULT_TRAVEL_MIN_PER_KM));
+}
+
+module.exports = {
+  PRIORITY_POINTS,
+  scoreWork,
+  urgencyScore,
+  haversineKm,
+  estimateTravelMinutes,
+};
