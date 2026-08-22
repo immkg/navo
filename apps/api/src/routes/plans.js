@@ -4,6 +4,7 @@ const {
   rebuildPlanStops,
   PLAN_STOP_INCLUDE,
 } = require("../services/planPersistence");
+const { buildPlanVariations } = require("../services/planVariations");
 
 const router = express.Router();
 
@@ -293,6 +294,52 @@ router.patch("/:id/stops/:stopId/work/:workId", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to update plan stop work item" });
+  }
+});
+
+router.post("/:id/recheck", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { asOfAt, latitude, longitude, label } = req.body;
+
+    const existingPlan = await prisma.plan.findUnique({ where: { id } });
+    if (!existingPlan) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    const asOf = asOfAt ? new Date(asOfAt) : new Date();
+    const result = await rebuildPlanStops(prisma, id, {
+      asOfAt: asOf,
+      asOfLocation: { latitude, longitude, label },
+    });
+
+    let variations = [];
+    if (result.unselectedWork.length > 0) {
+      const selectedWork = result.plan.stops.flatMap((stop) =>
+        stop.works.map((assignment) => assignment.work)
+      );
+      const budgetMinutes = Math.max(
+        0,
+        Math.round(
+          (new Date(result.plan.endAt).getTime() - asOf.getTime()) / 60000
+        )
+      );
+
+      try {
+        variations = await buildPlanVariations({
+          selectedWork,
+          unselectedWork: result.unselectedWork,
+          budgetMinutes,
+        });
+      } catch (error) {
+        console.error("Failed to fetch plan variations during recheck", error);
+      }
+    }
+
+    res.json({ plan: result.plan, variations });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to recheck plan" });
   }
 });
 

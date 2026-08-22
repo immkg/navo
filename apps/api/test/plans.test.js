@@ -373,3 +373,68 @@ test("PATCH .../work/:workId returns 404 for a missing assignment", async () => 
 
   assert.equal(response.statusCode, 404);
 });
+
+test("POST /api/plans/:id/recheck returns 404 for a missing plan", async () => {
+  const response = await request(app)
+    .post("/api/plans/missing-id/recheck")
+    .send({ latitude: 0, longitude: 0 });
+
+  assert.equal(response.statusCode, 404);
+});
+
+test("POST /api/plans/:id/recheck recomputes remaining stops from the given location/time", async () => {
+  const work = await prisma.work.create({
+    data: {
+      title: "Nearby errand",
+      durationMinutes: 10,
+      locationOptions: {
+        create: {
+          locations: {
+            create: { name: "Shop", latitude: 0.01, longitude: 0.01 },
+          },
+        },
+      },
+    },
+  });
+  const plan = await prisma.plan.create({
+    data: {
+      status: "active",
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 0,
+      startLongitude: 0,
+      endAt: new Date("2026-08-22T18:00:00Z"),
+      endLatitude: 0,
+      endLongitude: 0,
+    },
+  });
+
+  const response = await request(app)
+    .post(`/api/plans/${plan.id}/recheck`)
+    .send({
+      asOfAt: "2026-08-22T09:30:00.000Z",
+      latitude: 0.01,
+      longitude: 0.01,
+    });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.plan.stops.length, 1);
+  assert.equal(response.body.plan.stops[0].works[0].work.id, work.id);
+  assert.ok(Array.isArray(response.body.variations));
+});
+
+test("POST /api/plans/:id/recheck omits variations when nothing is left unselected", async () => {
+  const plan = await prisma.plan.create({
+    data: {
+      status: "active",
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      endAt: new Date("2026-08-22T10:00:00Z"),
+    },
+  });
+
+  const response = await request(app)
+    .post(`/api/plans/${plan.id}/recheck`)
+    .send({ latitude: 0, longitude: 0 });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(response.body.variations, []);
+});
