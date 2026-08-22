@@ -216,3 +216,160 @@ test("DELETE /api/plans/:id returns 404 for a missing plan", async () => {
 
   assert.equal(response.statusCode, 404);
 });
+
+async function seedPlanWithStop({ workId, locationId } = {}) {
+  const location = locationId
+    ? await prisma.location.findUnique({ where: { id: locationId } })
+    : await prisma.location.create({
+        data: { name: "Pharmacy", latitude: 0, longitude: 0 },
+      });
+  const plan = await prisma.plan.create({
+    data: {
+      status: "active",
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      endAt: new Date("2026-08-22T12:00:00Z"),
+    },
+  });
+  const stop = await prisma.planStop.create({
+    data: {
+      planId: plan.id,
+      locationId: location.id,
+      order: 0,
+      plannedArrivalAt: new Date("2026-08-22T09:10:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T09:20:00Z"),
+      works: { create: { workId } },
+    },
+  });
+  return { plan, stop, location };
+}
+
+test("PATCH /api/plans/:id/stops/:stopId updates status and actual times", async () => {
+  const work = await prisma.work.create({
+    data: { title: "Pick up prescription" },
+  });
+  const { plan, stop } = await seedPlanWithStop({ workId: work.id });
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stop.id}`)
+    .send({
+      status: "done",
+      actualArrivalAt: "2026-08-22T09:12:00.000Z",
+      actualDepartureAt: "2026-08-22T09:22:00.000Z",
+    });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.status, "done");
+  assert.equal(response.body.actualArrivalAt, "2026-08-22T09:12:00.000Z");
+});
+
+test("PATCH /api/plans/:id/stops/:stopId rejects an invalid status", async () => {
+  const work = await prisma.work.create({
+    data: { title: "Pick up prescription" },
+  });
+  const { plan, stop } = await seedPlanWithStop({ workId: work.id });
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stop.id}`)
+    .send({ status: "bogus" });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("PATCH /api/plans/:id/stops/:stopId returns 404 for a missing stop", async () => {
+  const plan = await prisma.plan.create({
+    data: { startAt: new Date(), endAt: new Date(Date.now() + 3600000) },
+  });
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/missing-stop`)
+    .send({ status: "done" });
+
+  assert.equal(response.statusCode, 404);
+});
+
+test("PATCH .../work/:workId marks the work item done when it's the only assignment", async () => {
+  const work = await prisma.work.create({
+    data: { title: "Pick up prescription" },
+  });
+  const { plan, stop } = await seedPlanWithStop({ workId: work.id });
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stop.id}/work/${work.id}`)
+    .send({ status: "done" });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.status, "done");
+  const updatedWork = await prisma.work.findUnique({ where: { id: work.id } });
+  assert.equal(updatedWork.status, "done");
+});
+
+test("PATCH .../work/:workId skipping leaves the work item todo", async () => {
+  const work = await prisma.work.create({
+    data: { title: "Pick up prescription" },
+  });
+  const { plan, stop } = await seedPlanWithStop({ workId: work.id });
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stop.id}/work/${work.id}`)
+    .send({ status: "skipped" });
+
+  assert.equal(response.statusCode, 200);
+  const updatedWork = await prisma.work.findUnique({ where: { id: work.id } });
+  assert.equal(updatedWork.status, "todo");
+});
+
+test("PATCH .../work/:workId does not mark a work item done while it still has another planned stop in the same plan", async () => {
+  const work = await prisma.work.create({
+    data: { title: "Visit two branches" },
+  });
+  const branchA = await prisma.location.create({
+    data: { name: "Branch A", latitude: 0, longitude: 0 },
+  });
+  const branchB = await prisma.location.create({
+    data: { name: "Branch B", latitude: 1, longitude: 1 },
+  });
+  const { plan, stop: stopA } = await seedPlanWithStop({
+    workId: work.id,
+    locationId: branchA.id,
+  });
+  const stopB = await prisma.planStop.create({
+    data: {
+      planId: plan.id,
+      locationId: branchB.id,
+      order: 1,
+      plannedArrivalAt: new Date("2026-08-22T10:00:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T10:10:00Z"),
+      works: { create: { workId: work.id } },
+    },
+  });
+
+  const firstResponse = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stopA.id}/work/${work.id}`)
+    .send({ status: "done" });
+  assert.equal(firstResponse.statusCode, 200);
+  const stillOpenWork = await prisma.work.findUnique({
+    where: { id: work.id },
+  });
+  assert.equal(stillOpenWork.status, "todo");
+
+  const secondResponse = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stopB.id}/work/${work.id}`)
+    .send({ status: "done" });
+  assert.equal(secondResponse.statusCode, 200);
+  const finishedWork = await prisma.work.findUnique({ where: { id: work.id } });
+  assert.equal(finishedWork.status, "done");
+});
+
+test("PATCH .../work/:workId returns 404 for a missing assignment", async () => {
+  const work = await prisma.work.create({
+    data: { title: "Pick up prescription" },
+  });
+  const { plan, stop } = await seedPlanWithStop({ workId: work.id });
+  const otherWork = await prisma.work.create({ data: { title: "Unrelated" } });
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stop.id}/work/${otherWork.id}`)
+    .send({ status: "done" });
+
+  assert.equal(response.statusCode, 404);
+});

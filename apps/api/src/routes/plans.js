@@ -200,4 +200,100 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
+const VALID_STOP_STATUSES = new Set([
+  "planned",
+  "in_progress",
+  "done",
+  "skipped",
+]);
+const VALID_PLAN_STOP_WORK_STATUSES = new Set(["planned", "done", "skipped"]);
+
+router.patch("/:id/stops/:stopId", async (req, res) => {
+  try {
+    const { id, stopId } = req.params;
+    const { status, actualArrivalAt, actualDepartureAt } = req.body;
+
+    if (status !== undefined && !VALID_STOP_STATUSES.has(status)) {
+      return res.status(400).json({ error: "Invalid stop status" });
+    }
+
+    const stop = await prisma.planStop.findFirst({
+      where: { id: stopId, planId: id },
+    });
+    if (!stop) {
+      return res.status(404).json({ error: "Plan stop not found" });
+    }
+
+    const updatedStop = await prisma.planStop.update({
+      where: { id: stopId },
+      data: {
+        status,
+        actualArrivalAt:
+          actualArrivalAt !== undefined ? new Date(actualArrivalAt) : undefined,
+        actualDepartureAt:
+          actualDepartureAt !== undefined
+            ? new Date(actualDepartureAt)
+            : undefined,
+      },
+      include: PLAN_STOP_INCLUDE,
+    });
+
+    res.json(updatedStop);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update plan stop" });
+  }
+});
+
+// Marking a work item done syncs Work.status to "done" — but only once
+// every PlanStopWork row for that same work item, in this same plan, is no
+// longer "planned". A work item legitimately spanning two stops (its
+// chosen option lists two locations) must not be marked done after just
+// the first stop.
+router.patch("/:id/stops/:stopId/work/:workId", async (req, res) => {
+  try {
+    const { id, stopId, workId } = req.params;
+    const { status } = req.body;
+
+    if (!VALID_PLAN_STOP_WORK_STATUSES.has(status)) {
+      return res.status(400).json({ error: "Invalid work status" });
+    }
+
+    const planStopWork = await prisma.planStopWork.findFirst({
+      where: { workId, planStop: { id: stopId, planId: id } },
+    });
+    if (!planStopWork) {
+      return res.status(404).json({ error: "Plan stop work item not found" });
+    }
+
+    const updated = await prisma.planStopWork.update({
+      where: { id: planStopWork.id },
+      data: { status },
+      include: { work: true },
+    });
+
+    if (status === "done") {
+      const otherOpenAssignments = await prisma.planStopWork.count({
+        where: {
+          workId,
+          planStop: { planId: id },
+          status: "planned",
+          id: { not: planStopWork.id },
+        },
+      });
+      if (otherOpenAssignments === 0) {
+        await prisma.work.update({
+          where: { id: workId },
+          data: { status: "done" },
+        });
+      }
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update plan stop work item" });
+  }
+});
+
 module.exports = router;
