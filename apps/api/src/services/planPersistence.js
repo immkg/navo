@@ -61,7 +61,7 @@ async function rebuildPlanStops(
       now: asOfAt,
     });
 
-    let order = frozenStops.length;
+    let order = Math.max(-1, ...frozenStops.map((stop) => stop.order)) + 1;
     for (const stop of stops) {
       const uniqueWorkIds = [
         ...new Set(stop.entries.map((entry) => entry.work.id)),
