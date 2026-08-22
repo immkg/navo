@@ -452,3 +452,50 @@ test("DELETE /api/work/:id/location-option/:optionId clears selectedLocationOpti
   assert.equal(response.statusCode, 200);
   assert.equal(response.body.selectedLocationOptionId, null);
 });
+
+test("POST /api/work defaults priority to medium", async () => {
+  const response = await request(app)
+    .post("/api/work")
+    .send({ title: "Book flights" });
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.priority, "medium");
+});
+
+test("POST /api/work accepts an explicit priority", async () => {
+  const response = await request(app)
+    .post("/api/work")
+    .send({ title: "Book flights", priority: "high" });
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.priority, "high");
+});
+
+test("POST /api/work rejects an invalid priority", async () => {
+  const response = await request(app)
+    .post("/api/work")
+    .send({ title: "Book flights", priority: "urgent" });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("PATCH /api/work/:id updates priority", async () => {
+  const work = await prisma.work.create({ data: { title: "Book flights" } });
+
+  const response = await request(app)
+    .patch(`/api/work/${work.id}`)
+    .send({ priority: "high" });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.priority, "high");
+});
+
+test("PATCH /api/work/:id rejects an invalid priority", async () => {
+  const work = await prisma.work.create({ data: { title: "Book flights" } });
+
+  const response = await request(app)
+    .patch(`/api/work/${work.id}`)
+    .send({ priority: "urgent" });
+
+  assert.equal(response.statusCode, 400);
+});

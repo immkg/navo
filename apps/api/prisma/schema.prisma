@@ -29,6 +29,7 @@ model Work {
   title                   String
   type                    String           @default("task") // task, decision, etc.
   status                  String           @default("todo") // todo, in_progress, done
+  priority                String           @default("medium") // low, medium, high — independent of intent.priority
   durationMinutes         Int              @default(30)
   notes                   String?
   createdAt               DateTime         @default(now())
