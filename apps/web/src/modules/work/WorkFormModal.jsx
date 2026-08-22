@@ -18,7 +18,7 @@ import {
   useUpdateWorkItem,
   WORK_QUERY_KEY,
 } from "./hooks";
-import { WORK_STATUS_OPTIONS } from "./utils";
+import { WORK_PRIORITY_OPTIONS, WORK_STATUS_OPTIONS } from "./utils";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
@@ -57,6 +57,7 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
   const [notes, setNotes] = useState(work?.notes || "");
   const [duration, setDuration] = useState(work?.durationMinutes || 15);
   const [status, setStatus] = useState(work?.status || "todo");
+  const [priority, setPriority] = useState(work?.priority || "medium");
   const initialGroups = buildLocationOptionGroupsFromWork(work);
   const [locationOptionGroups, setLocationOptionGroups] = useState(
     initialGroups.length > 0
@@ -247,6 +248,7 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
             notes: notes.trim() || null,
             durationMinutes: Number(duration) || 15,
             status,
+            priority,
           },
         });
 
@@ -268,6 +270,7 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
         durationMinutes: Number(duration) || 15,
         notes: notes.trim() || undefined,
         intentId,
+        priority,
         ...(pendingGroups.length > 0 ? { locationOptions: pendingGroups } : {}),
       });
 
@@ -434,6 +437,23 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
               </select>
             </label>
           )}
+
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-foreground">
+              Priority
+            </span>
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
+            >
+              {WORK_PRIORITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <div className="space-y-3 rounded-3xl border border-border bg-surface-alt p-4">

@@ -2,6 +2,14 @@ import { useState } from "react";
 import { searchPlaces } from "../../utils/googleMaps";
 import Button from "../../components/ui/Button";
 
+function isValidLatitude(value) {
+  return Number.isFinite(value) && value >= -90 && value <= 90;
+}
+
+function isValidLongitude(value) {
+  return Number.isFinite(value) && value >= -180 && value <= 180;
+}
+
 // Shared start/end picker for a plan's create form: a date/time input, a
 // device-geolocation shortcut, a Places search, and a manual lat/lng
 // fallback for when neither of those has what you need.
@@ -10,7 +18,50 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
+  // Holds the raw text only while it's *invalid* (out of range or NaN) —
+  // valid keystrokes commit straight to onChange and this clears, so the
+  // displayed value otherwise just follows value.latitude/longitude
+  // directly. That keeps this component fully derived from props (no
+  // effect needed to stay in sync with an external coordinate change, e.g.
+  // a search pick or "use current location").
+  const [invalidLatitudeDraft, setInvalidLatitudeDraft] = useState(null);
+  const [invalidLongitudeDraft, setInvalidLongitudeDraft] = useState(null);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+  const handleManualLatitudeChange = (rawValue) => {
+    if (rawValue.trim() === "") {
+      setInvalidLatitudeDraft(null);
+      onChange({ ...value, latitude: null });
+      return;
+    }
+    const numeric = Number(rawValue);
+    if (isValidLatitude(numeric)) {
+      setInvalidLatitudeDraft(null);
+      onChange({ ...value, latitude: numeric });
+    } else {
+      setInvalidLatitudeDraft(rawValue);
+    }
+  };
+
+  const handleManualLongitudeChange = (rawValue) => {
+    if (rawValue.trim() === "") {
+      setInvalidLongitudeDraft(null);
+      onChange({ ...value, longitude: null });
+      return;
+    }
+    const numeric = Number(rawValue);
+    if (isValidLongitude(numeric)) {
+      setInvalidLongitudeDraft(null);
+      onChange({ ...value, longitude: numeric });
+    } else {
+      setInvalidLongitudeDraft(rawValue);
+    }
+  };
+
+  const manualLatitudeInput = invalidLatitudeDraft ?? value.latitude ?? "";
+  const manualLongitudeInput = invalidLongitudeDraft ?? value.longitude ?? "";
+  const latitudeInputIsInvalid = invalidLatitudeDraft !== null;
+  const longitudeInputIsInvalid = invalidLongitudeDraft !== null;
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
@@ -145,11 +196,16 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
             <input
               type="number"
               step="any"
-              value={value.latitude ?? ""}
+              value={manualLatitudeInput}
               onChange={(event) =>
-                onChange({ ...value, latitude: Number(event.target.value) })
+                handleManualLatitudeChange(event.target.value)
               }
-              className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+              aria-invalid={latitudeInputIsInvalid}
+              className={`block w-full rounded-xl border bg-surface px-3 py-2 text-sm text-foreground focus:ring-primary ${
+                latitudeInputIsInvalid
+                  ? "border-danger focus:border-danger"
+                  : "border-border focus:border-primary"
+              }`}
             />
           </label>
           <label className="space-y-1">
@@ -159,14 +215,25 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
             <input
               type="number"
               step="any"
-              value={value.longitude ?? ""}
+              value={manualLongitudeInput}
               onChange={(event) =>
-                onChange({ ...value, longitude: Number(event.target.value) })
+                handleManualLongitudeChange(event.target.value)
               }
-              className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+              aria-invalid={longitudeInputIsInvalid}
+              className={`block w-full rounded-xl border bg-surface px-3 py-2 text-sm text-foreground focus:ring-primary ${
+                longitudeInputIsInvalid
+                  ? "border-danger focus:border-danger"
+                  : "border-border focus:border-primary"
+              }`}
             />
           </label>
         </div>
+        {(latitudeInputIsInvalid || longitudeInputIsInvalid) && (
+          <p className="mt-1 text-sm text-danger">
+            Latitude must be between -90 and 90, longitude between -180 and
+            180.
+          </p>
+        )}
       </details>
     </fieldset>
   );

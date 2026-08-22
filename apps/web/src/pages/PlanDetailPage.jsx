@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -6,10 +6,19 @@ import Badge from "../components/ui/Badge";
 import { useNotifications } from "../hooks/useNotifications";
 import {
   usePlan,
+  usePlanVariationsSuggestion,
   useUpdatePlan,
+  useUpdatePlanStop,
   useUpdatePlanStopWork,
   useRecheckPlan,
 } from "../modules/plan/hooks";
+import { useWorkItems } from "../modules/work/hooks";
+import {
+  describeTimingDelta,
+  getPlanDisplayTitle,
+  toDateTimeLocalValue,
+} from "../modules/plan/utils";
+import PlanLocationPicker from "../modules/plan/PlanLocationPicker";
 import {
   buildGoogleMapsDirectionsUrl,
   loadGoogleMaps,
@@ -37,36 +46,94 @@ function formatDateTime(iso) {
   });
 }
 
+function dedupeWorkById(workList) {
+  return [...new Map(workList.map((work) => [work.id, work])).values()];
+}
+
 export default function PlanDetailPage() {
   const { id } = useParams();
-  const { notify } = useNotifications();
+  const { notify, confirm } = useNotifications();
   const { data: plan, isLoading } = usePlan(id);
+  const { data: allWorkItems = [] } = useWorkItems();
   const updatePlanMutation = useUpdatePlan();
+  const updatePlanStopMutation = useUpdatePlanStop();
   const updatePlanStopWorkMutation = useUpdatePlanStopWork();
   const recheckPlanMutation = useRecheckPlan();
+  const suggestVariationsMutation = usePlanVariationsSuggestion();
   const [variations, setVariations] = useState([]);
+  const [liveOrigin, setLiveOrigin] = useState(null);
+  const [isEditingWindow, setIsEditingWindow] = useState(false);
+  const [editStart, setEditStart] = useState(null);
+  const [editEnd, setEditEnd] = useState(null);
   const mapRef = useRef(null);
+  const markersRef = useRef([]);
   const [mapError, setMapError] = useState(null);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   const stops = plan?.stops || [];
 
+  // A stable primitive signature — only changes when a marker would actually
+  // need to move — so an unrelated mutation (e.g. marking one work item
+  // done) doesn't re-create the whole map and every marker on every render.
+  const markerSignature = useMemo(
+    () =>
+      stops
+        .map(
+          (stop) => `${stop.id}:${stop.location.latitude},${stop.location.longitude}`
+        )
+        .join("|"),
+    [stops]
+  );
+
+  const assignedWorkIds = useMemo(
+    () =>
+      new Set(
+        stops.flatMap((stop) => stop.works.map((assignment) => assignment.work.id))
+      ),
+    [stops]
+  );
+  const selectedWork = useMemo(
+    () =>
+      dedupeWorkById(
+        stops.flatMap((stop) => stop.works.map((assignment) => assignment.work))
+      ),
+    [stops]
+  );
+  const eligibleWorkItems = useMemo(
+    () => allWorkItems.filter((item) => item.status !== "done"),
+    [allWorkItems]
+  );
+  const unselectedWork = useMemo(
+    () => eligibleWorkItems.filter((item) => !assignedWorkIds.has(item.id)),
+    [eligibleWorkItems, assignedWorkIds]
+  );
+
+  const hasMapPoint =
+    stops.length > 0 ||
+    (plan?.startLatitude != null && plan?.startLongitude != null) ||
+    (plan?.endLatitude != null && plan?.endLongitude != null);
+
   useEffect(() => {
-    if (!googleKey || !mapRef.current || stops.length === 0) return;
+    if (!googleKey || !mapRef.current || !plan || !hasMapPoint) return;
 
     setMapError(null);
-    let mapInstance;
+    let isCurrent = true;
 
     loadGoogleMaps(googleKey)
       .then((maps) => {
-        const center = stops[0].location;
-        mapInstance = new maps.Map(mapRef.current, {
-          center: { lat: center.latitude, lng: center.longitude },
-          zoom: 12,
-          disableDefaultUI: true,
-        });
+        if (!isCurrent) return;
 
-        const bounds = new maps.LatLngBounds();
+        markersRef.current.forEach((marker) => marker.setMap(null));
+        markersRef.current = [];
+
+        const points = [];
+        if (plan.startLatitude != null && plan.startLongitude != null) {
+          points.push({
+            lat: plan.startLatitude,
+            lng: plan.startLongitude,
+            label: "Start",
+          });
+        }
         stops.forEach((stop, index) => {
           if (
             stop.location.latitude == null ||
@@ -74,29 +141,66 @@ export default function PlanDetailPage() {
           ) {
             return;
           }
-          const position = {
+          points.push({
             lat: stop.location.latitude,
             lng: stop.location.longitude,
-          };
-          new maps.Marker({
-            position,
-            map: mapInstance,
             label: String.fromCharCode(65 + (index % 26)),
             title: stop.location.name,
           });
-          bounds.extend(position);
+        });
+        if (plan.endLatitude != null && plan.endLongitude != null) {
+          points.push({
+            lat: plan.endLatitude,
+            lng: plan.endLongitude,
+            label: "End",
+          });
+        }
+        if (points.length === 0) return;
+
+        const mapInstance = new maps.Map(mapRef.current, {
+          center: points[0],
+          zoom: 12,
+          disableDefaultUI: true,
+        });
+
+        const bounds = new maps.LatLngBounds();
+        points.forEach((point) => {
+          markersRef.current.push(
+            new maps.Marker({
+              position: point,
+              map: mapInstance,
+              label: point.label,
+              title: point.title || point.label,
+            })
+          );
+          bounds.extend(point);
         });
         mapInstance.fitBounds(bounds, 80);
       })
       .catch((error) => {
         console.warn("Google Maps JS failed to load", error);
-        setMapError(error.message || "Failed to load Google Maps");
+        if (isCurrent) {
+          setMapError(error.message || "Failed to load Google Maps");
+        }
       });
 
     return () => {
-      mapInstance = null;
+      isCurrent = false;
+      markersRef.current.forEach((marker) => marker.setMap(null));
+      markersRef.current = [];
     };
-  }, [googleKey, stops]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- markerSignature stands in for stops/start/end
+  }, [
+    googleKey,
+    markerSignature,
+    hasMapPoint,
+    plan?.startLatitude,
+    plan?.startLongitude,
+    plan?.endLatitude,
+    plan?.endLongitude,
+  ]);
+
+  const isActive = plan?.status === "active";
 
   const handleStatusChange = async (status) => {
     try {
@@ -108,6 +212,15 @@ export default function PlanDetailPage() {
   };
 
   const handleWorkStatusChange = async (stopId, workId, status) => {
+    if (status === "skipped") {
+      const confirmed = await confirm("Skip this work item?", {
+        title: "Skip work item?",
+        confirmLabel: "Skip",
+        danger: true,
+      });
+      if (!confirmed) return;
+    }
+
     try {
       await updatePlanStopWorkMutation.mutateAsync({
         planId: id,
@@ -121,6 +234,38 @@ export default function PlanDetailPage() {
     }
   };
 
+  const handleArrive = async (stopId) => {
+    try {
+      await updatePlanStopMutation.mutateAsync({
+        planId: id,
+        stopId,
+        patch: {
+          status: "in_progress",
+          actualArrivalAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      console.error("Failed to record arrival", error);
+      notify(error.response?.data?.error || "Failed to record arrival");
+    }
+  };
+
+  const handleLeaveStop = async (stopId) => {
+    try {
+      await updatePlanStopMutation.mutateAsync({
+        planId: id,
+        stopId,
+        patch: {
+          status: "done",
+          actualDepartureAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      console.error("Failed to record departure", error);
+      notify(error.response?.data?.error || "Failed to record departure");
+    }
+  };
+
   const handleRecheck = () => {
     if (!navigator.geolocation) {
       notify("Your device doesn't support location detection.");
@@ -128,15 +273,20 @@ export default function PlanDetailPage() {
     }
     navigator.geolocation.getCurrentPosition(
       async (position) => {
+        const origin = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
         try {
           const result = await recheckPlanMutation.mutateAsync({
             planId: id,
-            data: {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-            },
+            data: origin,
           });
+          setLiveOrigin(origin);
           setVariations(result.variations || []);
+          if (result.variationsError) {
+            notify(result.variationsError);
+          }
         } catch (error) {
           console.error("Failed to recheck plan", error);
           notify(error.response?.data?.error || "Failed to recheck plan");
@@ -144,6 +294,31 @@ export default function PlanDetailPage() {
       },
       () => notify("Couldn't get your current location.")
     );
+  };
+
+  const handleSuggestVariations = async () => {
+    const asOf = isActive ? new Date() : new Date(plan.startAt);
+    const budgetMinutes = Math.max(
+      0,
+      Math.round((new Date(plan.endAt).getTime() - asOf.getTime()) / 60000)
+    );
+
+    try {
+      const result = await suggestVariationsMutation.mutateAsync({
+        selectedWork,
+        unselectedWork,
+        budgetMinutes,
+      });
+      setVariations(result.variations || []);
+      if ((result.variations || []).length === 0) {
+        notify("AI didn't find any useful trade-offs to suggest.");
+      }
+    } catch (error) {
+      console.error("Failed to suggest plan variations", error);
+      notify(
+        error.response?.data?.error || "Failed to get AI-suggested variations"
+      );
+    }
   };
 
   const handleApplyVariation = async (variation) => {
@@ -162,9 +337,62 @@ export default function PlanDetailPage() {
     }
   };
 
+  const handleOpenEditWindow = () => {
+    setEditStart({
+      dateTime: toDateTimeLocalValue(plan.startAt),
+      label: plan.startLabel || "",
+      latitude: plan.startLatitude,
+      longitude: plan.startLongitude,
+    });
+    setEditEnd({
+      dateTime: toDateTimeLocalValue(plan.endAt),
+      label: plan.endLabel || "",
+      latitude: plan.endLatitude,
+      longitude: plan.endLongitude,
+    });
+    setIsEditingWindow(true);
+  };
+
+  const handleSaveWindow = async (event) => {
+    event.preventDefault();
+    if (editStart.latitude == null || editStart.longitude == null) {
+      notify("Pick a start location before saving.");
+      return;
+    }
+    if (editEnd.latitude == null || editEnd.longitude == null) {
+      notify("Pick an end location before saving.");
+      return;
+    }
+
+    try {
+      await updatePlanMutation.mutateAsync({
+        planId: id,
+        patch: {
+          startAt: new Date(editStart.dateTime).toISOString(),
+          startLabel: editStart.label || undefined,
+          startLatitude: editStart.latitude,
+          startLongitude: editStart.longitude,
+          endAt: new Date(editEnd.dateTime).toISOString(),
+          endLabel: editEnd.label || undefined,
+          endLatitude: editEnd.latitude,
+          endLongitude: editEnd.longitude,
+        },
+      });
+      setIsEditingWindow(false);
+    } catch (error) {
+      console.error("Failed to update plan window", error);
+      notify(error.response?.data?.error || "Failed to update plan window");
+    }
+  };
+
   function legStartPoint(stopIndex) {
     if (stopIndex === 0) {
-      return { latitude: plan.startLatitude, longitude: plan.startLongitude };
+      return (
+        liveOrigin || {
+          latitude: plan.startLatitude,
+          longitude: plan.startLongitude,
+        }
+      );
     }
     return stops[stopIndex - 1].location;
   }
@@ -190,25 +418,30 @@ export default function PlanDetailPage() {
       <div className="mb-4 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-            {plan.title || "Plan"}
+            {getPlanDisplayTitle(plan)}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {formatDateTime(plan.startAt)} → {formatDateTime(plan.endAt)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge tone={STATUS_TONE[plan.status] || "neutral"}>
             {plan.status}
           </Badge>
           {plan.status === "draft" && (
-            <Button
-              variant="primary"
-              onClick={() => handleStatusChange("active")}
-            >
-              Start
-            </Button>
+            <>
+              <Button variant="secondary" onClick={handleOpenEditWindow}>
+                Edit window
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => handleStatusChange("active")}
+              >
+                Start
+              </Button>
+            </>
           )}
-          {plan.status === "active" && (
+          {isActive && (
             <>
               <Button
                 variant="secondary"
@@ -234,28 +467,104 @@ export default function PlanDetailPage() {
         </div>
       </div>
 
-      <Card padding="lg" className="mb-6">
-        {stops.length === 0 ? (
-          <div className="rounded-3xl bg-surface-alt p-6 text-muted-foreground">
-            Nothing fits in this window yet.
-          </div>
-        ) : googleKey ? (
-          mapError ? (
-            <div className="rounded-3xl border border-dashed border-border bg-surface-alt p-8 text-center text-muted-foreground">
-              {mapError}
-            </div>
-          ) : (
-            <div
-              ref={mapRef}
-              className="h-80 w-full rounded-3xl border border-border"
+      {isEditingWindow && (
+        <Card padding="lg" className="mb-6">
+          <form onSubmit={handleSaveWindow} className="space-y-4">
+            <PlanLocationPicker
+              legend="Start"
+              value={editStart}
+              onChange={setEditStart}
             />
-          )
-        ) : (
+            <PlanLocationPicker
+              legend="End"
+              value={editEnd}
+              onChange={setEditEnd}
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsEditingWindow(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={updatePlanMutation.isPending}
+              >
+                {updatePlanMutation.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
+
+      <Card padding="lg" className="mb-6">
+        {!googleKey ? (
           <div className="rounded-3xl border border-dashed border-border bg-surface-alt p-8 text-center text-muted-foreground">
             Configure VITE_GOOGLE_MAPS_API_KEY to see a map preview.
           </div>
+        ) : mapError ? (
+          <div className="rounded-3xl border border-dashed border-border bg-surface-alt p-8 text-center text-muted-foreground">
+            {mapError}
+          </div>
+        ) : !hasMapPoint ? (
+          <div className="rounded-3xl bg-surface-alt p-6 text-muted-foreground">
+            No locations to preview yet.
+          </div>
+        ) : (
+          <div
+            ref={mapRef}
+            className="h-80 w-full rounded-3xl border border-border"
+          />
         )}
       </Card>
+
+      {stops.length === 0 && (
+        <div className="mb-6 rounded-3xl bg-surface-alt p-6 text-muted-foreground">
+          {eligibleWorkItems.length === 0
+            ? "Nothing fits in this window yet."
+            : `${unselectedWork.length} work item${unselectedWork.length === 1 ? "" : "s"} didn't fit in this window.`}
+        </div>
+      )}
+
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-sm text-muted-foreground">
+          {unselectedWork.length > 0 &&
+            `${unselectedWork.length} work item${unselectedWork.length === 1 ? "" : "s"} not included in this plan.`}
+        </div>
+        {unselectedWork.length > 0 && plan.status !== "completed" && (
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleSuggestVariations}
+            disabled={suggestVariationsMutation.isPending}
+          >
+            {suggestVariationsMutation.isPending
+              ? "Asking AI…"
+              : "Suggest variations"}
+          </Button>
+        )}
+      </div>
+
+      {unselectedWork.length > 0 && (
+        <Card padding="md" className="mb-6">
+          <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Not included in this plan
+          </div>
+          <ul className="mt-2 space-y-1">
+            {unselectedWork.map((work) => (
+              <li key={work.id} className="text-sm text-foreground">
+                {work.title}
+                <span className="ml-2 text-muted-foreground">
+                  {work.priority} priority
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {variations.length > 0 && (
         <div className="mb-6 grid gap-3">
@@ -281,97 +590,145 @@ export default function PlanDetailPage() {
       )}
 
       <div className="grid gap-4">
-        {stops.map((stop, index) => (
-          <Card key={stop.id} padding="lg">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Stop {index + 1} · {formatDateTime(stop.plannedArrivalAt)} –{" "}
-                  {formatDateTime(stop.plannedDepartureAt)}
-                </div>
-                <div className="text-lg font-semibold text-foreground">
-                  {stop.location.name}
-                </div>
-                {stop.location.address && (
-                  <div className="mt-1 text-sm text-muted-foreground">
-                    {stop.location.address}
-                  </div>
-                )}
-              </div>
-              <Badge tone={ITEM_STATUS_TONE[stop.status] || "neutral"}>
-                {stop.status}
-              </Badge>
-            </div>
+        {stops.map((stop, index) => {
+          const arrivalDelta = describeTimingDelta(
+            stop.actualArrivalAt,
+            stop.plannedArrivalAt
+          );
+          const departureDelta = describeTimingDelta(
+            stop.actualDepartureAt,
+            stop.plannedDepartureAt
+          );
 
-            <div className="mt-3">
-              <a
-                href={buildGoogleMapsDirectionsUrl(legStartPoint(index), [
-                  stop,
-                ])}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-semibold text-primary hover:underline"
-              >
-                Open in Maps
-              </a>
-            </div>
-
-            <div className="mt-4 grid gap-2">
-              {stop.works.map((assignment) => (
-                <div
-                  key={assignment.id}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-surface-alt p-3"
-                >
-                  <div>
-                    <div className="font-medium text-foreground">
-                      {assignment.work.title}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {assignment.work.priority} priority ·{" "}
-                      {assignment.work.durationMinutes} min
-                    </div>
+          return (
+            <Card key={stop.id} padding="lg">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Stop {index + 1} · {formatDateTime(stop.plannedArrivalAt)} –{" "}
+                    {formatDateTime(stop.plannedDepartureAt)}
                   </div>
-                  {assignment.status === "planned" ? (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() =>
-                          handleWorkStatusChange(
-                            stop.id,
-                            assignment.work.id,
-                            "skipped"
-                          )
-                        }
-                      >
-                        Skip
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        onClick={() =>
-                          handleWorkStatusChange(
-                            stop.id,
-                            assignment.work.id,
-                            "done"
-                          )
-                        }
-                      >
-                        Done
-                      </Button>
+                  <div className="text-lg font-semibold text-foreground">
+                    {stop.location.name}
+                  </div>
+                  {stop.location.address && (
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {stop.location.address}
                     </div>
-                  ) : (
-                    <Badge
-                      tone={ITEM_STATUS_TONE[assignment.status] || "neutral"}
-                    >
-                      {assignment.status}
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge tone={ITEM_STATUS_TONE[stop.status] || "neutral"}>
+                    {stop.status}
+                  </Badge>
+                  {arrivalDelta && stop.status !== "done" && (
+                    <Badge tone={arrivalDelta.tone}>
+                      Arrived {arrivalDelta.label}
+                    </Badge>
+                  )}
+                  {departureDelta && stop.status === "done" && (
+                    <Badge tone={departureDelta.tone}>
+                      Left {departureDelta.label}
                     </Badge>
                   )}
                 </div>
-              ))}
-            </div>
-          </Card>
-        ))}
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <a
+                  href={buildGoogleMapsDirectionsUrl(legStartPoint(index), [
+                    stop,
+                  ])}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-semibold text-primary hover:underline"
+                >
+                  Open in Maps
+                </a>
+
+                {isActive && stop.status === "planned" && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleArrive(stop.id)}
+                    disabled={updatePlanStopMutation.isPending}
+                  >
+                    Arrived
+                  </Button>
+                )}
+                {isActive && stop.status === "in_progress" && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleLeaveStop(stop.id)}
+                    disabled={updatePlanStopMutation.isPending}
+                  >
+                    Leave stop
+                  </Button>
+                )}
+              </div>
+
+              <div className="mt-4 grid gap-2">
+                {stop.works.map((assignment) => (
+                  <div
+                    key={assignment.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl bg-surface-alt p-3"
+                  >
+                    <div>
+                      <div className="font-medium text-foreground">
+                        {assignment.work.title}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {assignment.work.priority} priority ·{" "}
+                        {assignment.work.durationMinutes} min
+                      </div>
+                    </div>
+                    {assignment.status === "planned" ? (
+                      isActive ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              handleWorkStatusChange(
+                                stop.id,
+                                assignment.work.id,
+                                "skipped"
+                              )
+                            }
+                          >
+                            Skip
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            onClick={() =>
+                              handleWorkStatusChange(
+                                stop.id,
+                                assignment.work.id,
+                                "done"
+                              )
+                            }
+                          >
+                            Done
+                          </Button>
+                        </div>
+                      ) : (
+                        <Badge tone="neutral">planned</Badge>
+                      )
+                    ) : (
+                      <Badge
+                        tone={ITEM_STATUS_TONE[assignment.status] || "neutral"}
+                      >
+                        {assignment.status}
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );

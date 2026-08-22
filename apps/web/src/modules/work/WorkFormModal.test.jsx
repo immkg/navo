@@ -71,6 +71,32 @@ describe("WorkFormModal", () => {
       await waitFor(() => expect(onClose).toHaveBeenCalled());
     });
 
+    it("defaults priority to medium and sends the chosen priority in the create payload", async () => {
+      vi.spyOn(workApi, "createWorkItem").mockResolvedValue(buildWork());
+
+      renderWithProviders(
+        <WorkFormModal open onClose={vi.fn()} intentId="intent-1" work={null} />
+      );
+
+      expect(screen.getByLabelText("Priority")).toHaveValue("medium");
+
+      fireEvent.change(
+        screen.getByPlaceholderText(
+          "Buy ingredients, call electrician, review document"
+        ),
+        { target: { value: "Buy groceries" } }
+      );
+      fireEvent.change(screen.getByLabelText("Priority"), {
+        target: { value: "high" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Add Work" }));
+
+      await waitFor(() => expect(workApi.createWorkItem).toHaveBeenCalled());
+      expect(workApi.createWorkItem.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ priority: "high" })
+      );
+    });
+
     it("includes locally-added places in the create payload", async () => {
       vi.spyOn(workApi, "createWorkItem").mockResolvedValue(buildWork());
       vi.spyOn(googleMaps, "searchPlaces").mockResolvedValue([
@@ -146,6 +172,34 @@ describe("WorkFormModal", () => {
         expect(workApi.updateWorkItem).toHaveBeenCalledWith(
           "work-1",
           expect.objectContaining({ title: "Buy groceries and cook" })
+        )
+      );
+    });
+
+    it("pre-fills the existing priority and saves a changed one", async () => {
+      vi.spyOn(workApi, "updateWorkItem").mockResolvedValue(
+        buildWork({ priority: "low" })
+      );
+
+      renderWithProviders(
+        <WorkFormModal
+          open
+          onClose={vi.fn()}
+          intentId="intent-1"
+          work={buildWork({ priority: "high" })}
+        />
+      );
+
+      expect(screen.getByLabelText("Priority")).toHaveValue("high");
+      fireEvent.change(screen.getByLabelText("Priority"), {
+        target: { value: "low" },
+      });
+      fireEvent.click(screen.getByText("Save changes"));
+
+      await waitFor(() =>
+        expect(workApi.updateWorkItem).toHaveBeenCalledWith(
+          "work-1",
+          expect.objectContaining({ priority: "low" })
         )
       );
     });

@@ -112,12 +112,20 @@ function latestFrozenDeparture(frozenStops) {
 // granularity, so a work item spanning two locations can be finished at one
 // of them without either losing that fact or abandoning the other. Runs as
 // one transaction so a partial rebuild can never land half-written.
+// Real-routing plans make one network call (googleRouting) from inside this
+// transaction, time-boxed to a few seconds on its own — the extended
+// transaction timeout just gives that call room to finish (or hit its own
+// timeout and fall back to haversine) without Prisma killing the
+// transaction first.
+const TRANSACTION_TIMEOUT_MS = 15000;
+
 async function rebuildPlanStops(
   prisma,
   planId,
   { asOfAt, asOfLocation, forceIncludeWorkIds = [], forceExcludeWorkIds = [] }
 ) {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction(
+    async (tx) => {
     const plan = await tx.plan.findUnique({
       where: { id: planId },
       include: { stops: { include: { works: true, location: true } } },
@@ -164,7 +172,7 @@ async function rebuildPlanStops(
     }
 
     const workItems = await loadEligibleWork(tx);
-    const { stops, unselectedWork } = buildPlan({
+    const { stops, unselectedWork } = await buildPlan({
       workItems,
       start: effectiveAsOfLocation,
       end: { latitude: plan.endLatitude, longitude: plan.endLongitude },
@@ -174,6 +182,7 @@ async function rebuildPlanStops(
       forceExcludeWorkIds: [...forceExcludeWorkIds, ...resolvedWorkIds],
       resolvedAssignmentKeys,
       now: effectiveAsOfAt,
+      useAccurateTravelTime: plan.useAccurateTravelTime,
     });
 
     let order = Math.max(-1, ...frozenStops.map((stop) => stop.order)) + 1;
@@ -201,8 +210,10 @@ async function rebuildPlanStops(
       },
     });
 
-    return { plan: refreshedPlan, unselectedWork };
-  });
+      return { plan: refreshedPlan, unselectedWork };
+    },
+    { timeout: TRANSACTION_TIMEOUT_MS }
+  );
 }
 
 module.exports = { rebuildPlanStops, loadEligibleWork, PLAN_STOP_INCLUDE };
