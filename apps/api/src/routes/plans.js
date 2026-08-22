@@ -95,4 +95,109 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+const VALID_PLAN_STATUSES = new Set([
+  "draft",
+  "active",
+  "completed",
+  "abandoned",
+]);
+
+// Update a plan's fields. Changing the time window or activating it
+// triggers a rebuild of every not-yet-resolved stop; so does passing
+// forceIncludeWorkIds/forceExcludeWorkIds (used when applying an
+// AI-suggested variation, or a manual add/exclude from the UI).
+router.patch("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      title,
+      startAt,
+      startLabel,
+      startLatitude,
+      startLongitude,
+      endAt,
+      endLabel,
+      endLatitude,
+      endLongitude,
+      useAccurateTravelTime,
+      status,
+      forceIncludeWorkIds,
+      forceExcludeWorkIds,
+    } = req.body;
+
+    if (status !== undefined && !VALID_PLAN_STATUSES.has(status)) {
+      return res.status(400).json({ error: "Invalid plan status" });
+    }
+
+    const existingPlan = await prisma.plan.findUnique({ where: { id } });
+    if (!existingPlan) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+
+    const timingChanged = startAt !== undefined || endAt !== undefined;
+    const activating = status === "active" && existingPlan.status !== "active";
+    const shouldRebuild =
+      timingChanged || activating || forceIncludeWorkIds || forceExcludeWorkIds;
+
+    await prisma.plan.update({
+      where: { id },
+      data: {
+        title,
+        startAt: startAt !== undefined ? new Date(startAt) : undefined,
+        startLabel,
+        startLatitude,
+        startLongitude,
+        endAt: endAt !== undefined ? new Date(endAt) : undefined,
+        endLabel,
+        endLatitude,
+        endLongitude,
+        useAccurateTravelTime,
+        status,
+      },
+    });
+
+    if (!shouldRebuild) {
+      const plan = await prisma.plan.findUnique({
+        where: { id },
+        include: {
+          stops: { orderBy: { order: "asc" }, include: PLAN_STOP_INCLUDE },
+        },
+      });
+      return res.json(plan);
+    }
+
+    const refreshedPlan = await prisma.plan.findUnique({ where: { id } });
+    const { plan: rebuiltPlan } = await rebuildPlanStops(prisma, id, {
+      asOfAt: refreshedPlan.startAt,
+      asOfLocation: {
+        latitude: refreshedPlan.startLatitude,
+        longitude: refreshedPlan.startLongitude,
+      },
+      forceIncludeWorkIds: forceIncludeWorkIds || [],
+      forceExcludeWorkIds: forceExcludeWorkIds || [],
+    });
+
+    res.json(rebuiltPlan);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to update plan" });
+  }
+});
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const existingPlan = await prisma.plan.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!existingPlan) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+    await prisma.plan.delete({ where: { id: req.params.id } });
+    res.status(204).send();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to delete plan" });
+  }
+});
+
 module.exports = router;
