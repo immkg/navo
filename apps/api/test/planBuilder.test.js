@@ -8,6 +8,7 @@ const {
   estimateTravelMinutes,
   buildEligibleEntries,
   groupEntriesByLocation,
+  buildRoute,
 } = require("../src/services/planBuilder");
 
 test("urgencyScore returns 0 when there is no due date", () => {
@@ -184,4 +185,84 @@ test("groupEntriesByLocation produces one candidate stop per distinct location",
   const stops = groupEntriesByLocation(entries);
 
   assert.equal(stops.length, 2);
+});
+
+test("buildRoute inserts every candidate stop when the budget is generous", () => {
+  const start = { latitude: 0, longitude: 0 };
+  const end = { latitude: 0, longitude: 0 };
+  const stops = [
+    {
+      location: { latitude: 0.01, longitude: 0 },
+      durationMinutes: 10,
+      value: 5,
+      entries: [],
+    },
+    {
+      location: { latitude: 0.02, longitude: 0 },
+      durationMinutes: 10,
+      value: 5,
+      entries: [],
+    },
+  ];
+
+  const route = buildRoute(stops, start, end, 10000);
+
+  assert.equal(route.length, 2);
+});
+
+test("buildRoute returns an empty route when there are no candidate stops", () => {
+  const route = buildRoute(
+    [],
+    { latitude: 0, longitude: 0 },
+    { latitude: 0, longitude: 0 },
+    100
+  );
+
+  assert.deepEqual(route, []);
+});
+
+test("buildRoute excludes a stop that would blow the time budget, even if another fits comfortably", () => {
+  const start = { latitude: 0, longitude: 0 };
+  const end = { latitude: 0, longitude: 0 };
+  const nearby = {
+    location: { latitude: 0.001, longitude: 0 },
+    durationMinutes: 5,
+    value: 10,
+    entries: [],
+  };
+  const faraway = {
+    location: { latitude: 5, longitude: 0 },
+    durationMinutes: 60,
+    value: 1,
+    entries: [],
+  };
+
+  const route = buildRoute([nearby, faraway], start, end, 30);
+
+  assert.equal(route.length, 1);
+  assert.equal(route[0], nearby);
+});
+
+test("buildRoute prefers the higher value-per-cost stop when the budget allows only one", () => {
+  const start = { latitude: 0, longitude: 0 };
+  const end = { latitude: 0, longitude: 0 };
+  const highValue = {
+    location: { latitude: 0.001, longitude: 0 },
+    durationMinutes: 10,
+    value: 100,
+    entries: [],
+  };
+  const lowValue = {
+    location: { latitude: 0.002, longitude: 0 },
+    durationMinutes: 10,
+    value: 1,
+    entries: [],
+  };
+
+  // Each stop alone fits in 20 minutes (3 min there + 3 min back + 10 min
+  // work); both together would exceed it.
+  const route = buildRoute([highValue, lowValue], start, end, 20);
+
+  assert.equal(route.length, 1);
+  assert.equal(route[0], highValue);
 });

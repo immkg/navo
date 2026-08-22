@@ -138,6 +138,66 @@ function groupEntriesByLocation(entries) {
   return Array.from(byLocationId.values());
 }
 
+function routeTotalMinutes(route, start, end) {
+  let total = 0;
+  let previous = start;
+
+  for (const stop of route) {
+    total +=
+      estimateTravelMinutes(previous, stop.location) + stop.durationMinutes;
+    previous = stop.location;
+  }
+
+  return total + estimateTravelMinutes(previous, end);
+}
+
+// Greedy cheapest-insertion heuristic for the "orienteering problem"
+// (prize-collecting routing under a time budget): repeatedly insert
+// whichever remaining candidate stop has the best value-per-added-cost
+// ratio, at whichever position in the current route adds the least travel
+// time, as long as the whole route still fits the budget. Not optimal, but
+// fast, deterministic, and easy to reason about — acceptable at the scale
+// of a personal day-planner (tens of stops, not thousands).
+function buildRoute(candidateStops, start, end, budgetMinutes) {
+  let route = [];
+  let remaining = [...candidateStops];
+
+  while (remaining.length > 0) {
+    let best = null;
+
+    for (const candidate of remaining) {
+      for (let position = 0; position <= route.length; position += 1) {
+        const trialRoute = [
+          ...route.slice(0, position),
+          candidate,
+          ...route.slice(position),
+        ];
+        const totalMinutes = routeTotalMinutes(trialRoute, start, end);
+        if (totalMinutes > budgetMinutes) continue;
+
+        const insertionCost =
+          totalMinutes - routeTotalMinutes(route, start, end);
+        const ratio = candidate.value / Math.max(1, insertionCost);
+
+        if (!best || ratio > best.ratio) {
+          best = { candidate, position, ratio };
+        }
+      }
+    }
+
+    if (!best) break;
+
+    route = [
+      ...route.slice(0, best.position),
+      best.candidate,
+      ...route.slice(best.position),
+    ];
+    remaining = remaining.filter((stop) => stop !== best.candidate);
+  }
+
+  return route;
+}
+
 module.exports = {
   PRIORITY_POINTS,
   scoreWork,
@@ -146,4 +206,5 @@ module.exports = {
   estimateTravelMinutes,
   buildEligibleEntries,
   groupEntriesByLocation,
+  buildRoute,
 };
