@@ -474,6 +474,148 @@ test("POST /api/ai/optimize-route falls back to the original order if the model 
   }
 });
 
+test("POST /api/ai/plan-variations returns 503 when GROQ_API_KEY is not configured", async () => {
+  delete process.env.GROQ_API_KEY;
+
+  const response = await request(app)
+    .post("/api/ai/plan-variations")
+    .send({ selectedWork: [], unselectedWork: [], budgetMinutes: 60 });
+
+  assert.equal(response.statusCode, 503);
+});
+
+test("POST /api/ai/plan-variations requires selectedWork and unselectedWork arrays", async () => {
+  const response = await request(app).post("/api/ai/plan-variations").send({});
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("POST /api/ai/plan-variations sanitizes ids the model invented or that aren't in the given pools", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: true,
+    json: async () => ({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              variations: [
+                {
+                  addWorkIds: ["unselected-1", "invented-id"],
+                  removeWorkIds: ["selected-1", "invented-id-2"],
+                  reasoning: "Swap in the overdue errand.",
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    }),
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [
+          { id: "selected-1", title: "Buy groceries", priority: "low" },
+        ],
+        unselectedWork: [
+          { id: "unselected-1", title: "Renew passport", priority: "high" },
+        ],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.variations.length, 1);
+    assert.deepEqual(response.body.variations[0].addWorkIds, ["unselected-1"]);
+    assert.deepEqual(response.body.variations[0].removeWorkIds, ["selected-1"]);
+    assert.equal(
+      response.body.variations[0].reasoning,
+      "Swap in the overdue errand."
+    );
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/plan-variations drops a variation that ends up with nothing to add", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: true,
+    json: async () => ({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              variations: [
+                {
+                  addWorkIds: ["invented"],
+                  removeWorkIds: [],
+                  reasoning: "n/a",
+                },
+              ],
+            }),
+          },
+        },
+      ],
+    }),
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [],
+        unselectedWork: [
+          { id: "real-1", title: "Renew passport", priority: "high" },
+        ],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    assert.deepEqual(response.body.variations, []);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test("POST /api/ai/plan-variations caps variations at 2", async () => {
+  const restoreFetch = mockFetchOnce(async () => ({
+    ok: true,
+    json: async () => ({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              variations: [
+                { addWorkIds: ["u1"], removeWorkIds: [], reasoning: "one" },
+                { addWorkIds: ["u1"], removeWorkIds: [], reasoning: "two" },
+                { addWorkIds: ["u1"], removeWorkIds: [], reasoning: "three" },
+              ],
+            }),
+          },
+        },
+      ],
+    }),
+  }));
+
+  try {
+    const response = await request(app)
+      .post("/api/ai/plan-variations")
+      .send({
+        selectedWork: [],
+        unselectedWork: [
+          { id: "u1", title: "Renew passport", priority: "high" },
+        ],
+        budgetMinutes: 60,
+      });
+
+    assert.equal(response.statusCode, 200);
+    assert.equal(response.body.variations.length, 2);
+  } finally {
+    restoreFetch();
+  }
+});
+
 test("POST /api/ai/suggest-work returns 500 for a non-Groq failure", async () => {
   const intent = await prisma.intent.create({ data: { title: "Plan a trip" } });
   const restoreFetch = mockFetchOnce(() => {
