@@ -3,6 +3,7 @@ import apiClient from "./client";
 import {
   draftIntent,
   optimizeRoute,
+  planVariations,
   splitIntent,
   suggestPlaceTypes,
   suggestWork,
@@ -90,5 +91,22 @@ describe("splitIntent", () => {
     expect(result.intents).toEqual([
       { title: "Renew passport", priority: "high" },
     ]);
+  });
+});
+
+describe("planVariations", () => {
+  it("posts the selected/unselected work and budget, and returns the response body", async () => {
+    apiClient.post.mockResolvedValue({
+      data: { variations: [{ addWorkIds: ["w2"], removeWorkIds: ["w1"] }] },
+    });
+
+    const result = await planVariations([{ id: "w1" }], [{ id: "w2" }], 60);
+
+    expect(apiClient.post).toHaveBeenCalledWith("/api/ai/plan-variations", {
+      selectedWork: [{ id: "w1" }],
+      unselectedWork: [{ id: "w2" }],
+      budgetMinutes: 60,
+    });
+    expect(result.variations.length).toBe(1);
   });
 });

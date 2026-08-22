@@ -34,3 +34,16 @@ export async function splitIntent(text) {
   const response = await apiClient.post("/api/ai/split-intent", { text });
   return response.data;
 }
+
+export async function planVariations(
+  selectedWork,
+  unselectedWork,
+  budgetMinutes
+) {
+  const response = await apiClient.post("/api/ai/plan-variations", {
+    selectedWork,
+    unselectedWork,
+    budgetMinutes,
+  });
+  return response.data;
+}
