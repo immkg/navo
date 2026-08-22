@@ -57,8 +57,16 @@ describe("PlansListPage", () => {
 
     await waitFor(() => expect(plansApi.createPlan).toHaveBeenCalled());
     const [payload] = plansApi.createPlan.mock.calls[0];
-    expect(payload.startAt).toBeTruthy();
-    expect(payload.endAt).toBeTruthy();
+    // Regression test for a timezone bug: the default start/end times were
+    // built by rendering a UTC-based ISO string into a <input
+    // type="datetime-local">, which reads/writes local wall-clock time —
+    // shifting the submitted instant by the viewer's UTC offset. Asserting
+    // against real elapsed time (not just truthiness) catches that
+    // regardless of which timezone the test runs in.
+    const startMs = new Date(payload.startAt).getTime();
+    const endMs = new Date(payload.endAt).getTime();
+    expect(Math.abs(startMs - Date.now())).toBeLessThan(2 * 60 * 1000);
+    expect(Math.abs(endMs - startMs - 8 * 3600000)).toBeLessThan(2 * 60 * 1000);
     expect(await screen.findByText("Plan detail stub")).toBeInTheDocument();
   });
 });

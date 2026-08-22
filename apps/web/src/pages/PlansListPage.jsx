@@ -14,10 +14,15 @@ const STATUS_TONE = {
   abandoned: "danger",
 };
 
+// `<input type="datetime-local">` reads/writes local wall-clock time with no
+// timezone info, but toISOString() always renders UTC — so the naive
+// approach shifts the displayed default by the viewer's UTC offset. Shifting
+// the Date by that same offset before formatting cancels it out.
 function defaultDateTime(hoursFromNow) {
   const date = new Date(Date.now() + hoursFromNow * 3600000);
   date.setSeconds(0, 0);
-  return date.toISOString().slice(0, 16);
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localTime.toISOString().slice(0, 16);
 }
 
 function emptyLocation(hoursFromNow) {
