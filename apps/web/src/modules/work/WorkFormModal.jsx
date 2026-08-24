@@ -74,6 +74,14 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  // Which group new searches/manual places/dropped pins add into. Defaults
+  // to the last existing group (matches the single-group common case);
+  // handleAddGroup below moves this to the group it just created, since
+  // adding an alternate option is immediately followed by adding places
+  // to it.
+  const [selectedGroupIndex, setSelectedGroupIndex] = useState(
+    Math.max(0, initialGroups.length - 1)
+  );
 
   const createWorkMutation = useCreateWorkItem();
   const updateWorkMutation = useUpdateWorkItem();
@@ -88,6 +96,10 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
       const next = prev.filter((_, index) => index !== groupIndex);
       return next.length > 0 ? next : [{ id: null, title: "", locations: [] }];
     });
+    setSelectedGroupIndex((prev) => {
+      const remainingCount = Math.max(1, locationOptionGroups.length - 1);
+      return Math.min(prev, remainingCount - 1);
+    });
   };
 
   const handleAddGroup = () => {
@@ -96,6 +108,7 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
       ...prev,
       { id: null, title: `Option ${nextIndex + 1}`, locations: [] },
     ]);
+    setSelectedGroupIndex(nextIndex);
     setShowAdvancedLocations(true);
   };
 
@@ -520,8 +533,8 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
 
           <LocationOptionGroupsEditor
             groups={locationOptionGroups}
-            selectedGroupIndex={0}
-            onSelectGroup={() => {}}
+            selectedGroupIndex={selectedGroupIndex}
+            onSelectGroup={setSelectedGroupIndex}
             onAddGroup={handleAddGroup}
             onRenameGroup={handleRenameGroup}
             onRemoveGroup={handleRemoveGroup}

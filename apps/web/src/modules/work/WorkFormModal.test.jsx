@@ -347,5 +347,72 @@ describe("WorkFormModal", () => {
       fireEvent.click(screen.getByText("+ Add alternate option"));
       expect(screen.getAllByText("Remove group")).toHaveLength(2);
     });
+
+    it("selects the newly-added group automatically, and adds a searched place into it (not the first group)", async () => {
+      vi.spyOn(googleMaps, "searchPlaces").mockResolvedValue([
+        {
+          name: "Second Group Cafe",
+          formattedAddress: "2 Side St",
+          latitude: 2,
+          longitude: 2,
+          placeId: "place-2",
+        },
+      ]);
+      // Only exercised if the bug regresses (place wrongly routed to the
+      // first, already-persisted group instead of the new local one) — the
+      // fixed behavior never calls this, since the new group has no id yet.
+      vi.spyOn(workApi, "addLocationToOption").mockResolvedValue({
+        id: "option-1",
+        title: "Option 1",
+        locations: [
+          { id: "loc-2", name: "Second Group Cafe", address: "2 Side St" },
+        ],
+      });
+
+      renderWithProviders(
+        <WorkFormModal
+          open
+          onClose={vi.fn()}
+          intentId="intent-1"
+          work={buildWork({
+            locationOptions: [
+              { id: "option-1", title: "Option 1", locations: [] },
+            ],
+          })}
+        />
+      );
+
+      fireEvent.click(screen.getByText("+ Add alternate option"));
+
+      // Anchor on each group's own identity (its title), independent of
+      // which one claims to be "Selected" — otherwise a test that only
+      // checks "the place landed wherever 'Selected' is" would pass even
+      // if 'Selected' itself is stuck on the wrong (first) group.
+      const firstGroupCard = screen
+        .getByDisplayValue("Option 1")
+        .closest('[class*="rounded-3xl"][class*="p-4"]');
+      const newGroupCard = screen
+        .getByDisplayValue("Option 2")
+        .closest('[class*="rounded-3xl"][class*="p-4"]');
+
+      // The group just added should already be the active target.
+      expect(within(newGroupCard).getByText("Selected")).toBeInTheDocument();
+      expect(within(firstGroupCard).getByText("Select")).toBeInTheDocument();
+
+      fireEvent.change(screen.getByPlaceholderText("Search for a place"), {
+        target: { value: "Second Group Cafe" },
+      });
+      fireEvent.click(screen.getByText("Search"));
+      fireEvent.click(await screen.findByText("Add"));
+
+      await waitFor(() =>
+        expect(
+          within(newGroupCard).getByText("Second Group Cafe")
+        ).toBeInTheDocument()
+      );
+      expect(
+        within(firstGroupCard).queryByText("Second Group Cafe")
+      ).not.toBeInTheDocument();
+    });
   });
 });
