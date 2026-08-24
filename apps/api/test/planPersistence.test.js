@@ -2,7 +2,10 @@ const { test, beforeEach, after } = require("node:test");
 const assert = require("node:assert/strict");
 const prisma = require("../src/db/client");
 const { cleanDatabase } = require("../test-support/helpers");
-const { rebuildPlanStops } = require("../src/services/planPersistence");
+const {
+  rebuildPlanStops,
+  reorderPlanStop,
+} = require("../src/services/planPersistence");
 
 beforeEach(cleanDatabase);
 after(cleanDatabase);
@@ -825,4 +828,147 @@ test("rebuildPlanStops replaces not-yet-resolved stops when called again", async
     asOfLocation: { latitude: 0, longitude: 0 },
   });
   assert.equal(second.plan.stops.length, 0);
+});
+
+async function createStop({
+  planId,
+  title,
+  latitude,
+  longitude,
+  order,
+  status = "planned",
+  workStatus = "planned",
+}) {
+  const work = await prisma.work.create({
+    data: { title, durationMinutes: 30 },
+  });
+  const location = await prisma.location.create({
+    data: { name: title, latitude, longitude },
+  });
+  return prisma.planStop.create({
+    data: {
+      planId,
+      locationId: location.id,
+      order,
+      status,
+      plannedArrivalAt: new Date("2026-08-22T09:00:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T09:30:00Z"),
+      works: { create: [{ workId: work.id, status: workStatus }] },
+    },
+  });
+}
+
+test("reorderPlanStop swaps a movable stop with its predecessor and recomputes timings", async () => {
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 0,
+      startLongitude: 0,
+      endAt: new Date("2026-08-22T18:00:00Z"),
+      endLatitude: 0,
+      endLongitude: 0,
+    },
+  });
+  const first = await createStop({
+    planId: plan.id,
+    title: "First",
+    latitude: 1,
+    longitude: 1,
+    order: 0,
+  });
+  const second = await createStop({
+    planId: plan.id,
+    title: "Second",
+    latitude: 2,
+    longitude: 2,
+    order: 1,
+  });
+
+  const result = await reorderPlanStop(prisma, plan.id, {
+    stopId: second.id,
+    direction: "up",
+  });
+
+  const orderedTitles = result.plan.stops.map((stop) => stop.location.name);
+  assert.deepEqual(orderedTitles, ["Second", "First"]);
+  assert.equal(result.plan.stops[0].id, second.id);
+  assert.equal(result.plan.stops[1].id, first.id);
+  // Timings were recomputed for the new sequence, not left stale.
+  assert.ok(
+    result.plan.stops[0].plannedArrivalAt.getTime() <
+      result.plan.stops[1].plannedArrivalAt.getTime()
+  );
+});
+
+test("reorderPlanStop is a no-op when the stop is already at that boundary", async () => {
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      endAt: new Date("2026-08-22T18:00:00Z"),
+    },
+  });
+  const first = await createStop({
+    planId: plan.id,
+    title: "First",
+    latitude: 1,
+    longitude: 1,
+    order: 0,
+  });
+  await createStop({
+    planId: plan.id,
+    title: "Second",
+    latitude: 2,
+    longitude: 2,
+    order: 1,
+  });
+
+  const result = await reorderPlanStop(prisma, plan.id, {
+    stopId: first.id,
+    direction: "up",
+  });
+
+  assert.deepEqual(
+    result.plan.stops.map((stop) => stop.location.name),
+    ["First", "Second"]
+  );
+});
+
+test("reorderPlanStop refuses to move a frozen (already-resolved) stop", async () => {
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      endAt: new Date("2026-08-22T18:00:00Z"),
+    },
+  });
+  const done = await createStop({
+    planId: plan.id,
+    title: "Done",
+    latitude: 1,
+    longitude: 1,
+    order: 0,
+    status: "done",
+    workStatus: "done",
+  });
+  await createStop({
+    planId: plan.id,
+    title: "Second",
+    latitude: 2,
+    longitude: 2,
+    order: 1,
+  });
+
+  const result = await reorderPlanStop(prisma, plan.id, {
+    stopId: done.id,
+    direction: "down",
+  });
+
+  assert.equal(result.error, "not_movable");
+});
+
+test("reorderPlanStop returns null for a missing plan", async () => {
+  const result = await reorderPlanStop(prisma, "missing-id", {
+    stopId: "whatever",
+    direction: "up",
+  });
+  assert.equal(result, null);
 });

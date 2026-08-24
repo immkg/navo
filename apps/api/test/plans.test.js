@@ -576,6 +576,98 @@ test("PATCH /api/plans/:id/stops/:stopId returns 404 for a missing stop", async 
   assert.equal(response.statusCode, 404);
 });
 
+async function seedPlanWithTwoStops() {
+  const workA = await prisma.work.create({ data: { title: "Errand A" } });
+  const workB = await prisma.work.create({ data: { title: "Errand B" } });
+  const locationA = await prisma.location.create({
+    data: { name: "Place A", latitude: 1, longitude: 1 },
+  });
+  const locationB = await prisma.location.create({
+    data: { name: "Place B", latitude: 2, longitude: 2 },
+  });
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 0,
+      startLongitude: 0,
+      endAt: new Date("2026-08-22T18:00:00Z"),
+      endLatitude: 0,
+      endLongitude: 0,
+    },
+  });
+  const stopA = await prisma.planStop.create({
+    data: {
+      planId: plan.id,
+      locationId: locationA.id,
+      order: 0,
+      plannedArrivalAt: new Date("2026-08-22T09:10:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T09:20:00Z"),
+      works: { create: { workId: workA.id } },
+    },
+  });
+  const stopB = await prisma.planStop.create({
+    data: {
+      planId: plan.id,
+      locationId: locationB.id,
+      order: 1,
+      plannedArrivalAt: new Date("2026-08-22T10:00:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T10:10:00Z"),
+      works: { create: { workId: workB.id } },
+    },
+  });
+  return { plan, stopA, stopB };
+}
+
+test("PATCH /api/plans/:id/stops/:stopId/reorder moves a stop up and returns the new order", async () => {
+  const { plan, stopB } = await seedPlanWithTwoStops();
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stopB.id}/reorder`)
+    .send({ direction: "up" });
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(
+    response.body.stops.map((stop) => stop.location.name),
+    ["Place B", "Place A"]
+  );
+});
+
+test("PATCH /api/plans/:id/stops/:stopId/reorder rejects an invalid direction", async () => {
+  const { plan, stopB } = await seedPlanWithTwoStops();
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stopB.id}/reorder`)
+    .send({ direction: "sideways" });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("PATCH /api/plans/:id/stops/:stopId/reorder returns 404 for a missing stop", async () => {
+  const plan = await prisma.plan.create({
+    data: { startAt: new Date(), endAt: new Date(Date.now() + 3600000) },
+  });
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/missing-stop/reorder`)
+    .send({ direction: "up" });
+
+  assert.equal(response.statusCode, 404);
+});
+
+test("PATCH /api/plans/:id/stops/:stopId/reorder returns 409 for a frozen stop", async () => {
+  const { plan, stopA } = await seedPlanWithTwoStops();
+  await prisma.planStop.update({
+    where: { id: stopA.id },
+    data: { status: "done" },
+  });
+
+  const response = await request(app)
+    .patch(`/api/plans/${plan.id}/stops/${stopA.id}/reorder`)
+    .send({ direction: "down" });
+
+  assert.equal(response.statusCode, 409);
+});
+
 test("PATCH .../work/:workId marks the work item done when it's the only assignment", async () => {
   const work = await prisma.work.create({
     data: { title: "Pick up prescription" },

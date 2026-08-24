@@ -2,6 +2,7 @@ const express = require("express");
 const prisma = require("../db/client");
 const {
   rebuildPlanStops,
+  reorderPlanStop,
   PLAN_STOP_INCLUDE,
 } = require("../services/planPersistence");
 const { buildPlanVariations } = require("../services/planVariations");
@@ -348,6 +349,42 @@ router.patch("/:id/stops/:stopId", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to update plan stop" });
+  }
+});
+
+router.patch("/:id/stops/:stopId/reorder", async (req, res) => {
+  try {
+    const { id, stopId } = req.params;
+    const { direction } = req.body;
+
+    if (direction !== "up" && direction !== "down") {
+      return res
+        .status(400)
+        .json({ error: "direction must be 'up' or 'down'" });
+    }
+
+    const stop = await prisma.planStop.findFirst({
+      where: { id: stopId, planId: id },
+    });
+    if (!stop) {
+      return res.status(404).json({ error: "Plan stop not found" });
+    }
+
+    const result = await reorderPlanStop(prisma, id, { stopId, direction });
+    if (!result) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+    if (result.error === "not_movable") {
+      return res.status(409).json({
+        error:
+          "This stop can't be reordered — it's already in progress or resolved.",
+      });
+    }
+
+    res.json(result.plan);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to reorder plan stop" });
   }
 });
 

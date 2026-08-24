@@ -5,6 +5,7 @@ import {
   getPlan,
   getPlans,
   recheckPlan,
+  reorderPlanStop,
   updatePlan,
   updatePlanStop,
   updatePlanStopWork,
@@ -102,6 +103,21 @@ export function useUpdatePlanStop() {
             ),
           }
       );
+    },
+  });
+}
+
+// Unlike useUpdatePlanStop, the reorder endpoint returns the whole
+// refreshed plan (every movable stop's order/timings shift, not just the
+// one that moved), so the cache update replaces the plan wholesale rather
+// than merging a single stop into it.
+export function useReorderPlanStop() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ planId, stopId, direction }) =>
+      reorderPlanStop(planId, stopId, direction),
+    onSuccess: (updatedPlan, { planId }) => {
+      queryClient.setQueryData(planQueryKey(planId), updatedPlan);
     },
   });
 }

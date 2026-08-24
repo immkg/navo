@@ -7,6 +7,7 @@ import { useNotifications } from "../hooks/useNotifications";
 import {
   usePlan,
   usePlanVariationsSuggestion,
+  useReorderPlanStop,
   useUpdatePlan,
   useUpdatePlanStop,
   useUpdatePlanStopWork,
@@ -60,6 +61,21 @@ function dedupeWorkById(workList) {
   return [...new Map(workList.map((work) => [work.id, work])).values()];
 }
 
+// Mirrors the backend's isFrozen (planPersistence.js) closely enough for
+// button enable/disable: a stop that's already been visited, or holds a
+// resolved work item, can't be manually reordered. The server is still the
+// authority — this is just so the buttons aren't offered for a move that
+// would 409.
+const RESOLVED_WORK_STATUSES = new Set(["done", "skipped"]);
+function isStopMovable(stop) {
+  return (
+    stop.status === "planned" &&
+    !stop.works.some((assignment) =>
+      RESOLVED_WORK_STATUSES.has(assignment.status)
+    )
+  );
+}
+
 export default function PlanDetailPage() {
   const { id } = useParams();
   const { notify, confirm } = useNotifications();
@@ -67,6 +83,7 @@ export default function PlanDetailPage() {
   const { data: allWorkItems = [] } = useWorkItems();
   const updatePlanMutation = useUpdatePlan();
   const updatePlanStopMutation = useUpdatePlanStop();
+  const reorderPlanStopMutation = useReorderPlanStop();
   const updatePlanStopWorkMutation = useUpdatePlanStopWork();
   const recheckPlanMutation = useRecheckPlan();
   const suggestVariationsMutation = usePlanVariationsSuggestion();
@@ -90,6 +107,10 @@ export default function PlanDetailPage() {
   }, []);
 
   const stops = plan?.stops ?? EMPTY_STOPS;
+  const movableStopIds = useMemo(
+    () => stops.filter(isStopMovable).map((stop) => stop.id),
+    [stops]
+  );
 
   // A stable primitive signature — only changes when a marker would actually
   // need to move — so an unrelated mutation (e.g. marking one work item
@@ -314,6 +335,19 @@ export default function PlanDetailPage() {
     } catch (error) {
       console.error("Failed to record departure", error);
       notify(error.response?.data?.error || "Failed to record departure");
+    }
+  };
+
+  const handleReorderStop = async (stopId, direction) => {
+    try {
+      await reorderPlanStopMutation.mutateAsync({
+        planId: id,
+        stopId,
+        direction,
+      });
+    } catch (error) {
+      console.error("Failed to reorder plan stop", error);
+      notify(error.response?.data?.error || "Failed to reorder this stop");
     }
   };
 
@@ -776,6 +810,36 @@ export default function PlanDetailPage() {
                   >
                     Leave stop
                   </Button>
+                )}
+                {isStopMovable(stop) && (
+                  <div className="ml-auto flex gap-1">
+                    <button
+                      type="button"
+                      aria-label="Move stop earlier"
+                      title="Move earlier"
+                      onClick={() => handleReorderStop(stop.id, "up")}
+                      disabled={
+                        reorderPlanStopMutation.isPending ||
+                        movableStopIds[0] === stop.id
+                      }
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-alt hover:text-foreground disabled:opacity-30"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Move stop later"
+                      title="Move later"
+                      onClick={() => handleReorderStop(stop.id, "down")}
+                      disabled={
+                        reorderPlanStopMutation.isPending ||
+                        movableStopIds[movableStopIds.length - 1] === stop.id
+                      }
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-alt hover:text-foreground disabled:opacity-30"
+                    >
+                      ↓
+                    </button>
+                  </div>
                 )}
               </div>
 

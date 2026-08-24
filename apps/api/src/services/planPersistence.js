@@ -1,4 +1,9 @@
-const { buildPlan, isAnchorLocationId } = require("./planBuilder");
+const {
+  buildPlan,
+  isAnchorLocationId,
+  resolveTravelTimeMinutesFn,
+  computeStopTimings,
+} = require("./planBuilder");
 
 // Applies to PlanStop.status and PlanStopWork.status alike — both use the
 // same vocabulary for "this is settled, stop reconsidering it".
@@ -248,4 +253,104 @@ async function rebuildPlanStops(
   );
 }
 
-module.exports = { rebuildPlanStops, loadEligibleWork, PLAN_STOP_INCLUDE };
+// Manual override of the greedy builder's automatic order (#79) — a person
+// swaps one movable stop with its immediate up/down neighbor. Frozen stops
+// (already visited, or holding a resolved work item — see isFrozen) can
+// never move and can never be swapped past: they occupy the front of the
+// sequence by construction (rebuildPlanStops always gives them the lowest
+// `order` values), so only reordering among the *movable* stops is ever
+// considered. Returns null for a missing plan, {error: "not_movable"} for
+// a frozen stopId, or {plan} — the swap applied (or an unchanged plan, if
+// the stop was already at that boundary) with every movable stop's timing
+// recomputed for the new sequence, exactly like a fresh rebuild would.
+async function reorderPlanStop(prisma, planId, { stopId, direction }) {
+  return prisma.$transaction(
+    async (tx) => {
+      const plan = await tx.plan.findUnique({
+        where: { id: planId },
+        include: {
+          stops: {
+            orderBy: { order: "asc" },
+            include: { location: true, works: { include: { work: true } } },
+          },
+        },
+      });
+      if (!plan) return null;
+
+      const frozenStops = plan.stops.filter(isFrozen);
+      const movableStops = plan.stops.filter((stop) => !isFrozen(stop));
+
+      const index = movableStops.findIndex((stop) => stop.id === stopId);
+      if (index === -1) {
+        return { error: "not_movable" };
+      }
+
+      const swapWith = direction === "up" ? index - 1 : index + 1;
+      const reordered = [...movableStops];
+      if (swapWith >= 0 && swapWith < reordered.length) {
+        [reordered[index], reordered[swapWith]] = [
+          reordered[swapWith],
+          reordered[index],
+        ];
+      }
+
+      const lastDeparture = latestFrozenDeparture(frozenStops);
+      const start = lastDeparture
+        ? lastDeparture.location
+        : { latitude: plan.startLatitude, longitude: plan.startLongitude };
+      const startAt = lastDeparture ? lastDeparture.departure : plan.startAt;
+
+      const route = reordered.map((stop) => ({
+        location: stop.location,
+        durationMinutes: stop.works.reduce(
+          (sum, assignment) => sum + (assignment.work.durationMinutes || 30),
+          0
+        ),
+        stopId: stop.id,
+      }));
+
+      const travelTimeMinutesFn = await resolveTravelTimeMinutesFn({
+        candidateStops: route,
+        start,
+        end: { latitude: plan.endLatitude, longitude: plan.endLongitude },
+        useAccurateTravelTime: plan.useAccurateTravelTime,
+      });
+      const timedRoute = computeStopTimings(
+        route,
+        start,
+        startAt,
+        travelTimeMinutesFn
+      );
+
+      let order = Math.max(-1, ...frozenStops.map((stop) => stop.order)) + 1;
+      for (const timedStop of timedRoute) {
+        await tx.planStop.update({
+          where: { id: timedStop.stopId },
+          data: {
+            order,
+            plannedArrivalAt: timedStop.plannedArrivalAt,
+            plannedDepartureAt: timedStop.plannedDepartureAt,
+          },
+        });
+        order += 1;
+      }
+
+      const refreshedPlan = await tx.plan.findUnique({
+        where: { id: planId },
+        include: {
+          stops: { orderBy: { order: "asc" }, include: PLAN_STOP_INCLUDE },
+        },
+      });
+
+      return { plan: refreshedPlan };
+    },
+    { timeout: TRANSACTION_TIMEOUT_MS }
+  );
+}
+
+module.exports = {
+  rebuildPlanStops,
+  reorderPlanStop,
+  loadEligibleWork,
+  PLAN_STOP_INCLUDE,
+};

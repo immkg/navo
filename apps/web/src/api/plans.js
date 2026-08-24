@@ -37,6 +37,14 @@ export async function updatePlanStop(planId, stopId, patch) {
   return response.data;
 }
 
+export async function reorderPlanStop(planId, stopId, direction) {
+  const response = await apiClient.patch(
+    `/api/plans/${planId}/stops/${stopId}/reorder`,
+    { direction }
+  );
+  return response.data;
+}
+
 export async function updatePlanStopWork(planId, stopId, workId, patch) {
   const response = await apiClient.patch(
     `/api/plans/${planId}/stops/${stopId}/work/${workId}`,
