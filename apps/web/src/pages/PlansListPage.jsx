@@ -81,12 +81,14 @@ export default function PlansListPage() {
     [intentId, workItems]
   );
 
+  const shouldAutoOpenCreateForm = Boolean(intentId) || searchParams.has("new");
+
   useEffect(() => {
-    if (!intentId || hasAutoOpenedForIntentRef.current) return;
+    if (!shouldAutoOpenCreateForm || hasAutoOpenedForIntentRef.current) return;
     hasAutoOpenedForIntentRef.current = true;
     const timeoutId = setTimeout(() => setShowCreateForm(true), 0);
     return () => clearTimeout(timeoutId);
-  }, [intentId]);
+  }, [shouldAutoOpenCreateForm]);
 
   const eligibleWorkCount = useMemo(
     () => workItems.filter((item) => item.status !== "done").length,

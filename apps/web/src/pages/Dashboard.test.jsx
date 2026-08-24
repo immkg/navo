@@ -187,3 +187,14 @@ describe("Dashboard — failed to load intents", () => {
     expect(getIntentsSpy).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("Dashboard — quick 'New plan' entry point", () => {
+  it("links straight to a pre-opened create-plan form", async () => {
+    vi.spyOn(intentsApi, "getIntents").mockResolvedValue([]);
+
+    renderWithProviders(<Dashboard />);
+
+    const link = await screen.findByRole("link", { name: "+ New plan" });
+    expect(link).toHaveAttribute("href", "/planner?new=1");
+  });
+});

@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { useNotifications } from "../hooks/useNotifications";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
@@ -328,6 +329,14 @@ export default function Dashboard() {
   return (
     <div className="w-full px-2.5 pb-4 pt-2 sm:px-4 sm:pb-7 sm:pt-4">
       <AddIntentPanel onOpenDetails={handleOpenDetails} />
+      <div className="mb-3 flex justify-end sm:mb-4">
+        <Link
+          to="/planner?new=1"
+          className="inline-flex h-9 items-center rounded-xl border border-border bg-surface px-3 text-sm font-semibold text-foreground transition hover:bg-surface-alt"
+        >
+          + New plan
+        </Link>
+      </div>
       <NextBestActionBanner />
       <RecommendedWorkPanel />
 
