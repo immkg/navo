@@ -652,4 +652,118 @@ describe("PlanDetailPage", () => {
       )
     );
   });
+
+  describe("reordering stops", () => {
+    function stopFixture(overrides = {}) {
+      return {
+        id: "stop-1",
+        status: "planned",
+        plannedArrivalAt: "2026-08-22T09:10:00.000Z",
+        plannedDepartureAt: "2026-08-22T09:20:00.000Z",
+        location: { id: "loc-1", name: "Place A" },
+        works: [],
+        ...overrides,
+      };
+    }
+
+    it("moves a movable stop later and applies the server's new order", async () => {
+      const plan = basePlan({
+        stops: [
+          stopFixture({ id: "stop-1", location: { name: "Place A" } }),
+          stopFixture({ id: "stop-2", location: { name: "Place B" } }),
+        ],
+      });
+      vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+      vi.spyOn(plansApi, "reorderPlanStop").mockResolvedValue(
+        basePlan({
+          stops: [
+            stopFixture({ id: "stop-2", location: { name: "Place B" } }),
+            stopFixture({ id: "stop-1", location: { name: "Place A" } }),
+          ],
+        })
+      );
+
+      renderPage();
+
+      await screen.findByText("Place A");
+      fireEvent.click(screen.getAllByLabelText("Move stop later")[0]);
+
+      await waitFor(() =>
+        expect(plansApi.reorderPlanStop).toHaveBeenCalledWith(
+          "plan-1",
+          "stop-1",
+          "down"
+        )
+      );
+
+      const stopTitles = await screen.findAllByText(/^Place [AB]$/);
+      expect(stopTitles.map((el) => el.textContent)).toEqual([
+        "Place B",
+        "Place A",
+      ]);
+    });
+
+    it("disables Move earlier for the first movable stop and Move later for the last", async () => {
+      const plan = basePlan({
+        stops: [
+          stopFixture({ id: "stop-1", location: { name: "Place A" } }),
+          stopFixture({ id: "stop-2", location: { name: "Place B" } }),
+        ],
+      });
+      vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+
+      renderPage();
+
+      await screen.findByText("Place A");
+      const earlierButtons = screen.getAllByLabelText("Move stop earlier");
+      const laterButtons = screen.getAllByLabelText("Move stop later");
+
+      expect(earlierButtons[0]).toBeDisabled();
+      expect(laterButtons[0]).not.toBeDisabled();
+      expect(earlierButtons[1]).not.toBeDisabled();
+      expect(laterButtons[1]).toBeDisabled();
+    });
+
+    it("does not show reorder buttons for a resolved (frozen) stop", async () => {
+      const plan = basePlan({
+        stops: [
+          stopFixture({
+            id: "stop-1",
+            status: "done",
+            location: { name: "Place A" },
+          }),
+          stopFixture({ id: "stop-2", location: { name: "Place B" } }),
+        ],
+      });
+      vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+
+      renderPage();
+
+      await screen.findByText("Place A");
+      expect(screen.getAllByLabelText("Move stop earlier")).toHaveLength(1);
+      expect(screen.getAllByLabelText("Move stop later")).toHaveLength(1);
+    });
+
+    it("shows an error notification when the server rejects the reorder", async () => {
+      const plan = basePlan({
+        stops: [
+          stopFixture({ id: "stop-1", location: { name: "Place A" } }),
+          stopFixture({ id: "stop-2", location: { name: "Place B" } }),
+        ],
+      });
+      vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+      vi.spyOn(plansApi, "reorderPlanStop").mockRejectedValue({
+        response: { data: { error: "This stop can't be reordered." } },
+      });
+
+      renderPage();
+
+      await screen.findByText("Place A");
+      fireEvent.click(screen.getAllByLabelText("Move stop later")[0]);
+
+      expect(
+        await screen.findByText("This stop can't be reordered.")
+      ).toBeInTheDocument();
+    });
+  });
 });
