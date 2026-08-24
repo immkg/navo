@@ -5,6 +5,7 @@ import Modal from "../components/ui/Modal";
 import PrioritySelect from "../modules/intents/PrioritySelect";
 import AddIntentPanel from "../modules/intents/AddIntentPanel";
 import NextBestActionBanner from "../modules/work/NextBestActionBanner";
+import RecommendedWorkPanel from "../modules/work/RecommendedWorkPanel";
 import IntentCard from "../modules/intents/IntentCard";
 import {
   useBulkDeleteIntents,
@@ -328,6 +329,7 @@ export default function Dashboard() {
     <div className="w-full px-2.5 pb-4 pt-2 sm:px-4 sm:pb-7 sm:pt-4">
       <AddIntentPanel onOpenDetails={handleOpenDetails} />
       <NextBestActionBanner />
+      <RecommendedWorkPanel />
 
       {intents.length > 0 && (
         <div className="relative mb-3">
