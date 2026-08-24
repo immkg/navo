@@ -11,6 +11,7 @@ import {
   useUpdatePlan,
 } from "../modules/plan/hooks";
 import { useWorkItems } from "../modules/work/hooks";
+import { useIntent } from "../modules/intents/hooks";
 import PlanLocationPicker from "../modules/plan/PlanLocationPicker";
 import {
   getPlanDisplayTitle,
@@ -55,6 +56,7 @@ export default function PlansListPage() {
   const intentId = searchParams.get("intentId");
   const { data: plans = [], isLoading } = usePlans();
   const { data: workItems = [] } = useWorkItems();
+  const { data: intent } = useIntent(intentId);
   const createPlanMutation = useCreatePlan();
   const updatePlanMutation = useUpdatePlan();
   const deletePlanMutation = useDeletePlan();
@@ -239,6 +241,14 @@ export default function PlansListPage() {
               Use real driving time (Google Maps) instead of straight-line
               distance
             </label>
+
+            {intentId && (
+              <p className="text-sm text-muted-foreground">
+                Including {intentWorkIds.length} work item
+                {intentWorkIds.length === 1 ? "" : "s"}
+                {intent ? ` from "${intent.title}"` : ""}.
+              </p>
+            )}
 
             {(planDuration || eligibleWorkCount > 0) && (
               <p className="text-sm text-muted-foreground">
