@@ -82,7 +82,41 @@ describe("PlansListPage", () => {
     expect(Math.abs(startMs - Date.now())).toBeLessThan(2 * 60 * 1000);
     expect(Math.abs(endMs - startMs - 8 * 3600000)).toBeLessThan(2 * 60 * 1000);
     expect(payload.energyLevel).toBe("high");
+    expect(payload.useAccurateTravelTime).toBe(false);
     expect(await screen.findByText("Plan detail stub")).toBeInTheDocument();
+  });
+
+  it("sends useAccurateTravelTime: true when the toggle is checked", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+    vi.spyOn(plansApi, "createPlan").mockResolvedValue({
+      id: "plan-new",
+      stops: [],
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByText("+ New plan"));
+
+    const summaries = screen.getAllByText("Enter coordinates manually");
+    summaries.forEach((summary) => fireEvent.click(summary));
+    screen
+      .getAllByLabelText("Latitude")
+      .forEach((input) => fireEvent.change(input, { target: { value: "1" } }));
+    screen
+      .getAllByLabelText("Longitude")
+      .forEach((input) => fireEvent.change(input, { target: { value: "1" } }));
+
+    fireEvent.click(
+      screen.getByText(
+        "Use real driving time (Google Maps) instead of straight-line distance"
+      )
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Create plan" }));
+
+    await waitFor(() => expect(plansApi.createPlan).toHaveBeenCalled());
+    expect(plansApi.createPlan.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ useAccurateTravelTime: true })
+    );
   });
 
   it("sends the chosen energy level in the create payload", async () => {

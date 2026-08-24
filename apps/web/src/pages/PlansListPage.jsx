@@ -56,6 +56,7 @@ export default function PlansListPage() {
   const [start, setStart] = useState(emptyLocation(0));
   const [end, setEnd] = useState(emptyLocation(8));
   const [energyLevel, setEnergyLevel] = useState("high");
+  const [useAccurateTravelTime, setUseAccurateTravelTime] = useState(false);
 
   const eligibleWorkCount = useMemo(
     () => workItems.filter((item) => item.status !== "done").length,
@@ -71,6 +72,7 @@ export default function PlansListPage() {
     setStart(emptyLocation(0));
     setEnd(emptyLocation(8));
     setEnergyLevel("high");
+    setUseAccurateTravelTime(false);
     setShowCreateForm(false);
   };
 
@@ -121,6 +123,7 @@ export default function PlansListPage() {
         endLatitude: end.latitude,
         endLongitude: end.longitude,
         energyLevel,
+        useAccurateTravelTime,
       });
       resetForm();
       navigate(`/plan/${plan.id}`);
@@ -187,6 +190,19 @@ export default function PlansListPage() {
                   </option>
                 ))}
               </select>
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={useAccurateTravelTime}
+                onChange={(event) =>
+                  setUseAccurateTravelTime(event.target.checked)
+                }
+                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
+              />
+              Use real driving time (Google Maps) instead of straight-line
+              distance
             </label>
 
             {(planDuration || eligibleWorkCount > 0) && (
