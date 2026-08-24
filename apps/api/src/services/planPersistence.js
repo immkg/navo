@@ -1,4 +1,4 @@
-const { buildPlan, ANCHOR_LOCATION_ID } = require("./planBuilder");
+const { buildPlan, isAnchorLocationId } = require("./planBuilder");
 
 // Applies to PlanStop.status and PlanStopWork.status alike — both use the
 // same vocabulary for "this is settled, stop reconsidering it".
@@ -209,7 +209,7 @@ async function rebuildPlanStops(
           ...new Set(stop.entries.map((entry) => entry.work.id)),
         ];
         let locationId = stop.location.id;
-        if (locationId === ANCHOR_LOCATION_ID) {
+        if (isAnchorLocationId(locationId)) {
           if (!anchorLocationId) {
             const anchorLocation = await tx.location.create({
               data: {
