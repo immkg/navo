@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import * as aiApi from "../../api/ai";
+import * as routingApi from "../../api/routing";
 import * as googleMaps from "../../utils/googleMaps";
 import LocationOptionGroupsEditor from "./LocationOptionGroupsEditor";
 
@@ -134,6 +135,82 @@ describe("LocationOptionGroupsEditor — results list and map tabs", () => {
     expect(screen.getByText("Map")).not.toHaveClass("bg-primary");
     expect(screen.getByText(/km away|mi away/)).toBeInTheDocument();
     expect(screen.getByText("★ 4.2 (87)")).toBeInTheDocument();
+  });
+
+  it("shows real driving time instead of straight-line distance once it loads", async () => {
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 0, longitude: 0 } }),
+    };
+    vi.spyOn(googleMaps, "searchPlaces").mockResolvedValue([
+      {
+        name: "Corner Pharmacy",
+        formattedAddress: "123 Main St",
+        latitude: 0,
+        longitude: 1,
+        placeId: "place-1",
+      },
+    ]);
+    vi.spyOn(routingApi, "getTravelTimeMinutes").mockResolvedValue({
+      configured: true,
+      minutes: [12],
+    });
+
+    renderWithProviders(<LocationOptionGroupsEditor {...baseProps()} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("📍 Showing results near your current location")
+      ).toBeInTheDocument()
+    );
+    fireEvent.change(screen.getByPlaceholderText("Search for a place"), {
+      target: { value: "pharmacy" },
+    });
+    fireEvent.click(screen.getByText("Search", { selector: "button" }));
+    await screen.findByText("Corner Pharmacy");
+
+    expect(await screen.findByText("12 min drive")).toBeInTheDocument();
+    expect(screen.queryByText(/km away|mi away/)).not.toBeInTheDocument();
+    expect(routingApi.getTravelTimeMinutes).toHaveBeenCalledWith(
+      { latitude: 0, longitude: 0 },
+      [{ latitude: 0, longitude: 1 }]
+    );
+  });
+
+  it("falls back to straight-line distance when real travel time isn't configured", async () => {
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 0, longitude: 0 } }),
+    };
+    vi.spyOn(googleMaps, "searchPlaces").mockResolvedValue([
+      {
+        name: "Corner Pharmacy",
+        formattedAddress: "123 Main St",
+        latitude: 0,
+        longitude: 1,
+        placeId: "place-1",
+      },
+    ]);
+    vi.spyOn(routingApi, "getTravelTimeMinutes").mockResolvedValue({
+      configured: false,
+      minutes: [null],
+    });
+
+    renderWithProviders(<LocationOptionGroupsEditor {...baseProps()} />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByText("📍 Showing results near your current location")
+      ).toBeInTheDocument()
+    );
+    fireEvent.change(screen.getByPlaceholderText("Search for a place"), {
+      target: { value: "pharmacy" },
+    });
+    fireEvent.click(screen.getByText("Search", { selector: "button" }));
+    await screen.findByText("Corner Pharmacy");
+
+    expect(screen.getByText(/km away|mi away/)).toBeInTheDocument();
+    expect(screen.queryByText(/min drive/)).not.toBeInTheDocument();
   });
 
   it("switches to the map tab when Preview is clicked", async () => {
