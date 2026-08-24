@@ -13,6 +13,7 @@ import Card from "../../components/ui/Card";
 import Badge from "../../components/ui/Badge";
 import LocationCard from "./LocationCard";
 import { useCurrentLocation } from "./hooks";
+import { getTravelTimeMinutes } from "../../api/routing";
 import { useSuggestPlaceTypes } from "../ai/hooks";
 
 function escapeHtml(value) {
@@ -88,6 +89,61 @@ export default function LocationOptionGroupsEditor({
   const [isPickingLocation, setIsPickingLocation] = useState(false);
   const [resultsView, setResultsView] = useState("list");
   const [enrichingPlaceId, setEnrichingPlaceId] = useState(null);
+  // Real driving time for each result, once it loads — a progressive
+  // enhancement over the immediate straight-line distanceLabel below, since
+  // the Distance Matrix key lives server-side only. Keyed by array index
+  // (not placeId, since a manually-added or dropped-pin place may have
+  // none) and tagged with the exact placeResults array it was computed
+  // for, so a stale response for a since-replaced search can never be
+  // mistaken for the current one — no separate "reset on new search"
+  // setState is needed (and none runs synchronously in this effect; the
+  // only setState is inside the fetch's own .then).
+  const [travelTimeState, setTravelTimeState] = useState({
+    forResults: null,
+    minutesByIndex: {},
+  });
+
+  useEffect(() => {
+    if (!nearLocation || placeResults.length === 0) return;
+
+    const indices = [];
+    const destinations = [];
+    placeResults.forEach((place, index) => {
+      if (place.latitude == null || place.longitude == null) return;
+      indices.push(index);
+      destinations.push({
+        latitude: place.latitude,
+        longitude: place.longitude,
+      });
+    });
+    if (destinations.length === 0) return;
+
+    let cancelled = false;
+    getTravelTimeMinutes(
+      { latitude: nearLocation.latitude, longitude: nearLocation.longitude },
+      destinations
+    )
+      .then(({ configured, minutes }) => {
+        if (cancelled || !configured) return;
+        const minutesByIndex = {};
+        indices.forEach((placeIndex, i) => {
+          if (minutes[i] != null) minutesByIndex[placeIndex] = minutes[i];
+        });
+        setTravelTimeState({ forResults: placeResults, minutesByIndex });
+      })
+      .catch((error) => {
+        console.error("Failed to fetch real travel time", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeResults, nearLocation?.latitude, nearLocation?.longitude]);
+  const travelMinutesByIndex =
+    travelTimeState.forResults === placeResults
+      ? travelTimeState.minutesByIndex
+      : {};
 
   const handleAutocomplete = async (query) => {
     setSearchError(null);
@@ -896,6 +952,11 @@ export default function LocationOptionGroupsEditor({
                             )}
                             {nearLocation &&
                               (() => {
+                                const realMinutes =
+                                  travelMinutesByIndex[resultIndex];
+                                if (realMinutes != null) {
+                                  return <span>{realMinutes} min drive</span>;
+                                }
                                 const distance = distanceLabel(
                                   nearLocation.latitude,
                                   nearLocation.longitude,

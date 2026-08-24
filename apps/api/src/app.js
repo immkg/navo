@@ -19,10 +19,12 @@ const intentsRouter = require("./routes/intents");
 const workRouter = require("./routes/work");
 const aiRouter = require("./routes/ai");
 const plansRouter = require("./routes/plans");
+const routingRouter = require("./routes/routing");
 
 app.use("/api/intents", intentsRouter);
 app.use("/api/work", workRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/plans", plansRouter);
+app.use("/api/routing", routingRouter);
 
 module.exports = app;
