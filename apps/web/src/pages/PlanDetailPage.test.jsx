@@ -391,6 +391,73 @@ describe("PlanDetailPage", () => {
     expect(await screen.findByText("Leave stop")).toBeInTheDocument();
   });
 
+  it("surfaces a nearby opportunity while a stop is in progress, and can add it to the plan", async () => {
+    const plan = basePlan({
+      status: "active",
+      stops: [
+        {
+          id: "stop-1",
+          status: "in_progress",
+          plannedArrivalAt: "2026-08-22T09:10:00.000Z",
+          plannedDepartureAt: "2026-08-22T09:20:00.000Z",
+          location: {
+            id: "loc-1",
+            name: "Pharmacy",
+            latitude: 0,
+            longitude: 0,
+          },
+          works: [],
+        },
+      ],
+    });
+    vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+    workApi.getWorkItems.mockResolvedValue([
+      {
+        id: "w-nearby",
+        title: "Grab coffee",
+        status: "todo",
+        priority: "low",
+        intent: { priority: "low", dueDate: null },
+        locationOptions: [
+          {
+            id: "o1",
+            locations: [{ id: "l1", latitude: 0.001, longitude: 0 }],
+          },
+        ],
+      },
+      {
+        id: "w-far",
+        title: "Visit the other side of town",
+        status: "todo",
+        priority: "low",
+        intent: { priority: "low", dueDate: null },
+        locationOptions: [
+          { id: "o2", locations: [{ id: "l2", latitude: 5, longitude: 5 }] },
+        ],
+      },
+    ]);
+    vi.spyOn(plansApi, "updatePlan").mockResolvedValue(plan);
+
+    renderPage();
+
+    const heading = await screen.findByText("While you're here");
+    const opportunitySection = heading.parentElement;
+    expect(
+      within(opportunitySection).getByText("Grab coffee")
+    ).toBeInTheDocument();
+    expect(
+      within(opportunitySection).queryByText("Visit the other side of town")
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(within(opportunitySection).getByText("Add to plan"));
+
+    await waitFor(() =>
+      expect(plansApi.updatePlan).toHaveBeenCalledWith("plan-1", {
+        forceIncludeWorkIds: ["w-nearby"],
+      })
+    );
+  });
+
   it("shows an on-time/late badge once a stop's actual arrival is recorded", async () => {
     vi.spyOn(plansApi, "getPlan").mockResolvedValue(
       basePlan({
