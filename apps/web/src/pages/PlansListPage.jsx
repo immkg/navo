@@ -172,6 +172,7 @@ export default function PlansListPage() {
               legend="Start"
               value={start}
               onChange={setStart}
+              autoDetectOnMount
             />
             <PlanLocationPicker legend="End" value={end} onChange={setEnd} />
 

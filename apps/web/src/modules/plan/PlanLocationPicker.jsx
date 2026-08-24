@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { searchPlaces } from "../../utils/googleMaps";
+import { useEffect, useRef, useState } from "react";
+import { reverseGeocodeLocation, searchPlaces } from "../../utils/googleMaps";
 import Button from "../../components/ui/Button";
 
 function isValidLatitude(value) {
@@ -11,12 +11,19 @@ function isValidLongitude(value) {
 }
 
 // Shared start/end picker for a plan's create form: a date/time input, a
-// device-geolocation shortcut, a Places search, and a manual lat/lng
-// fallback for when neither of those has what you need.
-export default function PlanLocationPicker({ legend, value, onChange }) {
-  const [searchQuery, setSearchQuery] = useState("");
+// Places search with a current-location shortcut built into the field
+// itself, and a manual lat/lng fallback for when neither of those has what
+// you need.
+export default function PlanLocationPicker({
+  legend,
+  value,
+  onChange,
+  autoDetectOnMount = false,
+}) {
+  const [searchQuery, setSearchQuery] = useState(value.label || "");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
   const [searchError, setSearchError] = useState(null);
   // Holds the raw text only while it's *invalid* (out of range or NaN) —
   // valid keystrokes commit straight to onChange and this clears, so the
@@ -63,23 +70,64 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
   const latitudeInputIsInvalid = invalidLatitudeDraft !== null;
   const longitudeInputIsInvalid = invalidLongitudeDraft !== null;
 
-  const handleUseCurrentLocation = () => {
+  // Detects the device's location and reverse-geocodes it into a real
+  // address so the field shows *something* concrete, not a silent
+  // "Current location" placeholder with an empty box — falls back to that
+  // generic label when there's no API key configured or the geocode call
+  // itself fails.
+  const detectCurrentLocation = () => {
     if (!navigator.geolocation) {
       setSearchError("Your device doesn't support location detection.");
       return;
     }
+
+    setIsDetecting(true);
+    setSearchError(null);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        onChange({
-          ...value,
-          label: "Current location",
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        let label = "Current location";
+        if (googleKey) {
+          try {
+            const reverse = await reverseGeocodeLocation(
+              latitude,
+              longitude,
+              googleKey
+            );
+            if (reverse?.label) label = reverse.label;
+          } catch {
+            // Keep the generic label — coordinates are still real either way.
+          }
+        }
+        setSearchQuery(label);
+        onChange({ ...value, label, latitude, longitude });
+        setIsDetecting(false);
       },
-      () => setSearchError("Couldn't get your current location.")
+      () => {
+        setSearchError("Couldn't get your current location.");
+        setIsDetecting(false);
+      }
     );
   };
+
+  const hasAutoDetectedRef = useRef(false);
+  useEffect(() => {
+    if (!autoDetectOnMount) return;
+    if (hasAutoDetectedRef.current) return;
+    // Already has a real value (e.g. editing an existing plan) — the point
+    // of auto-detecting is only to skip the tap for the common "starting
+    // from wherever I am" case, never to override an existing choice.
+    if (value.latitude != null && value.longitude != null) return;
+    hasAutoDetectedRef.current = true;
+    // Deferred a tick so detectCurrentLocation's own setState doesn't fire
+    // synchronously within this effect's own commit.
+    const timeoutId = setTimeout(() => {
+      detectCurrentLocation();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+    // Deliberately runs once on mount only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSearch = async () => {
     if (!googleKey || !searchQuery.trim()) return;
@@ -98,6 +146,7 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
   };
 
   const handlePickResult = (place) => {
+    setSearchQuery(place.name);
     onChange({
       ...value,
       label: place.name,
@@ -105,7 +154,6 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
       longitude: place.longitude,
     });
     setSearchResults([]);
-    setSearchQuery("");
   };
 
   return (
@@ -129,36 +177,34 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
         />
       </label>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          onClick={handleUseCurrentLocation}
-        >
-          📍 Use current location
-        </Button>
-        {value.label && (
-          <span className="text-sm text-muted-foreground">{value.label}</span>
-        )}
-      </div>
-
       {/* A plain div, not a <form> — this picker is itself rendered inside
           the caller's own <form> (create-plan, edit-window), and a nested
           <form> is invalid HTML that React warns about at hydration. */}
-      <div className="flex gap-2">
-        <input
-          value={searchQuery}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              handleSearch();
-            }
-          }}
-          placeholder="Search a city or address"
-          className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
-        />
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="relative min-w-0">
+          <input
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                handleSearch();
+              }
+            }}
+            placeholder="Search a city or address"
+            className="block w-full rounded-xl border border-border bg-surface px-3 py-2 pr-11 text-sm text-foreground focus:border-primary focus:ring-primary"
+          />
+          <button
+            type="button"
+            onClick={detectCurrentLocation}
+            disabled={isDetecting}
+            aria-label="Use current location"
+            title="Use current location"
+            className="absolute right-1.5 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-alt hover:text-foreground disabled:opacity-50"
+          >
+            📍
+          </button>
+        </div>
         <Button
           type="button"
           variant="secondary"
@@ -169,6 +215,12 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
           {isSearching ? "Searching…" : "Search"}
         </Button>
       </div>
+
+      {isDetecting && (
+        <p className="text-xs text-muted-foreground">
+          Detecting your location…
+        </p>
+      )}
 
       {searchError && <p className="text-sm text-danger">{searchError}</p>}
 

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as googleMaps from "../../utils/googleMaps";
 import PlanLocationPicker from "./PlanLocationPicker";
@@ -28,7 +28,7 @@ describe("PlanLocationPicker", () => {
     );
   });
 
-  it("uses the device's current location", () => {
+  it("detects the device's current location via the icon inside the search field", async () => {
     const onChange = vi.fn();
     navigator.geolocation = {
       getCurrentPosition: (onSuccess) =>
@@ -48,15 +48,100 @@ describe("PlanLocationPicker", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("📍 Use current location"));
+    fireEvent.click(screen.getByLabelText("Use current location"));
 
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({
-        latitude: 12,
-        longitude: 34,
-        label: "Current location",
-      })
+    await waitFor(() =>
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({
+          latitude: 12,
+          longitude: 34,
+          label: "Current location",
+        })
+      )
     );
+  });
+
+  it("autofills the search field with the reverse-geocoded address after detecting current location", async () => {
+    vi.stubEnv("VITE_GOOGLE_MAPS_API_KEY", "test-key");
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 12, longitude: 34 } }),
+    };
+    vi.spyOn(googleMaps, "reverseGeocodeLocation").mockResolvedValue({
+      label: "123 Main St, Some City",
+      placeId: "place-reverse",
+    });
+
+    render(
+      <PlanLocationPicker
+        legend="Start"
+        value={{
+          dateTime: "2026-08-22T09:00",
+          label: "",
+          latitude: null,
+          longitude: null,
+        }}
+        onChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Use current location"));
+
+    expect(
+      await screen.findByDisplayValue("123 Main St, Some City")
+    ).toBeInTheDocument();
+  });
+
+  it("auto-detects current location on mount when autoDetectOnMount is set and no value exists yet", async () => {
+    const onChange = vi.fn();
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 12, longitude: 34 } }),
+    };
+
+    render(
+      <PlanLocationPicker
+        legend="Start"
+        value={{
+          dateTime: "2026-08-22T09:00",
+          label: "",
+          latitude: null,
+          longitude: null,
+        }}
+        onChange={onChange}
+        autoDetectOnMount
+      />
+    );
+
+    await waitFor(() =>
+      expect(onChange).toHaveBeenCalledWith(
+        expect.objectContaining({ latitude: 12, longitude: 34 })
+      )
+    );
+  });
+
+  it("does not auto-detect when a value already exists, even with autoDetectOnMount set", () => {
+    const onChange = vi.fn();
+    navigator.geolocation = {
+      getCurrentPosition: vi.fn(),
+    };
+
+    render(
+      <PlanLocationPicker
+        legend="Start"
+        value={{
+          dateTime: "2026-08-22T09:00",
+          label: "Somewhere",
+          latitude: 5,
+          longitude: 6,
+        }}
+        onChange={onChange}
+        autoDetectOnMount
+      />
+    );
+
+    expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("searches for a place and lets the user pick a result", async () => {
