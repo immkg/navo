@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findNearbyOpportunities } from "./utils";
+import { findBehindScheduleStop, findNearbyOpportunities } from "./utils";
 
 function work(overrides = {}) {
   return {
@@ -97,5 +97,76 @@ describe("findNearbyOpportunities", () => {
 
     const opportunities = findNearbyOpportunities(current, [multiOption]);
     expect(opportunities.map((o) => o.work.id)).toEqual(["multi"]);
+  });
+});
+
+function stop(overrides = {}) {
+  return {
+    id: "stop-1",
+    status: "planned",
+    plannedArrivalAt: "2026-08-22T09:00:00.000Z",
+    plannedDepartureAt: "2026-08-22T09:20:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("findBehindScheduleStop", () => {
+  it("returns null when there is no not-yet-resolved stop", () => {
+    const now = new Date("2026-08-22T09:00:00.000Z");
+    expect(findBehindScheduleStop([], now)).toBeNull();
+    expect(
+      findBehindScheduleStop(
+        [stop({ status: "done" }), stop({ status: "skipped" })],
+        now
+      )
+    ).toBeNull();
+  });
+
+  it("returns null when comfortably within the tolerance of a planned stop's arrival", () => {
+    const now = new Date("2026-08-22T09:02:00.000Z");
+    expect(findBehindScheduleStop([stop()], now)).toBeNull();
+  });
+
+  it("flags a planned stop once arrival is more than the tolerance late", () => {
+    const now = new Date("2026-08-22T09:25:00.000Z"); // 25 min after plannedArrivalAt
+    const result = findBehindScheduleStop([stop()], now);
+    expect(result).not.toBeNull();
+    expect(result.stop.id).toBe("stop-1");
+    expect(result.minutesLate).toBe(25);
+  });
+
+  it("checks an in_progress stop against its planned departure, not arrival", () => {
+    const inProgress = stop({ status: "in_progress" });
+    const now = new Date("2026-08-22T09:35:00.000Z"); // 15 min after plannedDepartureAt
+
+    const result = findBehindScheduleStop([inProgress], now);
+    expect(result).not.toBeNull();
+    expect(result.minutesLate).toBe(15);
+  });
+
+  it("only ever checks the first not-yet-resolved stop", () => {
+    const stops = [
+      stop({ id: "done-1", status: "done" }),
+      stop({
+        id: "current",
+        status: "planned",
+        plannedArrivalAt: "2026-08-22T09:00:00.000Z",
+      }),
+      stop({
+        id: "later",
+        status: "planned",
+        plannedArrivalAt: "2026-08-22T08:00:00.000Z", // would look "very late" but isn't next
+      }),
+    ];
+    const now = new Date("2026-08-22T09:25:00.000Z");
+
+    const result = findBehindScheduleStop(stops, now);
+    expect(result.stop.id).toBe("current");
+  });
+
+  it("respects a custom tolerance", () => {
+    const now = new Date("2026-08-22T09:05:00.000Z"); // 5 min late
+    expect(findBehindScheduleStop([stop()], now, 10)).toBeNull();
+    expect(findBehindScheduleStop([stop()], now, 2)?.minutesLate).toBe(5);
   });
 });
