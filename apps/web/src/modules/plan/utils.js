@@ -11,6 +11,59 @@ export function toDateTimeLocalValue(date) {
   return local.toISOString().slice(0, 16);
 }
 
+const EARTH_RADIUS_KM = 6371;
+
+function haversineKm(a, b) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLng = toRad(b.longitude - a.longitude);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const h =
+    sinLat * sinLat +
+    Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * sinLng * sinLng;
+  return EARTH_RADIUS_KM * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+const DEFAULT_OPPORTUNITY_RADIUS_KM = 2;
+
+// "Opportunity" per ARCHITECTURE.md: work that becomes possible or easier
+// because of where you currently are, surfaced automatically rather than
+// something anyone has to notice or create — and it naturally disappears
+// the moment the caller stops passing a matching currentLocation (e.g. once
+// a stop is no longer in_progress), since nothing here is persisted.
+export function findNearbyOpportunities(
+  currentLocation,
+  unselectedWork,
+  maxKm = DEFAULT_OPPORTUNITY_RADIUS_KM
+) {
+  if (!currentLocation || currentLocation.latitude == null) return [];
+
+  const opportunities = [];
+  for (const work of unselectedWork) {
+    const chosenOption =
+      work.locationOptions?.find(
+        (option) => option.id === work.selectedLocationOptionId
+      ) || work.locationOptions?.[0];
+    const locations = chosenOption?.locations || [];
+
+    let nearestKm = null;
+    for (const location of locations) {
+      if (location.latitude == null || location.longitude == null) continue;
+      const km = haversineKm(currentLocation, location);
+      if (km <= maxKm && (nearestKm === null || km < nearestKm)) {
+        nearestKm = km;
+      }
+    }
+
+    if (nearestKm !== null) {
+      opportunities.push({ work, distanceKm: nearestKm });
+    }
+  }
+
+  return opportunities.sort((a, b) => a.distanceKm - b.distanceKm);
+}
+
 export const PLAN_ENERGY_LEVEL_OPTIONS = [
   { value: "high", label: "High — I can tackle anything" },
   { value: "medium", label: "Medium" },

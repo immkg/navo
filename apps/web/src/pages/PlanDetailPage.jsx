@@ -15,6 +15,7 @@ import {
 import { useWorkItems } from "../modules/work/hooks";
 import {
   describeTimingDelta,
+  findNearbyOpportunities,
   getPlanDisplayTitle,
   toDateTimeLocalValue,
 } from "../modules/plan/utils";
@@ -349,6 +350,18 @@ export default function PlanDetailPage() {
     }
   };
 
+  const handleAddOpportunity = async (workId) => {
+    try {
+      await updatePlanMutation.mutateAsync({
+        planId: id,
+        patch: { forceIncludeWorkIds: [workId] },
+      });
+    } catch (error) {
+      console.error("Failed to add nearby opportunity", error);
+      notify(error.response?.data?.error || "Failed to add work to the plan");
+    }
+  };
+
   const handleApplyVariation = async (variation) => {
     try {
       await updatePlanMutation.mutateAsync({
@@ -639,6 +652,14 @@ export default function PlanDetailPage() {
             stop.actualDepartureAt,
             stop.plannedDepartureAt
           );
+          // Opportunities only make sense while you're actually there —
+          // computed fresh on every render, never stored, so one disappears
+          // the moment you leave the stop or it gets added to the plan
+          // (moving it out of unselectedWork).
+          const opportunities =
+            stop.status === "in_progress"
+              ? findNearbyOpportunities(stop.location, unselectedWork)
+              : [];
 
           return (
             <Card key={stop.id} padding="lg">
@@ -766,6 +787,39 @@ export default function PlanDetailPage() {
                   </div>
                 ))}
               </div>
+
+              {opportunities.length > 0 && (
+                <div className="mt-4 rounded-2xl border border-accent/30 bg-accent/5 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-accent">
+                    While you're here
+                  </div>
+                  <ul className="mt-2 space-y-2">
+                    {opportunities.map(({ work, distanceKm }) => (
+                      <li
+                        key={work.id}
+                        className="flex items-center justify-between gap-3"
+                      >
+                        <div className="text-sm text-foreground">
+                          {work.title}
+                          <span className="ml-2 text-muted-foreground">
+                            {distanceKm < 0.1
+                              ? "right here"
+                              : `${distanceKm.toFixed(1)} km away`}
+                          </span>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="accent"
+                          onClick={() => handleAddOpportunity(work.id)}
+                          disabled={updatePlanMutation.isPending}
+                        >
+                          Add to plan
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </Card>
           );
         })}
