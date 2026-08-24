@@ -3,14 +3,16 @@ import { Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/renderWithProviders";
 import * as plansApi from "../api/plans";
+import * as workApi from "../api/work";
 import PlansListPage from "./PlansListPage";
 
-function renderPage() {
+function renderPage({ route = "/" } = {}) {
   return renderWithProviders(
     <Routes>
       <Route path="/" element={<PlansListPage />} />
       <Route path="/plan/:id" element={<div>Plan detail stub</div>} />
-    </Routes>
+    </Routes>,
+    { route }
   );
 }
 
@@ -219,5 +221,42 @@ describe("PlansListPage", () => {
       expect(plansApi.deletePlan).toHaveBeenCalledWith("plan-1")
     );
     expect(screen.queryByText("Plan detail stub")).not.toBeInTheDocument();
+  });
+
+  it("auto-opens the create form and includes the intent's work when arriving with ?intentId=", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+    vi.spyOn(workApi, "getWorkItems").mockResolvedValue([
+      { id: "work-1", intentId: "intent-1", status: "todo" },
+      { id: "work-2", intentId: "intent-1", status: "done" },
+      { id: "work-3", intentId: "intent-2", status: "todo" },
+    ]);
+    vi.spyOn(plansApi, "createPlan").mockResolvedValue({
+      id: "plan-new",
+      stops: [],
+    });
+    vi.spyOn(plansApi, "updatePlan").mockResolvedValue({
+      id: "plan-new",
+      stops: [],
+    });
+
+    renderPage({ route: "/?intentId=intent-1" });
+
+    const summaries = await screen.findAllByText("Enter coordinates manually");
+    summaries.forEach((summary) => fireEvent.click(summary));
+    screen
+      .getAllByLabelText("Latitude")
+      .forEach((input) => fireEvent.change(input, { target: { value: "1" } }));
+    screen
+      .getAllByLabelText("Longitude")
+      .forEach((input) => fireEvent.change(input, { target: { value: "1" } }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Create plan" }));
+
+    await waitFor(() =>
+      expect(plansApi.updatePlan).toHaveBeenCalledWith("plan-new", {
+        forceIncludeWorkIds: ["work-1"],
+      })
+    );
+    expect(await screen.findByText("Plan detail stub")).toBeInTheDocument();
   });
 });

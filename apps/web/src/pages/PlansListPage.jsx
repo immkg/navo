@@ -1,10 +1,15 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import { useNotifications } from "../hooks/useNotifications";
-import { useCreatePlan, useDeletePlan, usePlans } from "../modules/plan/hooks";
+import {
+  useCreatePlan,
+  useDeletePlan,
+  usePlans,
+  useUpdatePlan,
+} from "../modules/plan/hooks";
 import { useWorkItems } from "../modules/work/hooks";
 import PlanLocationPicker from "../modules/plan/PlanLocationPicker";
 import {
@@ -46,9 +51,12 @@ function formatPlanDuration(startDateTime, endDateTime) {
 export default function PlansListPage() {
   const { notify, confirm } = useNotifications();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const intentId = searchParams.get("intentId");
   const { data: plans = [], isLoading } = usePlans();
   const { data: workItems = [] } = useWorkItems();
   const createPlanMutation = useCreatePlan();
+  const updatePlanMutation = useUpdatePlan();
   const deletePlanMutation = useDeletePlan();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -57,6 +65,26 @@ export default function PlansListPage() {
   const [end, setEnd] = useState(emptyLocation(8));
   const [energyLevel, setEnergyLevel] = useState("high");
   const [useAccurateTravelTime, setUseAccurateTravelTime] = useState(false);
+  const hasAutoOpenedForIntentRef = useRef(false);
+
+  const intentWorkIds = useMemo(
+    () =>
+      intentId
+        ? workItems
+            .filter(
+              (item) => item.intentId === intentId && item.status !== "done"
+            )
+            .map((item) => item.id)
+        : [],
+    [intentId, workItems]
+  );
+
+  useEffect(() => {
+    if (!intentId || hasAutoOpenedForIntentRef.current) return;
+    hasAutoOpenedForIntentRef.current = true;
+    const timeoutId = setTimeout(() => setShowCreateForm(true), 0);
+    return () => clearTimeout(timeoutId);
+  }, [intentId]);
 
   const eligibleWorkCount = useMemo(
     () => workItems.filter((item) => item.status !== "done").length,
@@ -125,6 +153,12 @@ export default function PlansListPage() {
         energyLevel,
         useAccurateTravelTime,
       });
+      if (intentId && intentWorkIds.length > 0) {
+        await updatePlanMutation.mutateAsync({
+          planId: plan.id,
+          patch: { forceIncludeWorkIds: intentWorkIds },
+        });
+      }
       resetForm();
       navigate(`/plan/${plan.id}`);
     } catch (error) {

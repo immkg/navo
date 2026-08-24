@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useNotifications } from "../hooks/useNotifications";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
@@ -18,6 +18,8 @@ import {
 import { WORK_STATUS_OPTIONS } from "../modules/work/utils";
 import WorkFormModal from "../modules/work/WorkFormModal";
 import { useSuggestWork } from "../modules/ai/hooks";
+import { usePlans, useUpdatePlan } from "../modules/plan/hooks";
+import { getPlanDisplayTitle } from "../modules/plan/utils";
 
 function formatMinutes(totalMinutes) {
   if (!totalMinutes) return "0 min";
@@ -288,14 +290,18 @@ function WorkQuickAddBar({ intentId, onOpenDetails }) {
 export default function IntentPage() {
   const { notify, confirm } = useNotifications();
   const { id } = useParams();
+  const navigate = useNavigate();
   const { data: intent, isLoading: loading } = useIntent(id);
   const [deletingWorkId, setDeletingWorkId] = useState(null);
   const [workModalTarget, setWorkModalTarget] = useState(null);
   const [aiSuggestions, setAiSuggestions] = useState([]);
   const [isSuggestingWork, setIsSuggestingWork] = useState(false);
   const [addingSuggestionIndex, setAddingSuggestionIndex] = useState(null);
+  const [showPlanModal, setShowPlanModal] = useState(false);
 
   const patchIntentMutation = usePatchIntent();
+  const { data: plans = [] } = usePlans();
+  const updatePlanMutation = useUpdatePlan();
 
   const handlePatchIntent = async (patch) => {
     try {
@@ -424,6 +430,32 @@ export default function IntentPage() {
 
   if (!intent)
     return <div className="p-8 text-center text-danger">Intent not found</div>;
+
+  const eligibleWorkIds = (intent.workItems || [])
+    .filter((work) => work.status !== "done")
+    .map((work) => work.id);
+  const plannablePlans = plans.filter(
+    (plan) => plan.status === "draft" || plan.status === "active"
+  );
+
+  const handleAddIntentToPlan = async (planId) => {
+    try {
+      await updatePlanMutation.mutateAsync({
+        planId,
+        patch: { forceIncludeWorkIds: eligibleWorkIds },
+      });
+      setShowPlanModal(false);
+      navigate(`/plan/${planId}`);
+    } catch (error) {
+      console.error("Failed to add intent's work to plan", error);
+      notify(error.response?.data?.error || "Failed to add work to that plan");
+    }
+  };
+
+  const handleCreateNewPlanForIntent = () => {
+    setShowPlanModal(false);
+    navigate(`/planner?intentId=${id}`);
+  };
 
   const workCount = intent.workItems?.length || 0;
   const completedCount =
@@ -613,7 +645,7 @@ export default function IntentPage() {
             <Button
               variant="primary"
               pill={false}
-              onClick={() => (window.location.href = "/planner")}
+              onClick={() => setShowPlanModal(true)}
             >
               Plan this Intent
             </Button>
@@ -650,6 +682,51 @@ export default function IntentPage() {
           work={workModalTarget === "new" ? null : workModalTarget}
         />
       )}
+
+      <Modal
+        open={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        title="Plan this Intent"
+        size="sm"
+      >
+        {eligibleWorkIds.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            This intent has no remaining work to plan.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            <Button
+              variant="primary"
+              pill={false}
+              className="w-full"
+              onClick={handleCreateNewPlanForIntent}
+            >
+              + Create a new plan
+            </Button>
+
+            {plannablePlans.length > 0 && (
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Or add to an existing plan
+                </p>
+                <div className="space-y-2">
+                  {plannablePlans.map((plan) => (
+                    <button
+                      key={plan.id}
+                      type="button"
+                      onClick={() => handleAddIntentToPlan(plan.id)}
+                      disabled={updatePlanMutation.isPending}
+                      className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-left text-sm text-foreground transition hover:border-primary/50 disabled:opacity-50"
+                    >
+                      {getPlanDisplayTitle(plan)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

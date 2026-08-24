@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/renderWithProviders";
 import * as intentsApi from "../api/intents";
 import * as workApi from "../api/work";
+import * as plansApi from "../api/plans";
 import IntentPage from "./IntentPage";
 
 vi.mock("../modules/work/WorkFormModal", () => ({
@@ -49,9 +50,14 @@ function buildIntent(overrides = {}) {
 
 function renderIntentPage(intent) {
   vi.spyOn(intentsApi, "getIntent").mockResolvedValue(intent);
+  if (!vi.isMockFunction(plansApi.getPlans)) {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+  }
   return renderWithProviders(
     <Routes>
       <Route path="/intent/:id" element={<IntentPage />} />
+      <Route path="/planner" element={<div>Planner stub</div>} />
+      <Route path="/plan/:id" element={<div>Plan detail stub</div>} />
     </Routes>,
     { route: `/intent/${intent.id}` }
   );
@@ -201,5 +207,76 @@ describe("IntentPage", () => {
         priority: "high",
       })
     );
+  });
+
+  it("offers to create a new plan or add to an existing one when 'Plan this Intent' is clicked", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([
+      { id: "plan-1", title: "Saturday errands", status: "draft", stops: [] },
+    ]);
+    renderIntentPage(
+      buildIntent({ workItems: [buildWork({ title: "Buy groceries" })] })
+    );
+
+    fireEvent.click(await screen.findByText("Buy groceries"));
+    fireEvent.click(screen.getByText("Close modal"));
+    fireEvent.click(screen.getByText("Plan this Intent"));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Plan this Intent",
+    });
+    expect(within(dialog).getByText("+ Create a new plan")).toBeInTheDocument();
+    expect(within(dialog).getByText("Saturday errands")).toBeInTheDocument();
+  });
+
+  it("navigates to the planner with the intent id when creating a new plan", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+    renderIntentPage(
+      buildIntent({ workItems: [buildWork({ title: "Buy groceries" })] })
+    );
+
+    fireEvent.click(await screen.findByText("Plan this Intent"));
+    fireEvent.click(await screen.findByText("+ Create a new plan"));
+
+    expect(await screen.findByText("Planner stub")).toBeInTheDocument();
+  });
+
+  it("adds the intent's work to an existing plan and navigates to it", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([
+      { id: "plan-1", title: "Saturday errands", status: "draft", stops: [] },
+    ]);
+    vi.spyOn(plansApi, "updatePlan").mockResolvedValue({
+      id: "plan-1",
+      title: "Saturday errands",
+      status: "draft",
+      stops: [],
+    });
+    renderIntentPage(
+      buildIntent({ workItems: [buildWork({ title: "Buy groceries" })] })
+    );
+
+    fireEvent.click(await screen.findByText("Plan this Intent"));
+    fireEvent.click(await screen.findByText("Saturday errands"));
+
+    await waitFor(() =>
+      expect(plansApi.updatePlan).toHaveBeenCalledWith("plan-1", {
+        forceIncludeWorkIds: ["work-1"],
+      })
+    );
+    expect(await screen.findByText("Plan detail stub")).toBeInTheDocument();
+  });
+
+  it("tells the user there is nothing to plan when all work is done", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+    renderIntentPage(
+      buildIntent({
+        workItems: [buildWork({ title: "Buy groceries", status: "done" })],
+      })
+    );
+
+    fireEvent.click(await screen.findByText("Plan this Intent"));
+
+    expect(
+      await screen.findByText("This intent has no remaining work to plan.")
+    ).toBeInTheDocument();
   });
 });
