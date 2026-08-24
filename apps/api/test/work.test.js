@@ -50,6 +50,25 @@ test("POST /api/work creates inline location options and locations", async () =>
   );
 });
 
+test("GET /api/work includes dependency data, with the prerequisite's own status", async () => {
+  const prereq = await prisma.work.create({
+    data: { title: "Decide on caterer", status: "todo" },
+  });
+  const blocked = await prisma.work.create({
+    data: { title: "Confirm headcount" },
+  });
+  await request(app)
+    .post(`/api/work/${blocked.id}/dependency`)
+    .send({ dependsOnId: prereq.id });
+
+  const response = await request(app).get("/api/work");
+
+  const found = response.body.find((work) => work.id === blocked.id);
+  assert.equal(found.dependsOn.length, 1);
+  assert.equal(found.dependsOn[0].dependsOn.id, prereq.id);
+  assert.equal(found.dependsOn[0].dependsOn.status, "todo");
+});
+
 test("GET /api/work/:id returns the work item with related data", async () => {
   const intent = await prisma.intent.create({ data: { title: "Plan a trip" } });
   const work = await prisma.work.create({

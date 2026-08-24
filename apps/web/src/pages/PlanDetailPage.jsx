@@ -17,6 +17,7 @@ import {
   describeTimingDelta,
   findBehindScheduleStop,
   findNearbyOpportunities,
+  findUnresolvedDependency,
   getPlanDisplayTitle,
   toDateTimeLocalValue,
 } from "../modules/plan/utils";
@@ -640,14 +641,22 @@ export default function PlanDetailPage() {
             Not included in this plan
           </div>
           <ul className="mt-2 space-y-1">
-            {unselectedWork.map((work) => (
-              <li key={work.id} className="text-sm text-foreground">
-                {work.title}
-                <span className="ml-2 text-muted-foreground">
-                  {work.priority} priority
-                </span>
-              </li>
-            ))}
+            {unselectedWork.map((work) => {
+              const blocker = findUnresolvedDependency(work);
+              return (
+                <li key={work.id} className="text-sm text-foreground">
+                  {work.title}
+                  <span className="ml-2 text-muted-foreground">
+                    {work.priority} priority
+                  </span>
+                  {blocker && (
+                    <span className="ml-2 text-warning">
+                      blocked by "{blocker.title}"
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </Card>
       )}

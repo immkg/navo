@@ -588,6 +588,34 @@ describe("PlanDetailPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows why an unselected work item is blocked, when it's waiting on a dependency", async () => {
+    const plan = basePlan({ status: "draft", stops: [] });
+    vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+    workApi.getWorkItems.mockResolvedValue([
+      {
+        id: "w-blocked",
+        title: "Confirm final headcount",
+        status: "todo",
+        priority: "medium",
+        intent: null,
+        dependsOn: [
+          {
+            dependsOn: { id: "w-prereq", title: "Decide on caterer", status: "todo" },
+          },
+        ],
+      },
+    ]);
+
+    renderPage();
+
+    expect(
+      await screen.findByText("Confirm final headcount")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('blocked by "Decide on caterer"')
+    ).toBeInTheDocument();
+  });
+
   it("edits a draft plan's start/end window", async () => {
     const plan = basePlan({ status: "draft" });
     vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);

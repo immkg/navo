@@ -20,6 +20,10 @@ router.get("/", async (req, res) => {
         locationOptions: {
           include: { locations: true },
         },
+        // Lets the frontend explain *why* a work item never gets scheduled
+        // (see PlanDetailPage's "blocked by" label) rather than just
+        // showing it in a flat "not included" list with no reason.
+        dependsOn: { include: { dependsOn: true } },
       },
       orderBy: { createdAt: "desc" },
     });
