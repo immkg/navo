@@ -14,6 +14,7 @@ import { useWorkItems } from "../modules/work/hooks";
 import { useIntent } from "../modules/intents/hooks";
 import PlanLocationPicker from "../modules/plan/PlanLocationPicker";
 import {
+  computeSmartDefaultDurationMinutes,
   getPlanDisplayTitle,
   PLAN_ENERGY_LEVEL_OPTIONS,
   toDateTimeLocalValue,
@@ -67,7 +68,28 @@ export default function PlansListPage() {
   const [end, setEnd] = useState(emptyLocation(8));
   const [energyLevel, setEnergyLevel] = useState("high");
   const [useAccurateTravelTime, setUseAccurateTravelTime] = useState(false);
+  const [hasEditedEnd, setHasEditedEnd] = useState(false);
   const hasAutoOpenedForIntentRef = useRef(false);
+  const hasAppliedSmartEndRef = useRef(false);
+
+  // Replaces the flat +8h default with an estimate from eligible work
+  // duration once it's loaded — but only if the person hasn't already
+  // started editing End themselves, and only ever once (a later work-item
+  // edit shouldn't yank the window out from under someone mid-edit).
+  useEffect(() => {
+    if (hasAppliedSmartEndRef.current || hasEditedEnd) return;
+    if (workItems.length === 0) return;
+    hasAppliedSmartEndRef.current = true;
+    const smartMinutes = computeSmartDefaultDurationMinutes(workItems);
+    if (smartMinutes == null) return;
+    const timeoutId = setTimeout(() => {
+      setEnd((previous) => ({
+        ...previous,
+        dateTime: toDateTimeLocalValue(Date.now() + smartMinutes * 60000),
+      }));
+    }, 0);
+    return () => clearTimeout(timeoutId);
+  }, [workItems, hasEditedEnd]);
 
   const intentWorkIds = useMemo(
     () =>
@@ -212,7 +234,14 @@ export default function PlansListPage() {
               onChange={setStart}
               autoDetectOnMount
             />
-            <PlanLocationPicker legend="End" value={end} onChange={setEnd} />
+            <PlanLocationPicker
+              legend="End"
+              value={end}
+              onChange={(next) => {
+                setHasEditedEnd(true);
+                setEnd(next);
+              }}
+            />
 
             <label className="block space-y-1">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

@@ -269,6 +269,47 @@ describe("PlansListPage", () => {
     expect(await screen.findByText("Plan detail stub")).toBeInTheDocument();
   });
 
+  it("defaults End to a smart estimate from eligible work duration instead of a flat +8h", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+    vi.spyOn(workApi, "getWorkItems").mockResolvedValue([
+      { id: "w1", status: "todo", durationMinutes: 30 },
+      { id: "w2", status: "todo", durationMinutes: 45 },
+      { id: "w3", status: "done", durationMinutes: 999 },
+    ]);
+
+    renderPage({ route: "/?new=1" });
+
+    // (30 + 10) + (45 + 10) = 95 minutes — the done item is excluded, and
+    // this is nowhere near the flat 8-hour (480-minute) default.
+    expect(
+      await screen.findByText(/Window: 1 hr 35 min\./)
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a manually-edited End instead of overwriting it once work items load", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+    let resolveWorkItems;
+    vi.spyOn(workApi, "getWorkItems").mockReturnValue(
+      new Promise((resolve) => {
+        resolveWorkItems = resolve;
+      })
+    );
+
+    renderPage({ route: "/?new=1" });
+
+    const endDateTimeInputs = await screen.findAllByLabelText(/date/i);
+    fireEvent.change(endDateTimeInputs[1], {
+      target: { value: "2026-08-22T20:00" },
+    });
+
+    resolveWorkItems([{ id: "w1", status: "todo", durationMinutes: 30 }]);
+    await waitFor(() =>
+      expect(screen.getAllByLabelText(/date/i)[1]).toHaveValue(
+        "2026-08-22T20:00"
+      )
+    );
+  });
+
   it("auto-opens the create form when arriving with ?new=1, with no intent involved", async () => {
     vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
 

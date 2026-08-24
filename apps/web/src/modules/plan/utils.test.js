@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeSmartDefaultDurationMinutes,
   findBehindScheduleStop,
   findNearbyOpportunities,
   findUnresolvedDependency,
@@ -14,6 +15,48 @@ function work(overrides = {}) {
     ...overrides,
   };
 }
+
+describe("computeSmartDefaultDurationMinutes", () => {
+  it("returns null when there is no eligible work", () => {
+    expect(computeSmartDefaultDurationMinutes([])).toBe(null);
+    expect(computeSmartDefaultDurationMinutes([work({ status: "done" })])).toBe(
+      null
+    );
+  });
+
+  it("sums eligible work duration plus a rough per-item travel allowance", () => {
+    const minutes = computeSmartDefaultDurationMinutes([
+      work({ id: "w1", durationMinutes: 30, status: "todo" }),
+      work({ id: "w2", durationMinutes: 45, status: "todo" }),
+      work({ id: "w3", durationMinutes: 20, status: "done" }),
+    ]);
+    // (30 + 10) + (45 + 10) — the done item is excluded entirely.
+    expect(minutes).toBe(95);
+  });
+
+  it("defaults a missing durationMinutes to 30", () => {
+    const minutes = computeSmartDefaultDurationMinutes([
+      work({ id: "w1", status: "todo", durationMinutes: undefined }),
+      work({ id: "w2", status: "todo", durationMinutes: undefined }),
+    ]);
+    // (30 + 10) * 2 = 80, above the 60-minute floor.
+    expect(minutes).toBe(80);
+  });
+
+  it("floors at 1 hour for a light backlog", () => {
+    const minutes = computeSmartDefaultDurationMinutes([
+      work({ status: "todo", durationMinutes: 5 }),
+    ]);
+    expect(minutes).toBe(60);
+  });
+
+  it("caps at 10 hours for a heavy backlog", () => {
+    const heavyBacklog = Array.from({ length: 50 }, (_, index) =>
+      work({ id: `w${index}`, status: "todo", durationMinutes: 60 })
+    );
+    expect(computeSmartDefaultDurationMinutes(heavyBacklog)).toBe(600);
+  });
+});
 
 describe("findNearbyOpportunities", () => {
   it("returns nothing when the current location is unknown", () => {

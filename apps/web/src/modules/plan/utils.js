@@ -11,6 +11,35 @@ export function toDateTimeLocalValue(date) {
   return local.toISOString().slice(0, 16);
 }
 
+const ROUGH_TRAVEL_MINUTES_PER_ITEM = 10;
+const MIN_SMART_DEFAULT_MINUTES = 60;
+const MAX_SMART_DEFAULT_MINUTES = 10 * 60;
+
+// The create-plan form otherwise defaults End to a flat +8h from Start,
+// which is wrong both when there's barely anything eligible to do (an
+// unnecessarily long window to babysit) and when there's more than 8
+// hours' worth (silently drops work the person never chose to exclude).
+// Estimating from the sum of eligible work duration plus a rough per-item
+// travel allowance gets the initial window closer to right, without
+// pretending to know the real route (that's buildPlan's job, and it needs
+// real start/end coordinates this form doesn't have yet). Returns null
+// when there's nothing eligible — the caller keeps its own flat fallback
+// rather than defaulting to a 1-hour plan for an empty backlog.
+export function computeSmartDefaultDurationMinutes(workItems) {
+  const eligible = workItems.filter((item) => item.status !== "done");
+  if (eligible.length === 0) return null;
+
+  const totalMinutes = eligible.reduce(
+    (sum, item) =>
+      sum + (item.durationMinutes || 30) + ROUGH_TRAVEL_MINUTES_PER_ITEM,
+    0
+  );
+  return Math.min(
+    MAX_SMART_DEFAULT_MINUTES,
+    Math.max(MIN_SMART_DEFAULT_MINUTES, totalMinutes)
+  );
+}
+
 const EARTH_RADIUS_KM = 6371;
 
 function haversineKm(a, b) {
