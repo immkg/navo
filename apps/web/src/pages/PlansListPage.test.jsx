@@ -43,6 +43,48 @@ describe("PlansListPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("auto-detects the start location so only End needs a manual pick", async () => {
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 10, longitude: 20 } }),
+    };
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+    vi.spyOn(plansApi, "createPlan").mockResolvedValue({
+      id: "plan-new",
+      stops: [],
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByText("+ New plan"));
+
+    // Start's auto-detect is deferred a tick and goes through an async
+    // geolocation callback — wait for it to actually land before relying
+    // on it.
+    await screen.findByDisplayValue("Current location");
+
+    // Only End's manual-entry fallback is needed now — Start should already
+    // be filled in from geolocation.
+    fireEvent.click(screen.getAllByText("Enter coordinates manually")[1]);
+    fireEvent.change(screen.getAllByLabelText("Latitude")[1], {
+      target: { value: "56" },
+    });
+    fireEvent.change(screen.getAllByLabelText("Longitude")[1], {
+      target: { value: "78" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create plan" }));
+
+    await waitFor(() => expect(plansApi.createPlan).toHaveBeenCalled());
+    const [payload] = plansApi.createPlan.mock.calls[0];
+    expect(payload.startLatitude).toBe(10);
+    expect(payload.startLongitude).toBe(20);
+    expect(payload.endLatitude).toBe(56);
+    expect(payload.endLongitude).toBe(78);
+
+    delete navigator.geolocation;
+  });
+
   it("creates a plan from the form and navigates to its detail page", async () => {
     vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
     vi.spyOn(plansApi, "createPlan").mockResolvedValue({
