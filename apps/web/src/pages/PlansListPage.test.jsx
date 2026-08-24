@@ -5,6 +5,7 @@ import { renderWithProviders } from "../test/renderWithProviders";
 import * as plansApi from "../api/plans";
 import * as workApi from "../api/work";
 import * as intentsApi from "../api/intents";
+import * as planTemplatesApi from "../api/planTemplates";
 import PlansListPage from "./PlansListPage";
 
 function renderPage({ route = "/" } = {}) {
@@ -319,5 +320,95 @@ describe("PlansListPage", () => {
       await screen.findByRole("button", { name: "Create plan" })
     ).toBeInTheDocument();
     expect(screen.queryByText(/^Including /)).not.toBeInTheDocument();
+  });
+
+  describe("plan templates", () => {
+    it("saves the current window shape as a named template", async () => {
+      vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+      vi.spyOn(planTemplatesApi, "getPlanTemplates").mockResolvedValue([]);
+      vi.spyOn(planTemplatesApi, "createPlanTemplate").mockResolvedValue({
+        id: "tmpl-1",
+        name: "Morning errands",
+        durationMinutes: 480,
+        energyLevel: "high",
+        useAccurateTravelTime: false,
+      });
+
+      renderPage({ route: "/?new=1" });
+
+      fireEvent.click(await screen.findByText("💾 Save as template"));
+      fireEvent.change(
+        screen.getByPlaceholderText("Template name, e.g. Morning errands"),
+        { target: { value: "Morning errands" } }
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      await waitFor(() =>
+        expect(planTemplatesApi.createPlanTemplate).toHaveBeenCalled()
+      );
+      expect(planTemplatesApi.createPlanTemplate.mock.calls[0][0]).toEqual(
+        expect.objectContaining({
+          name: "Morning errands",
+          energyLevel: "high",
+          useAccurateTravelTime: false,
+        })
+      );
+      expect(
+        await screen.findByText('Saved "Morning errands" as a template.')
+      ).toBeInTheDocument();
+    });
+
+    it("pre-fills the form when a saved template is chosen", async () => {
+      vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+      vi.spyOn(planTemplatesApi, "getPlanTemplates").mockResolvedValue([
+        {
+          id: "tmpl-1",
+          name: "Gym + market loop",
+          durationMinutes: 90,
+          energyLevel: "low",
+          useAccurateTravelTime: true,
+        },
+      ]);
+
+      renderPage({ route: "/?new=1" });
+
+      fireEvent.click(await screen.findByText("Gym + market loop"));
+
+      expect(screen.getByDisplayValue("Gym + market loop")).toBeInTheDocument();
+      expect(screen.getByLabelText("Energy level")).toHaveValue("low");
+      expect(
+        screen.getByLabelText(
+          "Use real driving time (Google Maps) instead of straight-line distance"
+        )
+      ).toBeChecked();
+      expect(screen.getByText(/Window: 1 hr 30 min/)).toBeInTheDocument();
+    });
+
+    it("deletes a saved template", async () => {
+      vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+      vi.spyOn(planTemplatesApi, "getPlanTemplates").mockResolvedValue([
+        {
+          id: "tmpl-1",
+          name: "Gym + market loop",
+          durationMinutes: 90,
+          energyLevel: "low",
+          useAccurateTravelTime: true,
+        },
+      ]);
+      vi.spyOn(planTemplatesApi, "deletePlanTemplate").mockResolvedValue();
+
+      renderPage({ route: "/?new=1" });
+
+      await screen.findByText("Gym + market loop");
+      fireEvent.click(
+        screen.getByLabelText("Delete template Gym + market loop")
+      );
+
+      await waitFor(() =>
+        expect(planTemplatesApi.deletePlanTemplate).toHaveBeenCalledWith(
+          "tmpl-1"
+        )
+      );
+    });
   });
 });

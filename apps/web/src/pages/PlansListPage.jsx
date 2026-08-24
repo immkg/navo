@@ -6,8 +6,11 @@ import Badge from "../components/ui/Badge";
 import { useNotifications } from "../hooks/useNotifications";
 import {
   useCreatePlan,
+  useCreatePlanTemplate,
   useDeletePlan,
+  useDeletePlanTemplate,
   usePlans,
+  usePlanTemplates,
   useUpdatePlan,
 } from "../modules/plan/hooks";
 import { useWorkItems } from "../modules/work/hooks";
@@ -61,6 +64,9 @@ export default function PlansListPage() {
   const createPlanMutation = useCreatePlan();
   const updatePlanMutation = useUpdatePlan();
   const deletePlanMutation = useDeletePlan();
+  const { data: templates = [] } = usePlanTemplates();
+  const createTemplateMutation = useCreatePlanTemplate();
+  const deleteTemplateMutation = useDeletePlanTemplate();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [title, setTitle] = useState("");
@@ -69,6 +75,8 @@ export default function PlansListPage() {
   const [energyLevel, setEnergyLevel] = useState("high");
   const [useAccurateTravelTime, setUseAccurateTravelTime] = useState(false);
   const [hasEditedEnd, setHasEditedEnd] = useState(false);
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [templateNameDraft, setTemplateNameDraft] = useState("");
   const hasAutoOpenedForIntentRef = useRef(false);
   const hasAppliedSmartEndRef = useRef(false);
 
@@ -128,6 +136,62 @@ export default function PlansListPage() {
     setEnergyLevel("high");
     setUseAccurateTravelTime(false);
     setShowCreateForm(false);
+    setShowSaveTemplate(false);
+    setTemplateNameDraft("");
+  };
+
+  // Recurring/template plans (#84): captures the window's shape (duration
+  // + energy + routing preference), never coordinates or specific work —
+  // those change day to day, but the shape usually doesn't.
+  const handleSaveAsTemplate = async () => {
+    const name = templateNameDraft.trim();
+    if (!name) return;
+    const durationMinutes = Math.round(
+      (new Date(end.dateTime).getTime() - new Date(start.dateTime).getTime()) /
+        60000
+    );
+    if (!Number.isFinite(durationMinutes) || durationMinutes <= 0) {
+      notify("Set a start and end time before saving a template.");
+      return;
+    }
+
+    try {
+      await createTemplateMutation.mutateAsync({
+        name,
+        durationMinutes,
+        energyLevel,
+        useAccurateTravelTime,
+      });
+      setShowSaveTemplate(false);
+      setTemplateNameDraft("");
+      notify(`Saved "${name}" as a template.`, { type: "info" });
+    } catch (error) {
+      console.error("Failed to save plan template", error);
+      notify(error.response?.data?.error || "Failed to save template");
+    }
+  };
+
+  const handleUseTemplate = (template) => {
+    setTitle(template.name);
+    setEnergyLevel(template.energyLevel);
+    setUseAccurateTravelTime(template.useAccurateTravelTime);
+    setHasEditedEnd(true);
+    setEnd((previous) => ({
+      ...previous,
+      dateTime: toDateTimeLocalValue(
+        new Date(start.dateTime).getTime() + template.durationMinutes * 60000
+      ),
+    }));
+  };
+
+  const handleDeleteTemplate = async (event, templateId) => {
+    event.stopPropagation();
+    try {
+      await deleteTemplateMutation.mutateAsync(templateId);
+    } catch (error) {
+      console.error("Failed to delete plan template", error);
+      notify(error.response?.data?.error || "Failed to delete template");
+    }
   };
 
   const handleDelete = async (event, plan) => {
@@ -216,6 +280,40 @@ export default function PlansListPage() {
       {showCreateForm && (
         <Card padding="lg" className="mb-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {templates.length > 0 && (
+              <div className="space-y-1">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Start from a template
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {templates.map((template) => (
+                    <div
+                      key={template.id}
+                      className="flex items-center gap-1 rounded-full border border-border bg-surface-alt pl-1"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleUseTemplate(template)}
+                        className="rounded-full px-2.5 py-1.5 text-xs font-semibold text-foreground transition hover:text-primary"
+                      >
+                        {template.name}
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Delete template ${template.name}`}
+                        onClick={(event) =>
+                          handleDeleteTemplate(event, template.id)
+                        }
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface hover:text-danger"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <label className="block space-y-1">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Title (optional)
@@ -272,6 +370,42 @@ export default function PlansListPage() {
               Use real driving time (Google Maps) instead of straight-line
               distance
             </label>
+
+            {showSaveTemplate ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  value={templateNameDraft}
+                  onChange={(event) => setTemplateNameDraft(event.target.value)}
+                  placeholder="Template name, e.g. Morning errands"
+                  className="block min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="primary"
+                  onClick={handleSaveAsTemplate}
+                  disabled={createTemplateMutation.isPending}
+                >
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowSaveTemplate(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowSaveTemplate(true)}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline"
+              >
+                💾 Save as template
+              </button>
+            )}
 
             {intentId && (
               <p className="text-sm text-muted-foreground">
