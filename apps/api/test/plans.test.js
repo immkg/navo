@@ -313,6 +313,52 @@ test("PATCH /api/plans/:id rejects an invalid energyLevel", async () => {
   assert.equal(response.statusCode, 400);
 });
 
+test("POST /api/plans never schedules work blocked by an unresolved dependency, end to end through the real dependency API", async () => {
+  const prereq = await prisma.work.create({
+    data: {
+      title: "Decide on caterer",
+      locationOptions: {
+        create: {
+          locations: {
+            create: { name: "Caterer office", latitude: 0.001, longitude: 0 },
+          },
+        },
+      },
+    },
+  });
+  const blocked = await prisma.work.create({
+    data: {
+      title: "Confirm final headcount with caterer",
+      locationOptions: {
+        create: {
+          locations: {
+            create: { name: "Caterer office", latitude: 0.001, longitude: 0 },
+          },
+        },
+      },
+    },
+  });
+  await request(app)
+    .post(`/api/work/${blocked.id}/dependency`)
+    .send({ dependsOnId: prereq.id });
+
+  const response = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    startLatitude: 0,
+    startLongitude: 0,
+    endAt: "2026-08-22T10:00:00.000Z",
+    endLatitude: 0,
+    endLongitude: 0,
+  });
+
+  assert.equal(response.statusCode, 201);
+  const scheduledWorkIds = response.body.stops.flatMap((stop) =>
+    stop.works.map((assignment) => assignment.work.id)
+  );
+  assert.ok(scheduledWorkIds.includes(prereq.id));
+  assert.ok(!scheduledWorkIds.includes(blocked.id));
+});
+
 test("PATCH /api/plans/:id rebuilds stops when energyLevel changes, preferring lower-energy work", async () => {
   const demanding = await prisma.work.create({
     data: {

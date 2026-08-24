@@ -445,6 +445,76 @@ test("buildPlan excludes done work and force-excluded work ids from the candidat
   assert.equal(result.unselectedWork.length, 0);
 });
 
+test("buildPlan never schedules work whose dependency isn't done yet", async () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const blocked = makeWork({
+    id: "blocked",
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.001, longitude: 0 }] },
+    ],
+    dependsOn: [{ dependsOn: { id: "prereq", status: "todo" } }],
+  });
+
+  const result = await buildPlan({
+    workItems: [blocked],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 60 * 60000),
+    now,
+  });
+
+  assert.equal(result.stops.length, 0);
+  // Excluded outright, same tier as a done work item — not merely
+  // "didn't fit the budget".
+  assert.equal(result.unselectedWork.length, 0);
+});
+
+test("buildPlan schedules work once its dependency is done", async () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const unblocked = makeWork({
+    id: "unblocked",
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.001, longitude: 0 }] },
+    ],
+    dependsOn: [{ dependsOn: { id: "prereq", status: "done" } }],
+  });
+
+  const result = await buildPlan({
+    workItems: [unblocked],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 60 * 60000),
+    now,
+  });
+
+  assert.equal(result.stops.length, 1);
+});
+
+test("buildPlan ignores forceIncludeWorkIds for a dependency-blocked work item — force-include can't bypass a hard constraint", async () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const blocked = makeWork({
+    id: "blocked",
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.001, longitude: 0 }] },
+    ],
+    dependsOn: [{ dependsOn: { id: "prereq", status: "todo" } }],
+  });
+
+  const result = await buildPlan({
+    workItems: [blocked],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 60 * 60000),
+    forceIncludeWorkIds: ["blocked"],
+    now,
+  });
+
+  assert.equal(result.stops.length, 0);
+});
+
 test("buildPlan threads resolvedAssignmentKeys through, routing only to the unresolved location", async () => {
   const now = new Date("2026-08-22T09:00:00Z");
   const twoBranches = makeWork({

@@ -2,7 +2,7 @@ const express = require("express");
 const prisma = require("../db/client");
 const { deleteWorkItems } = require("../services/workService");
 const { isRecordNotFoundError } = require("../utils/prismaErrors");
-const { scoreWork } = require("../services/planBuilder");
+const { isBlockedByDependency, scoreWork } = require("../services/planBuilder");
 
 const router = express.Router();
 const VALID_STATUSES = new Set(["todo", "in_progress", "done"]);
@@ -45,10 +45,14 @@ router.get("/recommended", async (req, res) => {
 
     const workItems = await prisma.work.findMany({
       where: { status: { not: "done" } },
-      include: { intent: true },
+      include: {
+        intent: true,
+        dependsOn: { include: { dependsOn: true } },
+      },
     });
 
     const ranked = workItems
+      .filter((work) => !isBlockedByDependency(work))
       .sort((a, b) => scoreWork(b, b.intent, now) - scoreWork(a, a.intent, now))
       .slice(0, limit);
 

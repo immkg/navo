@@ -36,6 +36,16 @@ function priorityPoints(priority) {
   return PRIORITY_POINTS[priority] ?? PRIORITY_POINTS.medium;
 }
 
+// Work is a network, not a list — a work item whose prerequisite isn't
+// done yet is never schedulable, no matter how it scores. `work.dependsOn`
+// is the Prisma shape: WorkDependency rows for this work item, each with
+// its own `.dependsOn` pointing at the prerequisite Work row.
+function isBlockedByDependency(work) {
+  return (work.dependsOn || []).some(
+    (dependency) => dependency.dependsOn?.status !== "done"
+  );
+}
+
 const ENERGY_ORDER = { low: 0, medium: 1, high: 2 };
 
 // 1 = fits comfortably within the plan's energy level. A work item that
@@ -366,7 +376,10 @@ async function buildPlan({
   const includeSet = new Set(forceIncludeWorkIds);
 
   const eligibleWork = workItems.filter(
-    (work) => work.status !== "done" && !excludeSet.has(work.id)
+    (work) =>
+      work.status !== "done" &&
+      !excludeSet.has(work.id) &&
+      !isBlockedByDependency(work)
   );
   const entries = buildEligibleEntries(
     eligibleWork,
@@ -410,6 +423,7 @@ module.exports = {
   estimateTravelMinutes,
   collectDistinctPoints,
   resolveTravelTimeMinutesFn,
+  isBlockedByDependency,
   buildEligibleEntries,
   groupEntriesByLocation,
   buildRoute,
