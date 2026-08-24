@@ -1,4 +1,4 @@
-const { buildPlan } = require("./planBuilder");
+const { buildPlan, ANCHOR_LOCATION_ID } = require("./planBuilder");
 
 // Applies to PlanStop.status and PlanStopWork.status alike — both use the
 // same vocabulary for "this is settled, stop reconsidering it".
@@ -195,15 +195,37 @@ async function rebuildPlanStops(
         planEnergyLevel: plan.energyLevel,
       });
 
+      // planBuilder pins location-less work to a synthetic anchor location
+      // (same id for every such stop) rather than dropping it — but
+      // PlanStop.locationId is a real foreign key, so that placeholder must
+      // become an actual Location row before it can be persisted. Created
+      // fresh per rebuild rather than reused across rebuilds: simpler, and
+      // the row is cheap.
+      let anchorLocationId = null;
+
       let order = Math.max(-1, ...frozenStops.map((stop) => stop.order)) + 1;
       for (const stop of stops) {
         const uniqueWorkIds = [
           ...new Set(stop.entries.map((entry) => entry.work.id)),
         ];
+        let locationId = stop.location.id;
+        if (locationId === ANCHOR_LOCATION_ID) {
+          if (!anchorLocationId) {
+            const anchorLocation = await tx.location.create({
+              data: {
+                name: stop.location.name || "Anywhere",
+                latitude: stop.location.latitude,
+                longitude: stop.location.longitude,
+              },
+            });
+            anchorLocationId = anchorLocation.id;
+          }
+          locationId = anchorLocationId;
+        }
         await tx.planStop.create({
           data: {
             planId,
-            locationId: stop.location.id,
+            locationId,
             order,
             plannedArrivalAt: stop.plannedArrivalAt,
             plannedDepartureAt: stop.plannedDepartureAt,
