@@ -240,7 +240,12 @@ describe("PlanDetailPage", () => {
             status: "planned",
             plannedArrivalAt: "2026-08-22T09:10:00.000Z",
             plannedDepartureAt: "2026-08-22T09:20:00.000Z",
-            location: { id: "loc-1", name: "Pharmacy", latitude: 1, longitude: 1 },
+            location: {
+              id: "loc-1",
+              name: "Pharmacy",
+              latitude: 1,
+              longitude: 1,
+            },
             works: [],
           },
         ],
@@ -304,7 +309,9 @@ describe("PlanDetailPage", () => {
     });
     expect(plansApi.updatePlanStopWork).not.toHaveBeenCalled();
 
-    fireEvent.click(within(confirmDialog).getByRole("button", { name: "Skip" }));
+    fireEvent.click(
+      within(confirmDialog).getByRole("button", { name: "Skip" })
+    );
 
     await waitFor(() =>
       expect(plansApi.updatePlanStopWork).toHaveBeenCalledWith(
@@ -484,11 +491,14 @@ describe("PlanDetailPage", () => {
 
     renderPage();
 
-    const banner = (await screen.findByText(/Running behind/)).closest("div")
-      .parentElement;
+    const banner = (await screen.findByText(/Running behind/)).closest(
+      "div"
+    ).parentElement;
     expect(within(banner).getByText(/Pharmacy/)).toBeInTheDocument();
 
-    fireEvent.click(within(banner).getByRole("button", { name: /Re-check plan/ }));
+    fireEvent.click(
+      within(banner).getByRole("button", { name: /Re-check plan/ })
+    );
 
     await waitFor(() =>
       expect(plansApi.recheckPlan).toHaveBeenCalledWith("plan-1", {
@@ -568,9 +578,7 @@ describe("PlanDetailPage", () => {
 
     renderPage();
 
-    expect(
-      await screen.findByText("Return library books")
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Return library books")).toBeInTheDocument();
     expect(
       screen.getByText("1 work item not included in this plan.")
     ).toBeInTheDocument();
@@ -600,7 +608,11 @@ describe("PlanDetailPage", () => {
         intent: null,
         dependsOn: [
           {
-            dependsOn: { id: "w-prereq", title: "Decide on caterer", status: "todo" },
+            dependsOn: {
+              id: "w-prereq",
+              title: "Decide on caterer",
+              status: "todo",
+            },
           },
         ],
       },

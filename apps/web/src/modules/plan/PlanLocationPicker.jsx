@@ -239,8 +239,7 @@ export default function PlanLocationPicker({ legend, value, onChange }) {
         </div>
         {(latitudeInputIsInvalid || longitudeInputIsInvalid) && (
           <p className="mt-1 text-sm text-danger">
-            Latitude must be between -90 and 90, longitude between -180 and
-            180.
+            Latitude must be between -90 and 90, longitude between -180 and 180.
           </p>
         )}
       </details>

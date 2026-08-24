@@ -39,19 +39,16 @@ describe("distanceLabel", () => {
 
 describe("buildGoogleMapsDirectionsUrl", () => {
   it("returns a plain maps link when there are no stops", () => {
-    expect(buildGoogleMapsDirectionsUrl({ latitude: 0, longitude: 0 }, [])).toBe(
-      "https://www.google.com/maps"
-    );
+    expect(
+      buildGoogleMapsDirectionsUrl({ latitude: 0, longitude: 0 }, [])
+    ).toBe("https://www.google.com/maps");
   });
 
   it("uses real coordinates for origin, destination, and waypoints when available", () => {
-    const url = buildGoogleMapsDirectionsUrl(
-      { latitude: 0, longitude: 0 },
-      [
-        { location: { latitude: 1, longitude: 1, name: "A" } },
-        { location: { latitude: 2, longitude: 2, name: "B" } },
-      ]
-    );
+    const url = buildGoogleMapsDirectionsUrl({ latitude: 0, longitude: 0 }, [
+      { location: { latitude: 1, longitude: 1, name: "A" } },
+      { location: { latitude: 2, longitude: 2, name: "B" } },
+    ]);
 
     expect(url).toContain("origin=0,0");
     expect(url).toContain("destination=2,2");
@@ -63,9 +60,10 @@ describe("buildGoogleMapsDirectionsUrl", () => {
   // stop's own name as the origin when the start point had no coordinates —
   // producing a route from a place to itself.
   it("never points a single-stop leg's origin at its own destination when the start has no coordinates", () => {
-    const url = buildGoogleMapsDirectionsUrl({ latitude: null, longitude: null }, [
-      { location: { latitude: 10, longitude: 20, name: "Pharmacy" } },
-    ]);
+    const url = buildGoogleMapsDirectionsUrl(
+      { latitude: null, longitude: null },
+      [{ location: { latitude: 10, longitude: 20, name: "Pharmacy" } }]
+    );
 
     expect(url).not.toContain("origin=Pharmacy");
     expect(url).not.toMatch(/origin=[^&]*Pharmacy/);
@@ -78,8 +76,6 @@ describe("buildGoogleMapsDirectionsUrl", () => {
       { location: { latitude: 5, longitude: 5, name: "Somewhere" } },
     ]);
 
-    expect(url).toBe(
-      "https://www.google.com/maps/dir/?api=1&destination=5,5"
-    );
+    expect(url).toBe("https://www.google.com/maps/dir/?api=1&destination=5,5");
   });
 });

@@ -65,10 +65,7 @@ describe("findNearbyOpportunities", () => {
       ],
     });
 
-    const opportunities = findNearbyOpportunities(current, [
-      farther,
-      nearer,
-    ]);
+    const opportunities = findNearbyOpportunities(current, [farther, nearer]);
 
     expect(opportunities.map((o) => o.work.id)).toEqual(["nearer", "farther"]);
   });
