@@ -51,6 +51,39 @@ test("rebuildPlanStops builds and persists stops for eligible work", async () =>
   assert.equal(result.unselectedWork.length, 0);
 });
 
+test("rebuildPlanStops persists location-less work at a real anchor Location instead of dropping it", async () => {
+  const work = await prisma.work.create({
+    data: { title: "Call the dentist to reschedule", durationMinutes: 10 },
+  });
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 12,
+      startLongitude: 34,
+      endAt: new Date("2026-08-22T10:00:00Z"),
+      endLatitude: 12,
+      endLongitude: 34,
+    },
+  });
+
+  const result = await rebuildPlanStops(prisma, plan.id, {
+    asOfAt: plan.startAt,
+    asOfLocation: { latitude: 12, longitude: 34 },
+  });
+
+  assert.equal(result.unselectedWork.length, 0);
+  assert.equal(result.plan.stops.length, 1);
+  const [stop] = result.plan.stops;
+  assert.equal(stop.works[0].work.id, work.id);
+  assert.ok(stop.locationId, "stop must reference a real, persisted Location");
+  const persistedLocation = await prisma.location.findUnique({
+    where: { id: stop.locationId },
+  });
+  assert.ok(persistedLocation, "anchor Location must actually exist in the DB");
+  assert.equal(persistedLocation.latitude, 12);
+  assert.equal(persistedLocation.longitude, 34);
+});
+
 test("rebuildPlanStops still builds stops when useAccurateTravelTime is on but no routing API key is configured (falls back to haversine)", async () => {
   delete process.env.GOOGLE_MAPS_API_KEY;
   const work = await prisma.work.create({

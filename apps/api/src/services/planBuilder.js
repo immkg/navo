@@ -46,6 +46,35 @@ function isBlockedByDependency(work) {
   );
 }
 
+// A stable id for the synthetic "no location needed" stop — see
+// resolveAnchorLocation. planPersistence.js recognizes this id and swaps in
+// a real Location row before writing a PlanStop, since PlanStop.locationId
+// is a real foreign key.
+const ANCHOR_LOCATION_ID = "__anchor__";
+
+// Location-less eligible work (a phone call, an admin task — anything that
+// doesn't need a place) would otherwise produce zero entries in
+// buildEligibleEntries and can never be scheduled. Pinning it to whichever
+// of start/end has real coordinates lets it ride along for free: the
+// router sees a candidate stop at the exact same point as that anchor, so
+// inserting it there adds effectively no travel time. Falls back to end
+// when start has none (e.g. still being detected), and to null when
+// neither does — callers just get zero entries for this work, same as
+// before.
+function resolveAnchorLocation(start, end) {
+  const point =
+    start?.latitude != null && start?.longitude != null ? start : end;
+  if (!point || point.latitude == null || point.longitude == null) {
+    return null;
+  }
+  return {
+    id: ANCHOR_LOCATION_ID,
+    name: "Anywhere",
+    latitude: point.latitude,
+    longitude: point.longitude,
+  };
+}
+
 const ENERGY_ORDER = { low: 0, medium: 1, high: 2 };
 
 // 1 = fits comfortably within the plan's energy level. A work item that
@@ -192,7 +221,8 @@ function buildEligibleEntries(
   now,
   forceIncludeSet,
   resolvedAssignmentKeys = new Set(),
-  planEnergyLevel = "high"
+  planEnergyLevel = "high",
+  anchorLocation = null
 ) {
   const entries = [];
 
@@ -201,7 +231,11 @@ function buildEligibleEntries(
       work.locationOptions?.find(
         (option) => option.id === work.selectedLocationOptionId
       ) || work.locationOptions?.[0];
-    const locations = chosenOption?.locations || [];
+    const locations = chosenOption?.locations?.length
+      ? chosenOption.locations
+      : anchorLocation
+        ? [anchorLocation]
+        : [];
     const value = forceIncludeSet.has(work.id)
       ? FORCE_INCLUDE_VALUE_BOOST
       : scoreWork(work, work.intent, now, planEnergyLevel);
@@ -386,7 +420,8 @@ async function buildPlan({
     now,
     includeSet,
     resolvedAssignmentKeys,
-    planEnergyLevel
+    planEnergyLevel,
+    resolveAnchorLocation(start, end)
   );
   const candidateStops = groupEntriesByLocation(entries);
   const travelTimeMinutesFn = await resolveTravelTimeMinutesFn({
@@ -424,6 +459,8 @@ module.exports = {
   collectDistinctPoints,
   resolveTravelTimeMinutesFn,
   isBlockedByDependency,
+  ANCHOR_LOCATION_ID,
+  resolveAnchorLocation,
   buildEligibleEntries,
   groupEntriesByLocation,
   buildRoute,

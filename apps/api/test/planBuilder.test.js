@@ -11,6 +11,8 @@ const {
   buildRoute,
   computeStopTimings,
   buildPlan,
+  resolveAnchorLocation,
+  ANCHOR_LOCATION_ID,
 } = require("../src/services/planBuilder");
 
 test("urgencyScore returns 0 when there is no due date", () => {
@@ -245,6 +247,54 @@ test("buildEligibleEntries boosts value for force-included work ids", () => {
   assert.ok(forced[0].value > normal[0].value);
 });
 
+test("resolveAnchorLocation pins to the start point when it has coordinates", () => {
+  const anchor = resolveAnchorLocation(
+    { latitude: 1, longitude: 2 },
+    { latitude: 3, longitude: 4 }
+  );
+  assert.equal(anchor.id, ANCHOR_LOCATION_ID);
+  assert.equal(anchor.latitude, 1);
+  assert.equal(anchor.longitude, 2);
+});
+
+test("resolveAnchorLocation falls back to the end point when the start has no coordinates", () => {
+  const anchor = resolveAnchorLocation(
+    { latitude: null, longitude: null },
+    { latitude: 3, longitude: 4 }
+  );
+  assert.equal(anchor.latitude, 3);
+  assert.equal(anchor.longitude, 4);
+});
+
+test("resolveAnchorLocation returns null when neither start nor end has coordinates", () => {
+  assert.equal(
+    resolveAnchorLocation(
+      { latitude: null, longitude: null },
+      { latitude: null, longitude: null }
+    ),
+    null
+  );
+});
+
+test("buildEligibleEntries pins a work item with no location options to the anchor location, when given one", () => {
+  const work = makeWork({ locationOptions: [] });
+  const anchor = { id: ANCHOR_LOCATION_ID, latitude: 0, longitude: 0 };
+
+  const withoutAnchor = buildEligibleEntries([work], new Date(), new Set());
+  const withAnchor = buildEligibleEntries(
+    [work],
+    new Date(),
+    new Set(),
+    new Set(),
+    "high",
+    anchor
+  );
+
+  assert.equal(withoutAnchor.length, 0);
+  assert.equal(withAnchor.length, 1);
+  assert.equal(withAnchor[0].location.id, ANCHOR_LOCATION_ID);
+});
+
 test("groupEntriesByLocation bundles work items that share a location and sums duration/value", () => {
   const location = { id: "loc1", latitude: 1, longitude: 1 };
   const entries = [
@@ -413,6 +463,31 @@ test("buildPlan selects eligible work within budget and reports the rest as unse
   assert.equal(result.stops[0].location.id, "loc-near");
   assert.equal(result.unselectedWork.length, 1);
   assert.equal(result.unselectedWork[0].id, "far");
+});
+
+test("buildPlan schedules location-less work at the start anchor instead of dropping it", async () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const remote = makeWork({
+    id: "remote",
+    durationMinutes: 10,
+    locationOptions: [],
+  });
+
+  const result = await buildPlan({
+    workItems: [remote],
+    start: { latitude: 12, longitude: 34 },
+    end: { latitude: 12, longitude: 34 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 60 * 60000),
+    now,
+  });
+
+  assert.equal(result.unselectedWork.length, 0);
+  assert.equal(result.stops.length, 1);
+  assert.equal(result.stops[0].location.id, ANCHOR_LOCATION_ID);
+  assert.equal(result.stops[0].location.latitude, 12);
+  assert.equal(result.stops[0].location.longitude, 34);
+  assert.equal(result.stops[0].entries[0].work.id, "remote");
 });
 
 test("buildPlan excludes done work and force-excluded work ids from the candidate pool entirely", async () => {
