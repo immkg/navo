@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { reverseGeocodeLocation, searchPlaces } from "../../utils/googleMaps";
 import Button from "../../components/ui/Button";
+import { getHomeLocation, setHomeLocation } from "./homeLocation";
 
 function isValidLatitude(value) {
   return Number.isFinite(value) && value >= -90 && value <= 90;
@@ -33,6 +34,7 @@ export default function PlanLocationPicker({
   // a search pick or "use current location").
   const [invalidLatitudeDraft, setInvalidLatitudeDraft] = useState(null);
   const [invalidLongitudeDraft, setInvalidLongitudeDraft] = useState(null);
+  const [homeLocation, setHomeLocationState] = useState(getHomeLocation);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
   const handleManualLatitudeChange = (rawValue) => {
@@ -145,6 +147,28 @@ export default function PlanLocationPicker({
     }
   };
 
+  const handleUseHome = () => {
+    if (!homeLocation) return;
+    const label = homeLocation.label || "Home";
+    setSearchQuery(label);
+    onChange({
+      ...value,
+      label,
+      latitude: homeLocation.latitude,
+      longitude: homeLocation.longitude,
+    });
+  };
+
+  const handleSaveAsHome = () => {
+    const next = {
+      label: value.label || null,
+      latitude: value.latitude,
+      longitude: value.longitude,
+    };
+    setHomeLocation(next);
+    setHomeLocationState(next);
+  };
+
   const handlePickResult = (place) => {
     setSearchQuery(place.name);
     onChange({
@@ -192,8 +216,21 @@ export default function PlanLocationPicker({
               }
             }}
             placeholder="Search a city or address"
-            className="block w-full rounded-xl border border-border bg-surface px-3 py-2 pr-11 text-sm text-foreground focus:border-primary focus:ring-primary"
+            className={`block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary ${
+              homeLocation ? "pr-20" : "pr-11"
+            }`}
           />
+          {homeLocation && (
+            <button
+              type="button"
+              onClick={handleUseHome}
+              aria-label="Use home"
+              title={`Use home (${homeLocation.label || "saved location"})`}
+              className="absolute right-9 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface-alt hover:text-foreground"
+            >
+              🏠
+            </button>
+          )}
           <button
             type="button"
             onClick={detectCurrentLocation}
@@ -220,6 +257,16 @@ export default function PlanLocationPicker({
         <p className="text-xs text-muted-foreground">
           Detecting your location…
         </p>
+      )}
+
+      {value.latitude != null && value.longitude != null && (
+        <button
+          type="button"
+          onClick={handleSaveAsHome}
+          className="text-xs font-semibold text-muted-foreground hover:text-foreground hover:underline"
+        >
+          📌 Save as home
+        </button>
       )}
 
       {searchError && <p className="text-sm text-danger">{searchError}</p>}
