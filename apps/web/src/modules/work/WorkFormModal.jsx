@@ -62,9 +62,7 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
   const [duration, setDuration] = useState(work?.durationMinutes || 15);
   const [status, setStatus] = useState(work?.status || "todo");
   const [priority, setPriority] = useState(work?.priority || "medium");
-  const [energyLevel, setEnergyLevel] = useState(
-    work?.energyLevel || "medium"
-  );
+  const [energyLevel, setEnergyLevel] = useState(work?.energyLevel || "medium");
   const initialGroups = buildLocationOptionGroupsFromWork(work);
   const [locationOptionGroups, setLocationOptionGroups] = useState(
     initialGroups.length > 0

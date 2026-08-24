@@ -98,7 +98,9 @@ test("buildPlanVariations gives the model an explicit, generous completion token
       return {
         ok: true,
         json: async () => ({
-          choices: [{ message: { content: JSON.stringify({ variations: [] }) } }],
+          choices: [
+            { message: { content: JSON.stringify({ variations: [] }) } },
+          ],
         }),
       };
     });

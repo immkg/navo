@@ -35,9 +35,7 @@ describe("RecommendedWorkPanel", () => {
   });
 
   it("requests the panel's own limit, independent of other recommended-work consumers", async () => {
-    const spy = vi
-      .spyOn(workApi, "getRecommendedWork")
-      .mockResolvedValue([]);
+    const spy = vi.spyOn(workApi, "getRecommendedWork").mockResolvedValue([]);
 
     renderWithProviders(<RecommendedWorkPanel />);
 

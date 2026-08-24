@@ -98,7 +98,8 @@ export default function PlanDetailPage() {
     () =>
       stops
         .map(
-          (stop) => `${stop.id}:${stop.location.latitude},${stop.location.longitude}`
+          (stop) =>
+            `${stop.id}:${stop.location.latitude},${stop.location.longitude}`
         )
         .join("|"),
     [stops]
@@ -107,7 +108,9 @@ export default function PlanDetailPage() {
   const assignedWorkIds = useMemo(
     () =>
       new Set(
-        stops.flatMap((stop) => stop.works.map((assignment) => assignment.work.id))
+        stops.flatMap((stop) =>
+          stop.works.map((assignment) => assignment.work.id)
+        )
       ),
     [stops]
   );
@@ -248,9 +251,7 @@ export default function PlanDetailPage() {
   ]);
 
   const isActive = plan?.status === "active";
-  const behindSchedule = isActive
-    ? findBehindScheduleStop(stops, now)
-    : null;
+  const behindSchedule = isActive ? findBehindScheduleStop(stops, now) : null;
 
   const handleStatusChange = async (status) => {
     try {
@@ -566,9 +567,9 @@ export default function PlanDetailPage() {
         <Card padding="md" className="mb-6 border-danger/30 bg-danger/5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-foreground">
-              Running behind — about {behindSchedule.minutesLate} min behind
-              at <strong>{behindSchedule.stop.location.name}</strong>. Your
-              route may no longer be accurate.
+              Running behind — about {behindSchedule.minutesLate} min behind at{" "}
+              <strong>{behindSchedule.stop.location.name}</strong>. Your route
+              may no longer be accurate.
             </p>
             <Button
               size="sm"

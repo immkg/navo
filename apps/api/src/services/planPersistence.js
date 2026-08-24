@@ -135,90 +135,90 @@ async function rebuildPlanStops(
 ) {
   return prisma.$transaction(
     async (tx) => {
-    const plan = await tx.plan.findUnique({
-      where: { id: planId },
-      include: { stops: { include: { works: true, location: true } } },
-    });
-    if (!plan) return null;
+      const plan = await tx.plan.findUnique({
+        where: { id: planId },
+        include: { stops: { include: { works: true, location: true } } },
+      });
+      if (!plan) return null;
 
-    const frozenStops = plan.stops.filter(isFrozen);
-    // Deliberately two different inputs. The per-(work, location) keys follow
-    // the frozen stops, because a kept stop's whole contents are off the
-    // table. The full work-item exclusion has to keep scanning *every* stop
-    // and judging each assignment's own status: an unresolved assignment
-    // sitting on a stop that is about to be rebuilt is exactly what keeps its
-    // work item eligible, and tying this to frozen-stop membership instead
-    // would force-exclude a work item from the branch it hasn't reached yet.
-    const resolvedAssignmentKeys = collectFrozenAssignmentKeys(frozenStops);
-    const resolvedWorkIds = collectFullyResolvedWorkIds(plan.stops);
+      const frozenStops = plan.stops.filter(isFrozen);
+      // Deliberately two different inputs. The per-(work, location) keys follow
+      // the frozen stops, because a kept stop's whole contents are off the
+      // table. The full work-item exclusion has to keep scanning *every* stop
+      // and judging each assignment's own status: an unresolved assignment
+      // sitting on a stop that is about to be rebuilt is exactly what keeps its
+      // work item eligible, and tying this to frozen-stop membership instead
+      // would force-exclude a work item from the branch it hasn't reached yet.
+      const resolvedAssignmentKeys = collectFrozenAssignmentKeys(frozenStops);
+      const resolvedWorkIds = collectFullyResolvedWorkIds(plan.stops);
 
-    const frozenStopIds = new Set(frozenStops.map((stop) => stop.id));
-    const staleStopIds = plan.stops
-      .filter((stop) => !frozenStopIds.has(stop.id))
-      .map((stop) => stop.id);
-    if (staleStopIds.length > 0) {
-      await tx.planStop.deleteMany({ where: { id: { in: staleStopIds } } });
-    }
+      const frozenStopIds = new Set(frozenStops.map((stop) => stop.id));
+      const staleStopIds = plan.stops
+        .filter((stop) => !frozenStopIds.has(stop.id))
+        .map((stop) => stop.id);
+      if (staleStopIds.length > 0) {
+        await tx.planStop.deleteMany({ where: { id: { in: staleStopIds } } });
+      }
 
-    // Frozen stops have already consumed real time, so a new stop can never
-    // start before the last of them is departed. Callers don't all know
-    // this — PATCH passes the plan's original startAt — so clamp here, where
-    // every caller benefits: it's a no-op for a fresh POST (no frozen stops)
-    // and a safety net for recheck (which already passes live data).
-    const lastDeparture = latestFrozenDeparture(frozenStops);
-    let effectiveAsOfAt = asOfAt;
-    let effectiveAsOfLocation = asOfLocation;
-    if (
-      lastDeparture &&
-      lastDeparture.departure.getTime() > new Date(asOfAt).getTime()
-    ) {
-      effectiveAsOfAt = lastDeparture.departure;
-      // The origin has to match the moment we're now starting from: at that
-      // departure time the traveller is at that stop, not wherever the
-      // caller guessed. (When the caller's own asOfAt is the later of the
-      // two, its location is the fresher one and is left alone.)
-      effectiveAsOfLocation = lastDeparture.location;
-    }
+      // Frozen stops have already consumed real time, so a new stop can never
+      // start before the last of them is departed. Callers don't all know
+      // this — PATCH passes the plan's original startAt — so clamp here, where
+      // every caller benefits: it's a no-op for a fresh POST (no frozen stops)
+      // and a safety net for recheck (which already passes live data).
+      const lastDeparture = latestFrozenDeparture(frozenStops);
+      let effectiveAsOfAt = asOfAt;
+      let effectiveAsOfLocation = asOfLocation;
+      if (
+        lastDeparture &&
+        lastDeparture.departure.getTime() > new Date(asOfAt).getTime()
+      ) {
+        effectiveAsOfAt = lastDeparture.departure;
+        // The origin has to match the moment we're now starting from: at that
+        // departure time the traveller is at that stop, not wherever the
+        // caller guessed. (When the caller's own asOfAt is the later of the
+        // two, its location is the fresher one and is left alone.)
+        effectiveAsOfLocation = lastDeparture.location;
+      }
 
-    const workItems = await loadEligibleWork(tx);
-    const { stops, unselectedWork } = await buildPlan({
-      workItems,
-      start: effectiveAsOfLocation,
-      end: { latitude: plan.endLatitude, longitude: plan.endLongitude },
-      startAt: effectiveAsOfAt,
-      endAt: plan.endAt,
-      forceIncludeWorkIds,
-      forceExcludeWorkIds: [...forceExcludeWorkIds, ...resolvedWorkIds],
-      resolvedAssignmentKeys,
-      now: effectiveAsOfAt,
-      useAccurateTravelTime: plan.useAccurateTravelTime,
-      planEnergyLevel: plan.energyLevel,
-    });
+      const workItems = await loadEligibleWork(tx);
+      const { stops, unselectedWork } = await buildPlan({
+        workItems,
+        start: effectiveAsOfLocation,
+        end: { latitude: plan.endLatitude, longitude: plan.endLongitude },
+        startAt: effectiveAsOfAt,
+        endAt: plan.endAt,
+        forceIncludeWorkIds,
+        forceExcludeWorkIds: [...forceExcludeWorkIds, ...resolvedWorkIds],
+        resolvedAssignmentKeys,
+        now: effectiveAsOfAt,
+        useAccurateTravelTime: plan.useAccurateTravelTime,
+        planEnergyLevel: plan.energyLevel,
+      });
 
-    let order = Math.max(-1, ...frozenStops.map((stop) => stop.order)) + 1;
-    for (const stop of stops) {
-      const uniqueWorkIds = [
-        ...new Set(stop.entries.map((entry) => entry.work.id)),
-      ];
-      await tx.planStop.create({
-        data: {
-          planId,
-          locationId: stop.location.id,
-          order,
-          plannedArrivalAt: stop.plannedArrivalAt,
-          plannedDepartureAt: stop.plannedDepartureAt,
-          works: { create: uniqueWorkIds.map((workId) => ({ workId })) },
+      let order = Math.max(-1, ...frozenStops.map((stop) => stop.order)) + 1;
+      for (const stop of stops) {
+        const uniqueWorkIds = [
+          ...new Set(stop.entries.map((entry) => entry.work.id)),
+        ];
+        await tx.planStop.create({
+          data: {
+            planId,
+            locationId: stop.location.id,
+            order,
+            plannedArrivalAt: stop.plannedArrivalAt,
+            plannedDepartureAt: stop.plannedDepartureAt,
+            works: { create: uniqueWorkIds.map((workId) => ({ workId })) },
+          },
+        });
+        order += 1;
+      }
+
+      const refreshedPlan = await tx.plan.findUnique({
+        where: { id: planId },
+        include: {
+          stops: { orderBy: { order: "asc" }, include: PLAN_STOP_INCLUDE },
         },
       });
-      order += 1;
-    }
-
-    const refreshedPlan = await tx.plan.findUnique({
-      where: { id: planId },
-      include: {
-        stops: { orderBy: { order: "asc" }, include: PLAN_STOP_INCLUDE },
-      },
-    });
 
       return { plan: refreshedPlan, unselectedWork };
     },
