@@ -2,10 +2,12 @@ const express = require("express");
 const prisma = require("../db/client");
 const { deleteWorkItems } = require("../services/workService");
 const { isRecordNotFoundError } = require("../utils/prismaErrors");
+const { scoreWork } = require("../services/planBuilder");
 
 const router = express.Router();
 const VALID_STATUSES = new Set(["todo", "in_progress", "done"]);
 const VALID_PRIORITIES = new Set(["low", "medium", "high"]);
+const DEFAULT_RECOMMENDED_LIMIT = 10;
 
 // Get all work items
 router.get("/", async (req, res) => {
@@ -24,6 +26,35 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch work items" });
+  }
+});
+
+// Not-done work ranked by the same priority/urgency score the plan builder
+// uses, highest first — powers "what should I do next" surfaces (the
+// Dashboard's recommended-work panel and next-best-action callout) without
+// requiring a Plan to exist. Registered before GET /:id so "recommended"
+// isn't swallowed as an id.
+router.get("/recommended", async (req, res) => {
+  try {
+    const limit = Math.max(
+      1,
+      Math.min(50, Number(req.query.limit) || DEFAULT_RECOMMENDED_LIMIT)
+    );
+    const now = new Date();
+
+    const workItems = await prisma.work.findMany({
+      where: { status: { not: "done" } },
+      include: { intent: true },
+    });
+
+    const ranked = workItems
+      .sort((a, b) => scoreWork(b, b.intent, now) - scoreWork(a, a.intent, now))
+      .slice(0, limit);
+
+    res.json(ranked);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to fetch recommended work" });
   }
 });
 

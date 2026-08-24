@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createWorkItem,
   deleteWorkItem,
+  getRecommendedWork,
   getWorkItems,
   updateWorkItem,
 } from "../../api/work";
@@ -72,6 +73,13 @@ function addWorkItemToCaches(queryClient, newWorkItem) {
 
 export function useWorkItems() {
   return useQuery({ queryKey: WORK_QUERY_KEY, queryFn: getWorkItems });
+}
+
+export function useRecommendedWork(limit) {
+  return useQuery({
+    queryKey: ["work", "recommended", limit],
+    queryFn: () => getRecommendedWork(limit),
+  });
 }
 
 export function useCreateWorkItem() {

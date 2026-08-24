@@ -537,3 +537,64 @@ test("PATCH /api/work/:id rejects an invalid priority", async () => {
 
   assert.equal(response.statusCode, 400);
 });
+
+test("GET /api/work/recommended ranks work by priority and due-date urgency, highest first", async () => {
+  const intent = await prisma.intent.create({
+    data: { title: "Errands", priority: "medium" },
+  });
+  const lowPriorityNoDue = await prisma.work.create({
+    data: { title: "Low priority", priority: "low", intentId: intent.id },
+  });
+  const overdueIntent = await prisma.intent.create({
+    data: {
+      title: "Overdue thing",
+      priority: "medium",
+      dueDate: new Date("2020-01-01"),
+    },
+  });
+  const overdue = await prisma.work.create({
+    data: {
+      title: "Overdue work",
+      priority: "medium",
+      intentId: overdueIntent.id,
+    },
+  });
+  const highPriority = await prisma.work.create({
+    data: { title: "High priority", priority: "high", intentId: intent.id },
+  });
+
+  const response = await request(app).get("/api/work/recommended");
+
+  assert.equal(response.statusCode, 200);
+  const ids = response.body.map((work) => work.id);
+  // Both overdue and high-priority should rank above the plain low-priority
+  // item; exact ordering between the two isn't asserted here since it
+  // depends on the same scoring function planBuilder already owns.
+  assert.ok(ids.indexOf(overdue.id) < ids.indexOf(lowPriorityNoDue.id));
+  assert.ok(ids.indexOf(highPriority.id) < ids.indexOf(lowPriorityNoDue.id));
+});
+
+test("GET /api/work/recommended excludes done work", async () => {
+  const done = await prisma.work.create({
+    data: { title: "Finished", status: "done" },
+  });
+  const todo = await prisma.work.create({ data: { title: "Not done yet" } });
+
+  const response = await request(app).get("/api/work/recommended");
+
+  const ids = response.body.map((work) => work.id);
+  assert.ok(!ids.includes(done.id));
+  assert.ok(ids.includes(todo.id));
+});
+
+test("GET /api/work/recommended respects a limit query param and defaults to a reasonable cap", async () => {
+  for (let i = 0; i < 8; i += 1) {
+    await prisma.work.create({ data: { title: `Work ${i}` } });
+  }
+
+  const limited = await request(app).get("/api/work/recommended?limit=3");
+  assert.equal(limited.body.length, 3);
+
+  const defaulted = await request(app).get("/api/work/recommended");
+  assert.ok(defaulted.body.length <= 10);
+});

@@ -5,6 +5,13 @@ export async function getWorkItems() {
   return response.data;
 }
 
+export async function getRecommendedWork(limit) {
+  const response = await apiClient.get("/api/work/recommended", {
+    params: limit ? { limit } : undefined,
+  });
+  return response.data;
+}
+
 export async function createWorkItem(data) {
   const response = await apiClient.post("/api/work", data);
   return response.data;
