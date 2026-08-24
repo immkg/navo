@@ -1,12 +1,14 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as googleMaps from "../../utils/googleMaps";
+import * as homeLocationModule from "./homeLocation";
 import PlanLocationPicker from "./PlanLocationPicker";
 
 describe("PlanLocationPicker", () => {
   afterEach(() => {
     delete navigator.geolocation;
     vi.unstubAllEnvs();
+    localStorage.clear();
   });
 
   it("updates the date/time value", () => {
@@ -208,6 +210,78 @@ describe("PlanLocationPicker", () => {
     });
 
     expect(await screen.findByText("Downtown")).toBeInTheDocument();
+  });
+
+  it("offers a one-tap 'Use home' shortcut once a home location has been saved", async () => {
+    const onChange = vi.fn();
+    homeLocationModule.setHomeLocation({
+      label: "123 Home St",
+      latitude: 9,
+      longitude: 8,
+    });
+
+    render(
+      <PlanLocationPicker
+        legend="Start"
+        value={{
+          dateTime: "2026-08-22T09:00",
+          label: "",
+          latitude: null,
+          longitude: null,
+        }}
+        onChange={onChange}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Use home"));
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        label: "123 Home St",
+        latitude: 9,
+        longitude: 8,
+      })
+    );
+  });
+
+  it("does not show the 'Use home' shortcut when no home location is saved", () => {
+    render(
+      <PlanLocationPicker
+        legend="Start"
+        value={{
+          dateTime: "2026-08-22T09:00",
+          label: "",
+          latitude: null,
+          longitude: null,
+        }}
+        onChange={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByLabelText("Use home")).not.toBeInTheDocument();
+  });
+
+  it("lets the user save the current value as their home location", () => {
+    render(
+      <PlanLocationPicker
+        legend="Start"
+        value={{
+          dateTime: "2026-08-22T09:00",
+          label: "456 Current Ave",
+          latitude: 5,
+          longitude: 6,
+        }}
+        onChange={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByText(/Save as home/));
+
+    expect(homeLocationModule.getHomeLocation()).toEqual({
+      label: "456 Current Ave",
+      latitude: 5,
+      longitude: 6,
+    });
   });
 
   it("renders no nested <form> when used inside the caller's own form", () => {
