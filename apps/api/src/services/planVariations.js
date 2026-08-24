@@ -1,4 +1,22 @@
 const { callGroqJson, isGroqConfigured } = require("./groqClient");
+const { scoreWork } = require("./planBuilder");
+
+// A reasoning model spends completion-token budget "thinking" about every
+// item it's handed before it ever writes the JSON response — an unbounded
+// backlog (a large intent list feeding an unbounded unselected-work pool)
+// can burn through that budget before it finishes, failing the whole
+// request. Capping to the most relevant items on each side keeps the
+// prompt's reasoning surface bounded regardless of backlog size.
+const MAX_WORK_ITEMS_PER_SIDE = 15;
+const MAX_COMPLETION_TOKENS = 2048;
+
+// Highest score first, so a cap keeps the most relevant items — matches
+// the same priority/urgency signal the deterministic builder itself uses.
+function topByScore(workItems, now) {
+  return [...workItems]
+    .sort((a, b) => scoreWork(b, b.intent, now) - scoreWork(a, a.intent, now))
+    .slice(0, MAX_WORK_ITEMS_PER_SIDE);
+}
 
 const PLAN_VARIATIONS_SYSTEM_PROMPT = `You suggest trade-offs for a day plan that is short on time.
 
@@ -71,16 +89,24 @@ async function buildPlanVariations({
 }) {
   if (!isGroqConfigured() || unselectedWork.length === 0) return [];
 
+  const now = new Date();
+  // Sanitization already only trusts ids from the real candidate pools, so
+  // capping what's *offered* to the model can only ever narrow its choices,
+  // never let it invent something ineligible.
+  const cappedSelectedWork = topByScore(selectedWork, now);
+  const cappedUnselectedWork = topByScore(unselectedWork, now);
+
   const selectedIds = new Set(selectedWork.map((work) => work.id));
   const unselectedIds = new Set(unselectedWork.map((work) => work.id));
 
   const parsed = await callGroqJson({
     systemPrompt: PLAN_VARIATIONS_SYSTEM_PROMPT,
     userPrompt: buildPlanVariationsUserPrompt(
-      selectedWork,
-      unselectedWork,
+      cappedSelectedWork,
+      cappedUnselectedWork,
       budgetMinutes
     ),
+    maxTokens: MAX_COMPLETION_TOKENS,
   });
 
   return sanitizePlanVariations(parsed, selectedIds, unselectedIds);

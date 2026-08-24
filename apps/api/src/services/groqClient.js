@@ -11,7 +11,12 @@ function isGroqConfigured() {
   return Boolean(process.env.GROQ_API_KEY);
 }
 
-async function callGroqJson({ systemPrompt, userPrompt, temperature = 0.4 }) {
+async function callGroqJson({
+  systemPrompt,
+  userPrompt,
+  temperature = 0.4,
+  maxTokens,
+}) {
   const response = await fetch(GROQ_URL, {
     method: "POST",
     headers: {
@@ -26,6 +31,11 @@ async function callGroqJson({ systemPrompt, userPrompt, temperature = 0.4 }) {
       ],
       temperature,
       response_format: { type: "json_object" },
+      // Only sent when a caller opts in — the existing callers already work
+      // fine at the model's implicit default, and this is here for
+      // reasoning-heavy calls (see planVariations.js) that need more room
+      // to finish before hitting a completion-token ceiling.
+      ...(maxTokens ? { max_tokens: maxTokens } : {}),
     }),
   });
 
