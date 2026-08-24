@@ -95,6 +95,17 @@ export function findBehindScheduleStop(
   return { stop: currentStop, minutesLate };
 }
 
+// Mirrors the backend's isBlockedByDependency (planBuilder.js), but returns
+// *which* prerequisite is still open — a "not included" list that just says
+// a work item didn't make it, with no reason, is a lot less useful than one
+// that says why.
+export function findUnresolvedDependency(work) {
+  const blocking = (work.dependsOn || []).find(
+    (dependency) => dependency.dependsOn?.status !== "done"
+  );
+  return blocking ? blocking.dependsOn : null;
+}
+
 export const PLAN_ENERGY_LEVEL_OPTIONS = [
   { value: "high", label: "High — I can tackle anything" },
   { value: "medium", label: "Medium" },

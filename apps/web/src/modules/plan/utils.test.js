@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { findBehindScheduleStop, findNearbyOpportunities } from "./utils";
+import {
+  findBehindScheduleStop,
+  findNearbyOpportunities,
+  findUnresolvedDependency,
+} from "./utils";
 
 function work(overrides = {}) {
   return {
@@ -168,5 +172,35 @@ describe("findBehindScheduleStop", () => {
     const now = new Date("2026-08-22T09:05:00.000Z"); // 5 min late
     expect(findBehindScheduleStop([stop()], now, 10)).toBeNull();
     expect(findBehindScheduleStop([stop()], now, 2)?.minutesLate).toBe(5);
+  });
+});
+
+describe("findUnresolvedDependency", () => {
+  it("returns null for a work item with no dependencies", () => {
+    expect(findUnresolvedDependency(work())).toBeNull();
+  });
+
+  it("returns the prerequisite when it isn't done yet", () => {
+    const prereq = { id: "prereq", title: "Decide on caterer", status: "todo" };
+    const blocked = work({ dependsOn: [{ dependsOn: prereq }] });
+
+    expect(findUnresolvedDependency(blocked)).toEqual(prereq);
+  });
+
+  it("returns null once the prerequisite is done", () => {
+    const prereq = { id: "prereq", title: "Decide on caterer", status: "done" };
+    const unblocked = work({ dependsOn: [{ dependsOn: prereq }] });
+
+    expect(findUnresolvedDependency(unblocked)).toBeNull();
+  });
+
+  it("returns the first unresolved prerequisite when there are several", () => {
+    const doneOne = { id: "done-one", title: "Done thing", status: "done" };
+    const pending = { id: "pending", title: "Pending thing", status: "todo" };
+    const blocked = work({
+      dependsOn: [{ dependsOn: doneOne }, { dependsOn: pending }],
+    });
+
+    expect(findUnresolvedDependency(blocked)).toEqual(pending);
   });
 });
