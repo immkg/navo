@@ -34,6 +34,13 @@ const STATUS_TONE = {
   abandoned: "danger",
 };
 
+// A stable module-level reference for the no-plan-yet case, so `stops`
+// itself doesn't get a fresh identity on every render when there's no
+// plan — that was defeating the dependent useMemo hooks below (they'd
+// recompute every render regardless of whether plan.stops had actually
+// changed).
+const EMPTY_STOPS = [];
+
 const ITEM_STATUS_TONE = {
   planned: "neutral",
   in_progress: "primary",
@@ -82,7 +89,7 @@ export default function PlanDetailPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const stops = plan?.stops || [];
+  const stops = plan?.stops ?? EMPTY_STOPS;
 
   // A stable primitive signature — only changes when a marker would actually
   // need to move — so an unrelated mutation (e.g. marking one work item
