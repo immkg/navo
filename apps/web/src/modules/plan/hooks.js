@@ -9,6 +9,7 @@ import {
   updatePlan,
   updatePlanStop,
   updatePlanStopWork,
+  wrapUpPlan,
 } from "../../api/plans";
 import { planVariations } from "../../api/ai";
 import { WORK_QUERY_KEY } from "../work/hooks";
@@ -118,6 +119,18 @@ export function useReorderPlanStop() {
       reorderPlanStop(planId, stopId, direction),
     onSuccess: (updatedPlan, { planId }) => {
       queryClient.setQueryData(planQueryKey(planId), updatedPlan);
+    },
+  });
+}
+
+// One-tap "wrap up my day" (#83) — skips every remaining stop in one call
+// instead of the person skipping each work item one at a time.
+export function useWrapUpPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (planId) => wrapUpPlan(planId),
+    onSuccess: (result, planId) => {
+      queryClient.setQueryData(planQueryKey(planId), result.plan);
     },
   });
 }

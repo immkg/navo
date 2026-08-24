@@ -5,6 +5,7 @@ const { cleanDatabase } = require("../test-support/helpers");
 const {
   rebuildPlanStops,
   reorderPlanStop,
+  wrapUpPlan,
 } = require("../src/services/planPersistence");
 
 beforeEach(cleanDatabase);
@@ -970,5 +971,77 @@ test("reorderPlanStop returns null for a missing plan", async () => {
     stopId: "whatever",
     direction: "up",
   });
+  assert.equal(result, null);
+});
+
+test("wrapUpPlan skips every not-yet-resolved stop and its work assignments", async () => {
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      endAt: new Date("2026-08-22T18:00:00Z"),
+    },
+  });
+  const inProgress = await createStop({
+    planId: plan.id,
+    title: "Already there",
+    latitude: 1,
+    longitude: 1,
+    order: 0,
+    status: "in_progress",
+  });
+  const plannedA = await createStop({
+    planId: plan.id,
+    title: "Remaining A",
+    latitude: 2,
+    longitude: 2,
+    order: 1,
+  });
+  const plannedB = await createStop({
+    planId: plan.id,
+    title: "Remaining B",
+    latitude: 3,
+    longitude: 3,
+    order: 2,
+  });
+
+  const result = await wrapUpPlan(prisma, plan.id);
+
+  assert.equal(result.skippedStopCount, 2);
+  const stopsById = new Map(result.plan.stops.map((stop) => [stop.id, stop]));
+  assert.equal(stopsById.get(inProgress.id).status, "in_progress");
+  assert.equal(stopsById.get(plannedA.id).status, "skipped");
+  assert.equal(stopsById.get(plannedB.id).status, "skipped");
+  assert.equal(stopsById.get(plannedA.id).works[0].status, "skipped");
+  assert.equal(stopsById.get(plannedB.id).works[0].status, "skipped");
+});
+
+test("wrapUpPlan leaves an already-resolved stop's work assignments untouched", async () => {
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      endAt: new Date("2026-08-22T18:00:00Z"),
+    },
+  });
+  const done = await createStop({
+    planId: plan.id,
+    title: "Finished",
+    latitude: 1,
+    longitude: 1,
+    order: 0,
+    status: "done",
+    workStatus: "done",
+  });
+
+  const result = await wrapUpPlan(prisma, plan.id);
+
+  assert.equal(result.skippedStopCount, 0);
+  const [stop] = result.plan.stops;
+  assert.equal(stop.id, done.id);
+  assert.equal(stop.status, "done");
+  assert.equal(stop.works[0].status, "done");
+});
+
+test("wrapUpPlan returns null for a missing plan", async () => {
+  const result = await wrapUpPlan(prisma, "missing-id");
   assert.equal(result, null);
 });

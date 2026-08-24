@@ -12,6 +12,7 @@ import {
   useUpdatePlanStop,
   useUpdatePlanStopWork,
   useRecheckPlan,
+  useWrapUpPlan,
 } from "../modules/plan/hooks";
 import { useWorkItems } from "../modules/work/hooks";
 import {
@@ -84,6 +85,7 @@ export default function PlanDetailPage() {
   const updatePlanMutation = useUpdatePlan();
   const updatePlanStopMutation = useUpdatePlanStop();
   const reorderPlanStopMutation = useReorderPlanStop();
+  const wrapUpPlanMutation = useWrapUpPlan();
   const updatePlanStopWorkMutation = useUpdatePlanStopWork();
   const recheckPlanMutation = useRecheckPlan();
   const suggestVariationsMutation = usePlanVariationsSuggestion();
@@ -351,6 +353,27 @@ export default function PlanDetailPage() {
     }
   };
 
+  const handleWrapUpDay = async () => {
+    const confirmed = await confirm(
+      "Skip every remaining stop and wrap up your day? This can't be undone.",
+      { title: "Wrap up my day?", confirmLabel: "Wrap up", danger: true }
+    );
+    if (!confirmed) return;
+
+    try {
+      const result = await wrapUpPlanMutation.mutateAsync(id);
+      notify(
+        result.skippedStopCount > 0
+          ? `Skipped ${result.skippedStopCount} remaining stop${result.skippedStopCount === 1 ? "" : "s"}.`
+          : "Nothing left to skip.",
+        { type: "info" }
+      );
+    } catch (error) {
+      console.error("Failed to wrap up plan", error);
+      notify(error.response?.data?.error || "Failed to wrap up the day");
+    }
+  };
+
   const handleRecheck = () => {
     if (!navigator.geolocation) {
       notify("Your device doesn't support location detection.");
@@ -547,6 +570,15 @@ export default function PlanDetailPage() {
               >
                 {recheckPlanMutation.isPending ? "Checking…" : "Re-check plan"}
               </Button>
+              {movableStopIds.length > 0 && (
+                <Button
+                  variant="secondary"
+                  onClick={handleWrapUpDay}
+                  disabled={wrapUpPlanMutation.isPending}
+                >
+                  Wrap up my day
+                </Button>
+              )}
               <Button
                 variant="secondary"
                 onClick={() => handleStatusChange("completed")}

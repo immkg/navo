@@ -668,6 +668,44 @@ test("PATCH /api/plans/:id/stops/:stopId/reorder returns 409 for a frozen stop",
   assert.equal(response.statusCode, 409);
 });
 
+test("POST /api/plans/:id/wrap-up skips every remaining stop and its work assignments", async () => {
+  const { plan, stopA, stopB } = await seedPlanWithTwoStops();
+
+  const response = await request(app).post(`/api/plans/${plan.id}/wrap-up`);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.skippedStopCount, 2);
+  const stopsById = new Map(
+    response.body.plan.stops.map((stop) => [stop.id, stop])
+  );
+  assert.equal(stopsById.get(stopA.id).status, "skipped");
+  assert.equal(stopsById.get(stopB.id).status, "skipped");
+});
+
+test("POST /api/plans/:id/wrap-up leaves already-resolved stops untouched", async () => {
+  const { plan, stopA, stopB } = await seedPlanWithTwoStops();
+  await prisma.planStop.update({
+    where: { id: stopA.id },
+    data: { status: "done" },
+  });
+
+  const response = await request(app).post(`/api/plans/${plan.id}/wrap-up`);
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.skippedStopCount, 1);
+  const stopsById = new Map(
+    response.body.plan.stops.map((stop) => [stop.id, stop])
+  );
+  assert.equal(stopsById.get(stopA.id).status, "done");
+  assert.equal(stopsById.get(stopB.id).status, "skipped");
+});
+
+test("POST /api/plans/:id/wrap-up returns 404 for a missing plan", async () => {
+  const response = await request(app).post("/api/plans/missing-id/wrap-up");
+
+  assert.equal(response.statusCode, 404);
+});
+
 test("PATCH .../work/:workId marks the work item done when it's the only assignment", async () => {
   const work = await prisma.work.create({
     data: { title: "Pick up prescription" },

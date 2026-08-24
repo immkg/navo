@@ -3,6 +3,7 @@ const prisma = require("../db/client");
 const {
   rebuildPlanStops,
   reorderPlanStop,
+  wrapUpPlan,
   PLAN_STOP_INCLUDE,
 } = require("../services/planPersistence");
 const { buildPlanVariations } = require("../services/planVariations");
@@ -304,6 +305,19 @@ router.delete("/:id", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to delete plan" });
+  }
+});
+
+router.post("/:id/wrap-up", async (req, res) => {
+  try {
+    const result = await wrapUpPlan(prisma, req.params.id);
+    if (!result) {
+      return res.status(404).json({ error: "Plan not found" });
+    }
+    res.json(result);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to wrap up plan" });
   }
 });
 
