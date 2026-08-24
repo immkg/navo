@@ -124,6 +124,76 @@ test("rebuildPlanStops leaves already-resolved stops untouched and excludes thei
   assert.equal(result.unselectedWork.length, 0);
 });
 
+test("rebuildPlanStops never drops a stop the person is currently standing at (in_progress), even with an unresolved work item on it", async () => {
+  // Reproduces a real scenario: arrive at a stop (in_progress), its one
+  // work item is still "planned" (not done/skipped yet) — then force-include
+  // a different, nearby work item (e.g. via "Add to plan" on a surfaced
+  // opportunity). The in-progress stop must survive the rebuild; only
+  // done/skipped stops being "frozen" isn't enough, since nothing here is
+  // resolved yet.
+  const currentWork = await prisma.work.create({
+    data: { title: "Currently doing this", durationMinutes: 5 },
+  });
+  const currentLocation = await prisma.location.create({
+    data: { name: "Loc A", latitude: 30.7, longitude: 76.7 },
+  });
+  const nearbyWork = await prisma.work.create({
+    data: {
+      title: "Nearby opportunity",
+      durationMinutes: 5,
+      locationOptions: {
+        create: {
+          locations: {
+            create: { name: "Loc B", latitude: 30.701, longitude: 76.7 },
+          },
+        },
+      },
+    },
+  });
+  const plan = await prisma.plan.create({
+    data: {
+      status: "active",
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 30.7,
+      startLongitude: 76.7,
+      endAt: new Date("2026-08-22T09:15:00Z"),
+      endLatitude: 30.7,
+      endLongitude: 76.7,
+    },
+  });
+  const currentStop = await prisma.planStop.create({
+    data: {
+      planId: plan.id,
+      locationId: currentLocation.id,
+      order: 0,
+      status: "in_progress",
+      actualArrivalAt: new Date("2026-08-22T09:03:00Z"),
+      plannedArrivalAt: new Date("2026-08-22T09:03:00Z"),
+      plannedDepartureAt: new Date("2026-08-22T09:08:00Z"),
+      works: { create: { workId: currentWork.id, status: "planned" } },
+    },
+  });
+
+  const result = await rebuildPlanStops(prisma, plan.id, {
+    asOfAt: plan.startAt,
+    asOfLocation: { latitude: 30.7, longitude: 76.7 },
+    forceIncludeWorkIds: [nearbyWork.id],
+  });
+
+  const currentStopStillPresent = result.plan.stops.some(
+    (stop) => stop.id === currentStop.id
+  );
+  assert.ok(
+    currentStopStillPresent,
+    "the in-progress stop should never be deleted by a rebuild"
+  );
+  const currentStopAfter = result.plan.stops.find(
+    (stop) => stop.id === currentStop.id
+  );
+  assert.equal(currentStopAfter.status, "in_progress");
+  assert.equal(currentStopAfter.works[0].work.id, currentWork.id);
+});
+
 test("rebuildPlanStops does not collide orders when a stop resolves out of sequence", async () => {
   const staleLocationA = await prisma.location.create({
     data: { name: "Stale A", latitude: 0.002, longitude: 0 },

@@ -29,13 +29,19 @@ function loadEligibleWork(client) {
 }
 
 // A stop is frozen — kept as-is, never deleted and rebuilt — when the stop
-// itself is resolved, OR when any single work item assigned to it is.
-// Stop-level status alone isn't enough: PATCH /:id/stops/:stopId/work/:workId
-// only ever writes PlanStopWork.status, so a stop can hold a completed work
-// item while its own status is still "planned".
+// itself is resolved or in_progress, OR when any single work item assigned
+// to it is resolved. Stop-level status alone isn't enough: PATCH
+// /:id/stops/:stopId/work/:workId only ever writes PlanStopWork.status, so
+// a stop can hold a completed work item while its own status is still
+// "planned". in_progress has to freeze too, not just done/skipped — the
+// person is physically standing there; a rebuild (e.g. force-including a
+// nearby opportunity) must never delete the stop out from under them just
+// because its one work item hasn't been marked done/skipped yet.
+const FROZEN_STOP_STATUSES = new Set(["in_progress", "done", "skipped"]);
+
 function isFrozen(stop) {
   return (
-    RESOLVED_STATUSES.has(stop.status) ||
+    FROZEN_STOP_STATUSES.has(stop.status) ||
     stop.works.some((assignment) => RESOLVED_STATUSES.has(assignment.status))
   );
 }
