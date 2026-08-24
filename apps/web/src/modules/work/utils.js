@@ -9,3 +9,9 @@ export const WORK_PRIORITY_OPTIONS = [
   { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
 ];
+
+export const WORK_ENERGY_LEVEL_OPTIONS = [
+  { value: "low", label: "Low — quick/easy" },
+  { value: "medium", label: "Medium" },
+  { value: "high", label: "High — needs focus/effort" },
+];

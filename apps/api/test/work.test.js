@@ -538,6 +538,53 @@ test("PATCH /api/work/:id rejects an invalid priority", async () => {
   assert.equal(response.statusCode, 400);
 });
 
+test("POST /api/work defaults energyLevel to medium", async () => {
+  const response = await request(app)
+    .post("/api/work")
+    .send({ title: "Book flights" });
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.energyLevel, "medium");
+});
+
+test("POST /api/work accepts an explicit energyLevel", async () => {
+  const response = await request(app)
+    .post("/api/work")
+    .send({ title: "Book flights", energyLevel: "high" });
+
+  assert.equal(response.statusCode, 201);
+  assert.equal(response.body.energyLevel, "high");
+});
+
+test("POST /api/work rejects an invalid energyLevel", async () => {
+  const response = await request(app)
+    .post("/api/work")
+    .send({ title: "Book flights", energyLevel: "extreme" });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("PATCH /api/work/:id updates energyLevel", async () => {
+  const work = await prisma.work.create({ data: { title: "Book flights" } });
+
+  const response = await request(app)
+    .patch(`/api/work/${work.id}`)
+    .send({ energyLevel: "low" });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.energyLevel, "low");
+});
+
+test("PATCH /api/work/:id rejects an invalid energyLevel", async () => {
+  const work = await prisma.work.create({ data: { title: "Book flights" } });
+
+  const response = await request(app)
+    .patch(`/api/work/${work.id}`)
+    .send({ energyLevel: "extreme" });
+
+  assert.equal(response.statusCode, 400);
+});
+
 test("GET /api/work/recommended ranks work by priority and due-date urgency, highest first", async () => {
   const intent = await prisma.intent.create({
     data: { title: "Errands", priority: "medium" },

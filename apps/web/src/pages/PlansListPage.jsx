@@ -9,6 +9,7 @@ import { useWorkItems } from "../modules/work/hooks";
 import PlanLocationPicker from "../modules/plan/PlanLocationPicker";
 import {
   getPlanDisplayTitle,
+  PLAN_ENERGY_LEVEL_OPTIONS,
   toDateTimeLocalValue,
 } from "../modules/plan/utils";
 
@@ -54,6 +55,7 @@ export default function PlansListPage() {
   const [title, setTitle] = useState("");
   const [start, setStart] = useState(emptyLocation(0));
   const [end, setEnd] = useState(emptyLocation(8));
+  const [energyLevel, setEnergyLevel] = useState("high");
 
   const eligibleWorkCount = useMemo(
     () => workItems.filter((item) => item.status !== "done").length,
@@ -68,6 +70,7 @@ export default function PlansListPage() {
     setTitle("");
     setStart(emptyLocation(0));
     setEnd(emptyLocation(8));
+    setEnergyLevel("high");
     setShowCreateForm(false);
   };
 
@@ -117,6 +120,7 @@ export default function PlansListPage() {
         endLabel: end.label || undefined,
         endLatitude: end.latitude,
         endLongitude: end.longitude,
+        energyLevel,
       });
       resetForm();
       navigate(`/plan/${plan.id}`);
@@ -167,6 +171,23 @@ export default function PlansListPage() {
               onChange={setStart}
             />
             <PlanLocationPicker legend="End" value={end} onChange={setEnd} />
+
+            <label className="block space-y-1">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Energy level
+              </span>
+              <select
+                value={energyLevel}
+                onChange={(event) => setEnergyLevel(event.target.value)}
+                className="block w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-foreground focus:border-primary focus:ring-primary"
+              >
+                {PLAN_ENERGY_LEVEL_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             {(planDuration || eligibleWorkCount > 0) && (
               <p className="text-sm text-muted-foreground">

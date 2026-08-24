@@ -275,6 +275,95 @@ test("PATCH /api/plans/:id coerces useAccurateTravelTime", async () => {
   assert.equal(response.body.useAccurateTravelTime, true);
 });
 
+test("POST /api/plans defaults energyLevel to high and accepts an explicit value", async () => {
+  const defaulted = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+  });
+  assert.equal(defaulted.body.energyLevel, "high");
+
+  const explicit = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+    energyLevel: "low",
+  });
+  assert.equal(explicit.body.energyLevel, "low");
+});
+
+test("POST /api/plans rejects an invalid energyLevel", async () => {
+  const response = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+    energyLevel: "extreme",
+  });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("PATCH /api/plans/:id rejects an invalid energyLevel", async () => {
+  const created = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    endAt: "2026-08-22T10:00:00.000Z",
+  });
+
+  const response = await request(app)
+    .patch(`/api/plans/${created.body.id}`)
+    .send({ energyLevel: "extreme" });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("PATCH /api/plans/:id rebuilds stops when energyLevel changes, preferring lower-energy work", async () => {
+  const demanding = await prisma.work.create({
+    data: {
+      title: "Demanding errand",
+      priority: "high",
+      energyLevel: "high",
+      durationMinutes: 10,
+      locationOptions: {
+        create: {
+          locations: {
+            create: { name: "Far shop", latitude: 0.001, longitude: 0 },
+          },
+        },
+      },
+    },
+  });
+  await prisma.work.create({
+    data: {
+      title: "Easy errand",
+      priority: "low",
+      energyLevel: "low",
+      durationMinutes: 10,
+      locationOptions: {
+        create: {
+          locations: {
+            create: { name: "Near shop", latitude: 0.002, longitude: 0 },
+          },
+        },
+      },
+    },
+  });
+
+  const created = await request(app).post("/api/plans").send({
+    startAt: "2026-08-22T09:00:00.000Z",
+    startLatitude: 0,
+    startLongitude: 0,
+    endAt: "2026-08-22T09:20:00.000Z",
+    endLatitude: 0,
+    endLongitude: 0,
+  });
+  assert.equal(created.body.stops[0].works[0].work.id, demanding.id);
+
+  const response = await request(app)
+    .patch(`/api/plans/${created.body.id}`)
+    .send({ energyLevel: "low" });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.stops.length, 1);
+  assert.equal(response.body.stops[0].works[0].work.title, "Easy errand");
+});
+
 test("PATCH /api/plans/:id rejects a non-numeric coordinate", async () => {
   const created = await request(app).post("/api/plans").send({
     startAt: "2026-08-22T09:00:00.000Z",

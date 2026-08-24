@@ -81,7 +81,39 @@ describe("PlansListPage", () => {
     const endMs = new Date(payload.endAt).getTime();
     expect(Math.abs(startMs - Date.now())).toBeLessThan(2 * 60 * 1000);
     expect(Math.abs(endMs - startMs - 8 * 3600000)).toBeLessThan(2 * 60 * 1000);
+    expect(payload.energyLevel).toBe("high");
     expect(await screen.findByText("Plan detail stub")).toBeInTheDocument();
+  });
+
+  it("sends the chosen energy level in the create payload", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+    vi.spyOn(plansApi, "createPlan").mockResolvedValue({
+      id: "plan-new",
+      stops: [],
+    });
+
+    renderPage();
+
+    fireEvent.click(await screen.findByText("+ New plan"));
+
+    const summaries = screen.getAllByText("Enter coordinates manually");
+    summaries.forEach((summary) => fireEvent.click(summary));
+    screen
+      .getAllByLabelText("Latitude")
+      .forEach((input) => fireEvent.change(input, { target: { value: "1" } }));
+    screen
+      .getAllByLabelText("Longitude")
+      .forEach((input) => fireEvent.change(input, { target: { value: "1" } }));
+
+    fireEvent.change(screen.getByLabelText("Energy level"), {
+      target: { value: "low" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create plan" }));
+
+    await waitFor(() => expect(plansApi.createPlan).toHaveBeenCalled());
+    expect(plansApi.createPlan.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ energyLevel: "low" })
+    );
   });
 
   it("asks for confirmation and deletes a plan without navigating to it", async () => {

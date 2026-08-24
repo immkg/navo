@@ -52,6 +52,33 @@ test("scoreWork defaults to medium priority when work or intent priority is miss
   assert.equal(scoreWork({}, null, now), expected);
 });
 
+test("scoreWork applies no energy penalty when the plan's energy level is high (the default)", () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const work = { priority: "medium", energyLevel: "high" };
+  const withoutPlanEnergy = scoreWork(work, null, now);
+  const withHighPlanEnergy = scoreWork(work, null, now, "high");
+  assert.equal(withoutPlanEnergy, withHighPlanEnergy);
+});
+
+test("scoreWork applies no penalty when work's energy level fits within the plan's energy level", () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const lowEnergyWork = { priority: "medium", energyLevel: "low" };
+  const baseline = scoreWork(lowEnergyWork, null, now, "high");
+  assert.equal(scoreWork(lowEnergyWork, null, now, "low"), baseline);
+  assert.equal(scoreWork(lowEnergyWork, null, now, "medium"), baseline);
+});
+
+test("scoreWork discounts work whose energy requirement exceeds the plan's energy level", () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const highEnergyWork = { priority: "medium", energyLevel: "high" };
+  const baseline = scoreWork(highEnergyWork, null, now, "high");
+  const onLowEnergyPlan = scoreWork(highEnergyWork, null, now, "low");
+  const onMediumEnergyPlan = scoreWork(highEnergyWork, null, now, "medium");
+
+  assert.ok(onLowEnergyPlan < onMediumEnergyPlan);
+  assert.ok(onMediumEnergyPlan < baseline);
+});
+
 test("haversineKm returns null when any coordinate is missing", () => {
   assert.equal(
     haversineKm(
@@ -483,6 +510,50 @@ test("buildPlan lets a force-included work item win over a higher-scoring compet
 
   assert.equal(result.stops.length, 1);
   assert.equal(result.stops[0].location.id, "l2");
+});
+
+test("buildPlan prefers a lower-energy work item over a higher-priority, high-energy one when the plan's energy level is low", async () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  const highPriorityHighEnergy = makeWork({
+    id: "demanding",
+    durationMinutes: 10,
+    priority: "high",
+    energyLevel: "high",
+    locationOptions: [
+      { id: "o1", locations: [{ id: "l1", latitude: 0.001, longitude: 0 }] },
+    ],
+  });
+  const lowPriorityLowEnergy = makeWork({
+    id: "easy",
+    durationMinutes: 10,
+    priority: "low",
+    energyLevel: "low",
+    locationOptions: [
+      { id: "o2", locations: [{ id: "l2", latitude: 0.002, longitude: 0 }] },
+    ],
+  });
+
+  const highEnergyPlanResult = await buildPlan({
+    workItems: [highPriorityHighEnergy, lowPriorityLowEnergy],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 20 * 60000),
+    now,
+    planEnergyLevel: "high",
+  });
+  assert.equal(highEnergyPlanResult.stops[0].location.id, "l1");
+
+  const lowEnergyPlanResult = await buildPlan({
+    workItems: [highPriorityHighEnergy, lowPriorityLowEnergy],
+    start: { latitude: 0, longitude: 0 },
+    end: { latitude: 0, longitude: 0 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 20 * 60000),
+    now,
+    planEnergyLevel: "low",
+  });
+  assert.equal(lowEnergyPlanResult.stops[0].location.id, "l2");
 });
 
 let originalGoogleMapsKey;

@@ -97,6 +97,32 @@ describe("WorkFormModal", () => {
       );
     });
 
+    it("defaults energy level to medium and sends the chosen level in the create payload", async () => {
+      vi.spyOn(workApi, "createWorkItem").mockResolvedValue(buildWork());
+
+      renderWithProviders(
+        <WorkFormModal open onClose={vi.fn()} intentId="intent-1" work={null} />
+      );
+
+      expect(screen.getByLabelText("Energy needed")).toHaveValue("medium");
+
+      fireEvent.change(
+        screen.getByPlaceholderText(
+          "Buy ingredients, call electrician, review document"
+        ),
+        { target: { value: "Deep-clean the garage" } }
+      );
+      fireEvent.change(screen.getByLabelText("Energy needed"), {
+        target: { value: "high" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Add Work" }));
+
+      await waitFor(() => expect(workApi.createWorkItem).toHaveBeenCalled());
+      expect(workApi.createWorkItem.mock.calls[0][0]).toEqual(
+        expect.objectContaining({ energyLevel: "high" })
+      );
+    });
+
     it("includes locally-added places in the create payload", async () => {
       vi.spyOn(workApi, "createWorkItem").mockResolvedValue(buildWork());
       vi.spyOn(googleMaps, "searchPlaces").mockResolvedValue([
@@ -200,6 +226,34 @@ describe("WorkFormModal", () => {
         expect(workApi.updateWorkItem).toHaveBeenCalledWith(
           "work-1",
           expect.objectContaining({ priority: "low" })
+        )
+      );
+    });
+
+    it("pre-fills the existing energy level and saves a changed one", async () => {
+      vi.spyOn(workApi, "updateWorkItem").mockResolvedValue(
+        buildWork({ energyLevel: "low" })
+      );
+
+      renderWithProviders(
+        <WorkFormModal
+          open
+          onClose={vi.fn()}
+          intentId="intent-1"
+          work={buildWork({ energyLevel: "high" })}
+        />
+      );
+
+      expect(screen.getByLabelText("Energy needed")).toHaveValue("high");
+      fireEvent.change(screen.getByLabelText("Energy needed"), {
+        target: { value: "low" },
+      });
+      fireEvent.click(screen.getByText("Save changes"));
+
+      await waitFor(() =>
+        expect(workApi.updateWorkItem).toHaveBeenCalledWith(
+          "work-1",
+          expect.objectContaining({ energyLevel: "low" })
         )
       );
     });

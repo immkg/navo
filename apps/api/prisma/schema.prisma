@@ -30,6 +30,7 @@ model Work {
   type                    String           @default("task") // task, decision, etc.
   status                  String           @default("todo") // todo, in_progress, done
   priority                String           @default("medium") // low, medium, high — independent of intent.priority
+  energyLevel             String           @default("medium") // low, medium, high — how much energy this work takes
   durationMinutes         Int              @default(30)
   notes                   String?
   createdAt               DateTime         @default(now())
@@ -119,6 +120,7 @@ model Plan {
   endLongitude           Float?
 
   useAccurateTravelTime  Boolean  @default(false)
+  energyLevel            String   @default("high") // low, medium, high — how much energy the person planning has; "high" plans against everything equally
 
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
