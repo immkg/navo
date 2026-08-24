@@ -15,6 +15,7 @@ import {
 import { useWorkItems } from "../modules/work/hooks";
 import {
   describeTimingDelta,
+  findBehindScheduleStop,
   findNearbyOpportunities,
   getPlanDisplayTitle,
   toDateTimeLocalValue,
@@ -70,6 +71,15 @@ export default function PlanDetailPage() {
   const markersRef = useRef([]);
   const [mapError, setMapError] = useState(null);
   const googleKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  const [now, setNow] = useState(() => new Date());
+
+  // Re-checks "are we behind schedule" once a minute — a nudge doesn't need
+  // sub-minute precision, just to not require the person to remember to
+  // look.
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const stops = plan?.stops || [];
 
@@ -230,6 +240,9 @@ export default function PlanDetailPage() {
   ]);
 
   const isActive = plan?.status === "active";
+  const behindSchedule = isActive
+    ? findBehindScheduleStop(stops, now)
+    : null;
 
   const handleStatusChange = async (status) => {
     try {
@@ -538,6 +551,26 @@ export default function PlanDetailPage() {
               </Button>
             </div>
           </form>
+        </Card>
+      )}
+
+      {behindSchedule && (
+        <Card padding="md" className="mb-6 border-danger/30 bg-danger/5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-foreground">
+              Running behind — about {behindSchedule.minutesLate} min behind
+              at <strong>{behindSchedule.stop.location.name}</strong>. Your
+              route may no longer be accurate.
+            </p>
+            <Button
+              size="sm"
+              variant="danger-outline"
+              onClick={handleRecheck}
+              disabled={recheckPlanMutation.isPending}
+            >
+              {recheckPlanMutation.isPending ? "Checking…" : "Re-check plan"}
+            </Button>
+          </div>
         </Card>
       )}
 

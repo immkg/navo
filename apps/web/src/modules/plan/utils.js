@@ -64,6 +64,37 @@ export function findNearbyOpportunities(
   return opportunities.sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
+const DEFAULT_BEHIND_SCHEDULE_TOLERANCE_MINUTES = 10;
+const UNRESOLVED_STOP_STATUSES = new Set(["planned", "in_progress"]);
+
+// "Plans adapt to reality" (Design Principle 9) shouldn't require the
+// person to notice on their own that they're falling behind — this checks
+// the plan's own reference point against wall-clock time. Only the first
+// not-yet-resolved stop is checked: its planned times are already relative
+// to everything settled before it, and every later stop's planned time is
+// downstream of this one anyway.
+export function findBehindScheduleStop(
+  stops,
+  now,
+  toleranceMinutes = DEFAULT_BEHIND_SCHEDULE_TOLERANCE_MINUTES
+) {
+  const currentStop = stops.find((stop) =>
+    UNRESOLVED_STOP_STATUSES.has(stop.status)
+  );
+  if (!currentStop) return null;
+
+  const referenceIso =
+    currentStop.status === "in_progress"
+      ? currentStop.plannedDepartureAt
+      : currentStop.plannedArrivalAt;
+  const minutesLate = Math.round(
+    (now.getTime() - new Date(referenceIso).getTime()) / 60000
+  );
+
+  if (minutesLate <= toleranceMinutes) return null;
+  return { stop: currentStop, minutesLate };
+}
+
 export const PLAN_ENERGY_LEVEL_OPTIONS = [
   { value: "high", label: "High — I can tackle anything" },
   { value: "medium", label: "Medium" },

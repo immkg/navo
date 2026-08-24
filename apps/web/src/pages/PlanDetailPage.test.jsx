@@ -458,6 +458,69 @@ describe("PlanDetailPage", () => {
     );
   });
 
+  it("shows a behind-schedule nudge with a Re-check shortcut when running late for the next stop", async () => {
+    navigator.geolocation = {
+      getCurrentPosition: (onSuccess) =>
+        onSuccess({ coords: { latitude: 1, longitude: 1 } }),
+    };
+    const plan = basePlan({
+      status: "active",
+      stops: [
+        {
+          id: "stop-1",
+          status: "planned",
+          plannedArrivalAt: new Date(Date.now() - 30 * 60000).toISOString(),
+          plannedDepartureAt: new Date(Date.now() - 20 * 60000).toISOString(),
+          location: { id: "loc-1", name: "Pharmacy" },
+          works: [],
+        },
+      ],
+    });
+    vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+    vi.spyOn(plansApi, "recheckPlan").mockResolvedValue({
+      plan: basePlan({ status: "active" }),
+      variations: [],
+    });
+
+    renderPage();
+
+    const banner = (await screen.findByText(/Running behind/)).closest("div")
+      .parentElement;
+    expect(within(banner).getByText(/Pharmacy/)).toBeInTheDocument();
+
+    fireEvent.click(within(banner).getByRole("button", { name: /Re-check plan/ }));
+
+    await waitFor(() =>
+      expect(plansApi.recheckPlan).toHaveBeenCalledWith("plan-1", {
+        latitude: 1,
+        longitude: 1,
+      })
+    );
+  });
+
+  it("does not show a behind-schedule nudge when on time", async () => {
+    vi.spyOn(plansApi, "getPlan").mockResolvedValue(
+      basePlan({
+        status: "active",
+        stops: [
+          {
+            id: "stop-1",
+            status: "planned",
+            plannedArrivalAt: new Date(Date.now() + 30 * 60000).toISOString(),
+            plannedDepartureAt: new Date(Date.now() + 40 * 60000).toISOString(),
+            location: { id: "loc-1", name: "Pharmacy" },
+            works: [],
+          },
+        ],
+      })
+    );
+
+    renderPage();
+
+    await screen.findByText("Pharmacy");
+    expect(screen.queryByText(/Running behind/)).not.toBeInTheDocument();
+  });
+
   it("shows an on-time/late badge once a stop's actual arrival is recorded", async () => {
     vi.spyOn(plansApi, "getPlan").mockResolvedValue(
       basePlan({
