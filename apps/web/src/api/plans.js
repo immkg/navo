@@ -29,6 +29,11 @@ export async function recheckPlan(id, data) {
   return response.data;
 }
 
+export async function wrapUpPlan(id) {
+  const response = await apiClient.post(`/api/plans/${id}/wrap-up`);
+  return response.data;
+}
+
 export async function updatePlanStop(planId, stopId, patch) {
   const response = await apiClient.patch(
     `/api/plans/${planId}/stops/${stopId}`,

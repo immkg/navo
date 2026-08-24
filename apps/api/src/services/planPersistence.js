@@ -348,9 +348,49 @@ async function reorderPlanStop(prisma, planId, { stopId, direction }) {
   );
 }
 
+// One-tap "wrap up my day" (#83): skip every remaining not-yet-resolved
+// stop and its work assignments in one go, instead of the person having to
+// skip each work item one at a time. Frozen stops (already visited, or
+// holding a resolved work item) are left untouched — this only ever
+// resolves what's still pending. Doesn't touch the underlying Work rows'
+// own status: skipping here means "not today," not "never" — the same
+// semantics as skipping a single work item already has.
+async function wrapUpPlan(prisma, planId) {
+  return prisma.$transaction(async (tx) => {
+    const plan = await tx.plan.findUnique({
+      where: { id: planId },
+      include: { stops: { include: { works: true, location: true } } },
+    });
+    if (!plan) return null;
+
+    const stopsToSkip = plan.stops.filter((stop) => !isFrozen(stop));
+
+    for (const stop of stopsToSkip) {
+      await tx.planStopWork.updateMany({
+        where: { planStopId: stop.id, status: "planned" },
+        data: { status: "skipped" },
+      });
+      await tx.planStop.update({
+        where: { id: stop.id },
+        data: { status: "skipped" },
+      });
+    }
+
+    const refreshedPlan = await tx.plan.findUnique({
+      where: { id: planId },
+      include: {
+        stops: { orderBy: { order: "asc" }, include: PLAN_STOP_INCLUDE },
+      },
+    });
+
+    return { plan: refreshedPlan, skippedStopCount: stopsToSkip.length };
+  });
+}
+
 module.exports = {
   rebuildPlanStops,
   reorderPlanStop,
+  wrapUpPlan,
   loadEligibleWork,
   PLAN_STOP_INCLUDE,
 };

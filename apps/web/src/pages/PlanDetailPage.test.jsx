@@ -766,4 +766,100 @@ describe("PlanDetailPage", () => {
       ).toBeInTheDocument();
     });
   });
+
+  describe("wrapping up the day", () => {
+    function activeStop(overrides = {}) {
+      return {
+        id: "stop-1",
+        status: "planned",
+        plannedArrivalAt: "2026-08-22T09:10:00.000Z",
+        plannedDepartureAt: "2026-08-22T09:20:00.000Z",
+        location: { id: "loc-1", name: "Place A" },
+        works: [],
+        ...overrides,
+      };
+    }
+
+    it("shows 'Wrap up my day' for an active plan with remaining stops, confirms, and reports the count", async () => {
+      const plan = basePlan({
+        status: "active",
+        stops: [activeStop()],
+      });
+      vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+      vi.spyOn(plansApi, "wrapUpPlan").mockResolvedValue({
+        plan: basePlan({
+          status: "active",
+          stops: [activeStop({ status: "skipped" })],
+        }),
+        skippedStopCount: 1,
+      });
+
+      renderPage();
+
+      await screen.findAllByText("Place A");
+      fireEvent.click(screen.getByText("Wrap up my day"));
+
+      const dialog = await screen.findByRole("dialog", {
+        name: "Wrap up my day?",
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Wrap up" }));
+
+      await waitFor(() =>
+        expect(plansApi.wrapUpPlan).toHaveBeenCalledWith("plan-1")
+      );
+      expect(
+        await screen.findByText("Skipped 1 remaining stop.")
+      ).toBeInTheDocument();
+    });
+
+    it("does not show 'Wrap up my day' when there are no remaining (movable) stops", async () => {
+      const plan = basePlan({
+        status: "active",
+        stops: [activeStop({ status: "done" })],
+      });
+      vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+
+      renderPage();
+
+      await screen.findAllByText("Place A");
+      expect(screen.queryByText("Wrap up my day")).not.toBeInTheDocument();
+    });
+
+    it("does not show 'Wrap up my day' for a draft plan", async () => {
+      const plan = basePlan({
+        status: "draft",
+        stops: [activeStop()],
+      });
+      vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+
+      renderPage();
+
+      await screen.findAllByText("Place A");
+      expect(screen.queryByText("Wrap up my day")).not.toBeInTheDocument();
+    });
+
+    it("does nothing when the confirmation is declined", async () => {
+      const plan = basePlan({
+        status: "active",
+        stops: [activeStop()],
+      });
+      vi.spyOn(plansApi, "getPlan").mockResolvedValue(plan);
+      vi.spyOn(plansApi, "wrapUpPlan").mockResolvedValue({
+        plan,
+        skippedStopCount: 1,
+      });
+
+      renderPage();
+
+      await screen.findAllByText("Place A");
+      fireEvent.click(screen.getByText("Wrap up my day"));
+
+      const dialog = await screen.findByRole("dialog", {
+        name: "Wrap up my day?",
+      });
+      fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+      expect(plansApi.wrapUpPlan).not.toHaveBeenCalled();
+    });
+  });
 });
