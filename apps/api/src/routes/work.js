@@ -7,6 +7,7 @@ const { scoreWork } = require("../services/planBuilder");
 const router = express.Router();
 const VALID_STATUSES = new Set(["todo", "in_progress", "done"]);
 const VALID_PRIORITIES = new Set(["low", "medium", "high"]);
+const VALID_ENERGY_LEVELS = new Set(["low", "medium", "high"]);
 const DEFAULT_RECOMMENDED_LIMIT = 10;
 
 // Get all work items
@@ -95,6 +96,7 @@ router.post("/", async (req, res) => {
       notes,
       locationOptions,
       priority,
+      energyLevel,
     } = req.body;
 
     if (!title) {
@@ -105,6 +107,12 @@ router.post("/", async (req, res) => {
       return res
         .status(400)
         .json({ error: "Priority must be low, medium, or high" });
+    }
+
+    if (energyLevel !== undefined && !VALID_ENERGY_LEVELS.has(energyLevel)) {
+      return res
+        .status(400)
+        .json({ error: "energyLevel must be low, medium, or high" });
     }
 
     const createLocationOption = (option) => {
@@ -165,6 +173,7 @@ router.post("/", async (req, res) => {
       title,
       type: type || "task",
       priority: priority || "medium",
+      energyLevel: energyLevel || "medium",
       durationMinutes:
         typeof durationMinutes === "number" ? durationMinutes : 30,
       notes,
@@ -204,6 +213,7 @@ router.patch("/:id", async (req, res) => {
       type,
       status,
       priority,
+      energyLevel,
       durationMinutes,
       notes,
       selectedLocationOptionId,
@@ -221,6 +231,12 @@ router.patch("/:id", async (req, res) => {
         .json({ error: "Priority must be low, medium, or high" });
     }
 
+    if (energyLevel !== undefined && !VALID_ENERGY_LEVELS.has(energyLevel)) {
+      return res
+        .status(400)
+        .json({ error: "energyLevel must be low, medium, or high" });
+    }
+
     const existingWork = await prisma.work.findUnique({ where: { id } });
     if (!existingWork) {
       return res.status(404).json({ error: "Work item not found" });
@@ -233,6 +249,7 @@ router.patch("/:id", async (req, res) => {
         type,
         status,
         priority,
+        energyLevel,
         durationMinutes,
         notes,
         selectedLocationOptionId,

@@ -18,7 +18,11 @@ import {
   useUpdateWorkItem,
   WORK_QUERY_KEY,
 } from "./hooks";
-import { WORK_PRIORITY_OPTIONS, WORK_STATUS_OPTIONS } from "./utils";
+import {
+  WORK_ENERGY_LEVEL_OPTIONS,
+  WORK_PRIORITY_OPTIONS,
+  WORK_STATUS_OPTIONS,
+} from "./utils";
 
 const DURATION_OPTIONS = [
   5, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240,
@@ -58,6 +62,9 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
   const [duration, setDuration] = useState(work?.durationMinutes || 15);
   const [status, setStatus] = useState(work?.status || "todo");
   const [priority, setPriority] = useState(work?.priority || "medium");
+  const [energyLevel, setEnergyLevel] = useState(
+    work?.energyLevel || "medium"
+  );
   const initialGroups = buildLocationOptionGroupsFromWork(work);
   const [locationOptionGroups, setLocationOptionGroups] = useState(
     initialGroups.length > 0
@@ -249,6 +256,7 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
             durationMinutes: Number(duration) || 15,
             status,
             priority,
+            energyLevel,
           },
         });
 
@@ -271,6 +279,7 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
         notes: notes.trim() || undefined,
         intentId,
         priority,
+        energyLevel,
         ...(pendingGroups.length > 0 ? { locationOptions: pendingGroups } : {}),
       });
 
@@ -448,6 +457,23 @@ export default function WorkFormModal({ open, onClose, intentId, work }) {
               className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
             >
               {WORK_PRIORITY_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block space-y-1">
+            <span className="text-sm font-medium text-foreground">
+              Energy needed
+            </span>
+            <select
+              value={energyLevel}
+              onChange={(e) => setEnergyLevel(e.target.value)}
+              className="block w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground focus:border-primary focus:ring-primary"
+            >
+              {WORK_ENERGY_LEVEL_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>

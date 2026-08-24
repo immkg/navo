@@ -8,6 +8,8 @@ const { buildPlanVariations } = require("../services/planVariations");
 
 const router = express.Router();
 
+const VALID_ENERGY_LEVELS = new Set(["low", "medium", "high"]);
+
 const COORDINATE_FIELDS = [
   "startLatitude",
   "startLongitude",
@@ -55,6 +57,7 @@ router.post("/", async (req, res) => {
       endAt,
       endLabel,
       useAccurateTravelTime,
+      energyLevel,
     } = req.body;
 
     if (!startAt || !endAt) {
@@ -62,6 +65,11 @@ router.post("/", async (req, res) => {
     }
     if (new Date(endAt).getTime() <= new Date(startAt).getTime()) {
       return res.status(400).json({ error: "endAt must be after startAt" });
+    }
+    if (energyLevel !== undefined && !VALID_ENERGY_LEVELS.has(energyLevel)) {
+      return res
+        .status(400)
+        .json({ error: "energyLevel must be low, medium, or high" });
     }
 
     const { coordinates, error: coordinateError } = coerceCoordinates(req.body);
@@ -77,6 +85,7 @@ router.post("/", async (req, res) => {
         endAt: new Date(endAt),
         endLabel,
         useAccurateTravelTime: Boolean(useAccurateTravelTime),
+        energyLevel: energyLevel || undefined,
         ...coordinates,
       },
     });
@@ -162,6 +171,7 @@ router.patch("/:id", async (req, res) => {
       endAt,
       endLabel,
       useAccurateTravelTime,
+      energyLevel,
       status,
       forceIncludeWorkIds,
       forceExcludeWorkIds,
@@ -169,6 +179,11 @@ router.patch("/:id", async (req, res) => {
 
     if (status !== undefined && !VALID_PLAN_STATUSES.has(status)) {
       return res.status(400).json({ error: "Invalid plan status" });
+    }
+    if (energyLevel !== undefined && !VALID_ENERGY_LEVELS.has(energyLevel)) {
+      return res
+        .status(400)
+        .json({ error: "energyLevel must be low, medium, or high" });
     }
     for (const [field, value] of [
       ["forceIncludeWorkIds", forceIncludeWorkIds],
@@ -210,10 +225,15 @@ router.patch("/:id", async (req, res) => {
     const startLocationChanged =
       startLatitude !== undefined || startLongitude !== undefined;
     const activating = status === "active" && existingPlan.status !== "active";
+    // Energy level feeds straight into scoring — a change has to rebuild to
+    // actually re-rank/re-select work under the new constraint.
+    const energyLevelChanged =
+      energyLevel !== undefined && energyLevel !== existingPlan.energyLevel;
     const shouldRebuild =
       timingChanged ||
       startLocationChanged ||
       activating ||
+      energyLevelChanged ||
       forceIncludeWorkIds ||
       forceExcludeWorkIds;
 
@@ -229,6 +249,7 @@ router.patch("/:id", async (req, res) => {
           useAccurateTravelTime !== undefined
             ? Boolean(useAccurateTravelTime)
             : undefined,
+        energyLevel,
         status,
         ...coordinates,
       },

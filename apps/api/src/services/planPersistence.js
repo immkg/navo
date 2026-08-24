@@ -183,6 +183,7 @@ async function rebuildPlanStops(
       resolvedAssignmentKeys,
       now: effectiveAsOfAt,
       useAccurateTravelTime: plan.useAccurateTravelTime,
+      planEnergyLevel: plan.energyLevel,
     });
 
     let order = Math.max(-1, ...frozenStops.map((stop) => stop.order)) + 1;

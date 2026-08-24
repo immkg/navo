@@ -11,6 +11,12 @@ export function toDateTimeLocalValue(date) {
   return local.toISOString().slice(0, 16);
 }
 
+export const PLAN_ENERGY_LEVEL_OPTIONS = [
+  { value: "high", label: "High — I can tackle anything" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low — keep it easy" },
+];
+
 // Single fallback so a plan without a title reads identically in the list
 // and detail views, instead of "Aug 22, 2026" in one and literal "Plan" in
 // the other for the same plan.

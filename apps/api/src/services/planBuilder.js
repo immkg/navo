@@ -36,15 +36,30 @@ function priorityPoints(priority) {
   return PRIORITY_POINTS[priority] ?? PRIORITY_POINTS.medium;
 }
 
+const ENERGY_ORDER = { low: 0, medium: 1, high: 2 };
+
+// 1 = fits comfortably within the plan's energy level. A work item that
+// asks for more energy than the plan has isn't excluded outright (it may
+// still be the only thing that fits, or nothing else is available) — it's
+// just discounted so a better-fitting alternative wins the comparison.
+function energyFitFactor(workEnergyLevel, planEnergyLevel) {
+  const workLevel = ENERGY_ORDER[workEnergyLevel] ?? ENERGY_ORDER.medium;
+  const planLevel = ENERGY_ORDER[planEnergyLevel] ?? ENERGY_ORDER.high;
+  if (workLevel <= planLevel) return 1;
+  return workLevel - planLevel === 1 ? 0.6 : 0.3;
+}
+
 // A work item's own priority counts double vs. its parent intent's — it's
 // the more specific signal (a low-priority intent can still have one
-// urgent errand in it).
-function scoreWork(work, intent, now) {
-  return (
+// urgent errand in it). planEnergyLevel defaults to "high" — the
+// unconstrained case — so every existing caller that doesn't pass it sees
+// no behavior change.
+function scoreWork(work, intent, now, planEnergyLevel = "high") {
+  const base =
     2 * priorityPoints(work?.priority) +
     priorityPoints(intent?.priority) +
-    urgencyScore(intent?.dueDate, now)
-  );
+    urgencyScore(intent?.dueDate, now);
+  return base * energyFitFactor(work?.energyLevel, planEnergyLevel);
 }
 
 const EARTH_RADIUS_KM = 6371;
@@ -166,7 +181,8 @@ function buildEligibleEntries(
   workItems,
   now,
   forceIncludeSet,
-  resolvedAssignmentKeys = new Set()
+  resolvedAssignmentKeys = new Set(),
+  planEnergyLevel = "high"
 ) {
   const entries = [];
 
@@ -178,7 +194,7 @@ function buildEligibleEntries(
     const locations = chosenOption?.locations || [];
     const value = forceIncludeSet.has(work.id)
       ? FORCE_INCLUDE_VALUE_BOOST
-      : scoreWork(work, work.intent, now);
+      : scoreWork(work, work.intent, now, planEnergyLevel);
 
     for (const location of locations) {
       if (resolvedAssignmentKeys.has(`${work.id}:${location.id}`)) continue;
@@ -338,6 +354,7 @@ async function buildPlan({
   now = new Date(),
   useAccurateTravelTime = false,
   fetchTravelTimeMatrix,
+  planEnergyLevel = "high",
 }) {
   const budgetMinutes = Math.max(
     0,
@@ -355,7 +372,8 @@ async function buildPlan({
     eligibleWork,
     now,
     includeSet,
-    resolvedAssignmentKeys
+    resolvedAssignmentKeys,
+    planEnergyLevel
   );
   const candidateStops = groupEntriesByLocation(entries);
   const travelTimeMinutesFn = await resolveTravelTimeMinutesFn({
