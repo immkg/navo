@@ -12,7 +12,49 @@ import {
   wrapUpPlan,
 } from "../../api/plans";
 import { planVariations } from "../../api/ai";
+import {
+  createPlanTemplate,
+  deletePlanTemplate,
+  getPlanTemplates,
+} from "../../api/planTemplates";
 import { WORK_QUERY_KEY } from "../work/hooks";
+
+export const PLAN_TEMPLATES_QUERY_KEY = ["planTemplates"];
+
+// Recurring/template plans (#84) — a saved window shape (duration + energy
+// + routing preference) for a day that follows the same pattern every
+// time, so creating a new plan doesn't mean re-entering the same setup.
+export function usePlanTemplates() {
+  return useQuery({
+    queryKey: PLAN_TEMPLATES_QUERY_KEY,
+    queryFn: getPlanTemplates,
+  });
+}
+
+export function useCreatePlanTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createPlanTemplate,
+    onSuccess: (newTemplate) => {
+      queryClient.setQueryData(PLAN_TEMPLATES_QUERY_KEY, (previous = []) => [
+        newTemplate,
+        ...previous,
+      ]);
+    },
+  });
+}
+
+export function useDeletePlanTemplate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (templateId) => deletePlanTemplate(templateId),
+    onSuccess: (_data, templateId) => {
+      queryClient.setQueryData(PLAN_TEMPLATES_QUERY_KEY, (previous) =>
+        previous?.filter((template) => template.id !== templateId)
+      );
+    },
+  });
+}
 
 export const PLANS_QUERY_KEY = ["plans"];
 export const planQueryKey = (id) => ["plan", id];

@@ -10,6 +10,7 @@ async function cleanDatabase() {
   await prisma.context.deleteMany();
   await prisma.work.deleteMany();
   await prisma.intent.deleteMany();
+  await prisma.planTemplate.deleteMany();
 }
 
 module.exports = { cleanDatabase };

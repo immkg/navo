@@ -162,3 +162,19 @@ model PlanStopWork {
 
   @@unique([planStopId, workId])
 }
+
+// A saved shape for a recurring day (#84) — "weekday morning errands", a
+// gym+market loop — so creating a new plan doesn't mean re-entering the
+// same window/energy/routing setup every time. Deliberately holds no
+// start/end coordinates or specific work items: those change day to day,
+// but the window's duration and how it should be planned usually don't.
+model PlanTemplate {
+  id                     String   @id @default(uuid())
+  name                   String
+  durationMinutes        Int
+  energyLevel            String   @default("high") // low, medium, high
+  useAccurateTravelTime  Boolean  @default(false)
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
