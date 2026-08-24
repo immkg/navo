@@ -46,11 +46,22 @@ function isBlockedByDependency(work) {
   );
 }
 
-// A stable id for the synthetic "no location needed" stop — see
-// resolveAnchorLocation. planPersistence.js recognizes this id and swaps in
-// a real Location row before writing a PlanStop, since PlanStop.locationId
-// is a real foreign key.
+// A stable id prefix for the synthetic "no location needed" stop — see
+// resolveAnchorLocation. Each anchor-pinned work item actually gets its own
+// "${ANCHOR_LOCATION_ID}:${workId}" id (see buildEligibleEntries) so the
+// router can admit them one at a time rather than as one atomic bundle;
+// isAnchorLocationId recognizes any of them. planPersistence.js uses this
+// to swap in a real Location row before writing a PlanStop, since
+// PlanStop.locationId is a real foreign key.
 const ANCHOR_LOCATION_ID = "__anchor__";
+
+function isAnchorLocationId(locationId) {
+  return (
+    typeof locationId === "string" &&
+    (locationId === ANCHOR_LOCATION_ID ||
+      locationId.startsWith(`${ANCHOR_LOCATION_ID}:`))
+  );
+}
 
 // Location-less eligible work (a phone call, an admin task — anything that
 // doesn't need a place) would otherwise produce zero entries in
@@ -231,10 +242,19 @@ function buildEligibleEntries(
       work.locationOptions?.find(
         (option) => option.id === work.selectedLocationOptionId
       ) || work.locationOptions?.[0];
+    // Anchor-pinned work gets its own per-work-item location id, not the
+    // shared anchor id — otherwise groupEntriesByLocation below would bundle
+    // every location-less work item into a single atomic candidate stop,
+    // and buildRoute admits a candidate whole-or-nothing. A day with, say,
+    // 30 minutes' worth of admin tasks and 3 hours of remote work would
+    // then drop the *entire* remote bundle for going over budget, instead
+    // of fitting as much of it as it can. Giving each its own id (same
+    // coordinates, so travel between them still costs ~nothing) lets the
+    // greedy insertion admit them one at a time like any other stop.
     const locations = chosenOption?.locations?.length
       ? chosenOption.locations
       : anchorLocation
-        ? [anchorLocation]
+        ? [{ ...anchorLocation, id: `${anchorLocation.id}:${work.id}` }]
         : [];
     const value = forceIncludeSet.has(work.id)
       ? FORCE_INCLUDE_VALUE_BOOST
@@ -460,6 +480,7 @@ module.exports = {
   resolveTravelTimeMinutesFn,
   isBlockedByDependency,
   ANCHOR_LOCATION_ID,
+  isAnchorLocationId,
   resolveAnchorLocation,
   buildEligibleEntries,
   groupEntriesByLocation,

@@ -292,7 +292,28 @@ test("buildEligibleEntries pins a work item with no location options to the anch
 
   assert.equal(withoutAnchor.length, 0);
   assert.equal(withAnchor.length, 1);
-  assert.equal(withAnchor[0].location.id, ANCHOR_LOCATION_ID);
+  // Per-work-item id, not the shared anchor id — see
+  // groupEntriesByLocation bundling below for why.
+  assert.equal(withAnchor[0].location.id, `${ANCHOR_LOCATION_ID}:w1`);
+  assert.equal(withAnchor[0].location.latitude, 0);
+});
+
+test("buildEligibleEntries gives each anchor-pinned work item its own location id, so groupEntriesByLocation doesn't bundle them into one atomic stop", () => {
+  const anchor = { id: ANCHOR_LOCATION_ID, latitude: 0, longitude: 0 };
+  const work1 = makeWork({ id: "w1", locationOptions: [] });
+  const work2 = makeWork({ id: "w2", locationOptions: [] });
+
+  const entries = buildEligibleEntries(
+    [work1, work2],
+    new Date(),
+    new Set(),
+    new Set(),
+    "high",
+    anchor
+  );
+  const stops = groupEntriesByLocation(entries);
+
+  assert.equal(stops.length, 2);
 });
 
 test("groupEntriesByLocation bundles work items that share a location and sums duration/value", () => {
@@ -484,10 +505,36 @@ test("buildPlan schedules location-less work at the start anchor instead of drop
 
   assert.equal(result.unselectedWork.length, 0);
   assert.equal(result.stops.length, 1);
-  assert.equal(result.stops[0].location.id, ANCHOR_LOCATION_ID);
+  assert.equal(result.stops[0].location.id, `${ANCHOR_LOCATION_ID}:remote`);
   assert.equal(result.stops[0].location.latitude, 12);
   assert.equal(result.stops[0].location.longitude, 34);
   assert.equal(result.stops[0].entries[0].work.id, "remote");
+});
+
+test("buildPlan fits as much location-less work as the budget allows, instead of dropping all of it when the combined total doesn't fit", async () => {
+  const now = new Date("2026-08-22T09:00:00Z");
+  // Three remote/no-location work items at 60 min each (180 min total)
+  // against a 90-minute budget: none of them individually is too big, but
+  // the full bundle is. Bundling them as one atomic candidate stop would
+  // drop all three; each should instead be admitted independently.
+  const workItems = ["a", "b", "c"].map((id) =>
+    makeWork({ id, durationMinutes: 60, locationOptions: [] })
+  );
+
+  const result = await buildPlan({
+    workItems,
+    start: { latitude: 12, longitude: 34 },
+    end: { latitude: 12, longitude: 34 },
+    startAt: now,
+    endAt: new Date(now.getTime() + 90 * 60000),
+    now,
+  });
+
+  assert.ok(
+    result.stops.length >= 1,
+    "at least one location-less work item must be scheduled, not all dropped"
+  );
+  assert.ok(result.unselectedWork.length < workItems.length);
 });
 
 test("buildPlan excludes done work and force-excluded work ids from the candidate pool entirely", async () => {

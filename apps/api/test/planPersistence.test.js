@@ -84,6 +84,46 @@ test("rebuildPlanStops persists location-less work at a real anchor Location ins
   assert.equal(persistedLocation.longitude, 34);
 });
 
+test("rebuildPlanStops fits multiple location-less work items into separate stops sharing one reused anchor Location", async () => {
+  const workItems = await Promise.all(
+    ["Call the dentist", "Pay the electricity bill", "Renew car insurance"].map(
+      (title) => prisma.work.create({ data: { title, durationMinutes: 20 } })
+    )
+  );
+  const plan = await prisma.plan.create({
+    data: {
+      startAt: new Date("2026-08-22T09:00:00Z"),
+      startLatitude: 12,
+      startLongitude: 34,
+      endAt: new Date("2026-08-22T10:00:00Z"),
+      endLatitude: 12,
+      endLongitude: 34,
+    },
+  });
+
+  const result = await rebuildPlanStops(prisma, plan.id, {
+    asOfAt: plan.startAt,
+    asOfLocation: { latitude: 12, longitude: 34 },
+  });
+
+  // Each 20-minute item plus the minimum travel padding between separate
+  // anchor stops doesn't quite let all three fit in a 60-minute window —
+  // the point of this test is that more than one gets scheduled at all
+  // (proving they aren't one atomic all-or-nothing bundle), not the exact
+  // count.
+  assert.ok(
+    result.plan.stops.length > 1,
+    "more than one location-less work item should fit, not all-or-nothing"
+  );
+  assert.ok(result.unselectedWork.length < workItems.length);
+  const locationIds = new Set(result.plan.stops.map((stop) => stop.locationId));
+  assert.equal(
+    locationIds.size,
+    1,
+    "every anchor stop in one rebuild should reuse the same real Location row"
+  );
+});
+
 test("rebuildPlanStops still builds stops when useAccurateTravelTime is on but no routing API key is configured (falls back to haversine)", async () => {
   delete process.env.GOOGLE_MAPS_API_KEY;
   const work = await prisma.work.create({
