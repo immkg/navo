@@ -268,4 +268,15 @@ describe("PlansListPage", () => {
     );
     expect(await screen.findByText("Plan detail stub")).toBeInTheDocument();
   });
+
+  it("auto-opens the create form when arriving with ?new=1, with no intent involved", async () => {
+    vi.spyOn(plansApi, "getPlans").mockResolvedValue([]);
+
+    renderPage({ route: "/?new=1" });
+
+    expect(
+      await screen.findByRole("button", { name: "Create plan" })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Including /)).not.toBeInTheDocument();
+  });
 });
