@@ -408,10 +408,15 @@ export function buildGoogleMapsDirectionsUrl(startPoint, stops) {
     return "https://www.google.com/maps";
   }
 
-  const origin =
-    startPoint?.latitude != null && startPoint?.longitude != null
-      ? `${startPoint.latitude},${startPoint.longitude}`
-      : encodeURIComponent(stops[0].location.name || "");
+  // Without real coordinates, falling back to the first stop's own name as
+  // the origin made a single-stop leg's link point from that place to
+  // itself. Omitting origin instead lets Google Maps default to the
+  // viewer's current location.
+  const hasStartCoords =
+    startPoint?.latitude != null && startPoint?.longitude != null;
+  const origin = hasStartCoords
+    ? `${startPoint.latitude},${startPoint.longitude}`
+    : null;
 
   const destination =
     stops[stops.length - 1].location.latitude != null &&
@@ -428,5 +433,6 @@ export function buildGoogleMapsDirectionsUrl(startPoint, stops) {
     )
     .join("%7C");
 
-  return `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ""}`;
+  const originParam = origin ? `&origin=${origin}` : "";
+  return `https://www.google.com/maps/dir/?api=1${originParam}&destination=${destination}${waypoints ? `&waypoints=${waypoints}` : ""}`;
 }
