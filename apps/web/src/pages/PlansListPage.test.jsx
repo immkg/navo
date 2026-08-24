@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/renderWithProviders";
 import * as plansApi from "../api/plans";
 import * as workApi from "../api/work";
+import * as intentsApi from "../api/intents";
 import PlansListPage from "./PlansListPage";
 
 function renderPage({ route = "/" } = {}) {
@@ -230,6 +231,10 @@ describe("PlansListPage", () => {
       { id: "work-2", intentId: "intent-1", status: "done" },
       { id: "work-3", intentId: "intent-2", status: "todo" },
     ]);
+    vi.spyOn(intentsApi, "getIntent").mockResolvedValue({
+      id: "intent-1",
+      title: "Plan the trip",
+    });
     vi.spyOn(plansApi, "createPlan").mockResolvedValue({
       id: "plan-new",
       stops: [],
@@ -240,6 +245,10 @@ describe("PlansListPage", () => {
     });
 
     renderPage({ route: "/?intentId=intent-1" });
+
+    expect(
+      await screen.findByText('Including 1 work item from "Plan the trip".')
+    ).toBeInTheDocument();
 
     const summaries = await screen.findAllByText("Enter coordinates manually");
     summaries.forEach((summary) => fireEvent.click(summary));
