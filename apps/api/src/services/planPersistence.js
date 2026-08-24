@@ -21,6 +21,9 @@ function loadEligibleWork(client) {
     include: {
       intent: true,
       locationOptions: { include: { locations: true } },
+      // buildPlan checks this to exclude work whose prerequisite isn't
+      // done yet — a work item is a network, not a list.
+      dependsOn: { include: { dependsOn: true } },
     },
   });
 }

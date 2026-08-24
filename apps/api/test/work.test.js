@@ -645,3 +645,19 @@ test("GET /api/work/recommended respects a limit query param and defaults to a r
   const defaulted = await request(app).get("/api/work/recommended");
   assert.ok(defaulted.body.length <= 10);
 });
+
+test("GET /api/work/recommended excludes work blocked by an unresolved dependency", async () => {
+  const prereq = await prisma.work.create({ data: { title: "Prereq" } });
+  const blocked = await prisma.work.create({
+    data: { title: "Blocked", priority: "high" },
+  });
+  await request(app)
+    .post(`/api/work/${blocked.id}/dependency`)
+    .send({ dependsOnId: prereq.id });
+
+  const response = await request(app).get("/api/work/recommended");
+
+  const ids = response.body.map((work) => work.id);
+  assert.ok(!ids.includes(blocked.id));
+  assert.ok(ids.includes(prereq.id));
+});
